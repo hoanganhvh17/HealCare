@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng ký tài khoản</title>
+    <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="card p-4 shadow-lg col-md-6 mx-auto">
+        <h3 class="text-center mb-4">Đăng ký tài khoản</h3>
+        <form th:action="@{/register}" th:object="${user}" method="post">
+            <input type="text" th:field="*{username}" class="form-control mb-3" placeholder="Tên đăng nhập" required>
+            <input type="email" th:field="*{email}" class="form-control mb-3" placeholder="Email" required>
+            <input type="password" th:field="*{password}" class="form-control mb-3" placeholder="Mật khẩu" required>
+            <input type="text" th:field="*{fullName}" class="form-control mb-3" placeholder="Họ và tên">
+            <input type="text" th:field="*{phone}" class="form-control mb-3" placeholder="Số điện thoại">
+            <button class="btn btn-primary w-100">Đăng ký</button>
+        </form>
+        <p class="text-center mt-3">Đã có tài khoản? <a th:href="@{/login}">Đăng nhập</a></p>
+        <p th:if="${error}" class="text-danger text-center mt-2" th:text="${error}"></p>
+        <p th:if="${success}" class="text-success text-center mt-2" th:text="${success}"></p>
+    </div>
+</div>
+</body>
+</html>

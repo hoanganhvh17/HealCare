@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Đăng ký Lịch & Giờ Bận')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Quản lý Lịch làm việc</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Lịch trực & Giờ bận</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div class="card p-3 mb-4 border-primary border-3">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <form th:action="@{/doctor/schedule-register}" method="get" id="dateForm">
+            <label class="form-label fw-bold text-primary small mb-1">
+              <i class="bi bi-calendar-day me-1"></i> Quản lý lịch ngày:
+            </label>
+            <input type="date"
+                   id="selectedDate"
+                   name="selectedDate"
+                   class="form-control form-control-lg"
+                   th:value="${selectedDate}"
+                   onchange="document.getElementById('dateForm').submit()"
+                   required>
+          </form>
+        </div>
+        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+          <h3 class="fw-bold mb-0">
+            <span th:text="${#temporals.format(selectedDate, 'dd/MM/yyyy')}">20/11/2025</span>
+            <small class="text-secondary" th:text="' - ' + ${dayOfWeek}"></small>
+          </h3>
+          <p class="small text-muted mb-0">Giờ bận bạn đăng ký sẽ áp dụng cho ngày này.</p>
+        </div>
+      </div>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="row">
+
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">1. Đăng ký Lịch TRỰC ĐỊNH KỲ</h5>
+            <p class="small text-muted">Lịch này sẽ lặp lại vào mỗi tuần cho ngày bạn chọn.</p>
+
+            <form th:action="@{/doctor/schedule/create}" method="post">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Chọn Thứ</label>
+                <select name="dayOfWeek" class="form-select" required>
+                  <option value="" disabled selected>-- Chọn ngày trong tuần --</option>
+                  <option value="MONDAY">Thứ 2</option>
+                  <option value="TUESDAY">Thứ 3</option>
+                  <option value="WEDNESDAY">Thứ 4</option>
+                  <option value="THURSDAY">Thứ 5</option>
+                  <option value="FRIDAY">Thứ 6</option>
+                  <option value="SATURDAY">Thứ 7</option>
+                  <option value="SUNDAY">Chủ nhật</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Chọn Ca trực</label>
+                <div class="list-group">
+                  <label class="list-group-item">
+                    <input class="form-check-input me-1" type="radio" name="session" value="Sang" checked>
+                    <strong>Ca Sáng</strong> (07:30 - 11:30)
+                  </label>
+                  <label class="list-group-item">
+                    <input class="form-check-input me-1" type="radio" name="session" value="Chieu">
+                    <strong>Ca Chiều</strong> (13:30 - 17:30)
+                  </label>
+                  <label class="list-group-item">
+                    <input class="form-check-input me-1" type="radio" name="session" value="Toi">
+                    <strong>Ca Tối</strong> (17:30 - 20:30)
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-plus-circle"></i> Đăng ký Lịch
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Lịch trực ĐỊNH KỲ</h5>
+            <table class="table table-striped small">
+              <thead>
+              <tr>
+                <th>Thứ</th>
+                <th>Giờ</th>
+                <th class="text-center">Xóa</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="s : ${mySchedules}">
+                <td>
+                  <span th:text="${#conversions.convert(s.dayOfWeek.name(), 'java.lang.String').replace('MONDAY', 'Thứ 2').replace('TUESDAY', 'Thứ 3').replace('WEDNESDAY', 'Thứ 4').replace('THURSDAY', 'Thứ 5').replace('FRIDAY', 'Thứ 6').replace('SATURDAY', 'Thứ 7').replace('SUNDAY', 'Chủ nhật')}"></span>
+                </td>
+                <td th:text="${s.startTime} + ' - ' + ${s.endTime}">07:30 - 11:30</td>
+                <td class="text-center">
+                  <a th:href="@{/doctor/schedule/delete/{id}(id=${s.id})}"
+                     class="btn btn-danger btn-sm"
+                     onclick="return confirm('Xóa lịch định kỳ này có thể ảnh hưởng đến lịch khám của bệnh nhân trong tương lai. Bạn có chắc chắn?')">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                </td>
+              </tr>
+              <tr th:if="${mySchedules.isEmpty()}">
+                <td colspan="3" class="text-center text-muted py-3">
+                  Chưa có lịch trực định kỳ nào.
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">2. Đăng ký GIỜ BẬN ĐỘT XUẤT</h5>
+            <p class="small text-muted">Giờ bận sẽ **ghi đè** lên lịch trực định kỳ trong ngày này.</p>
+
+            <form th:action="@{/doctor/schedule/block}" method="post">
+              <input type="hidden" name="blockDate" th:value="${selectedDate}"> <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Giờ Bắt đầu</label>
+                <input type="time" name="startTime" step="1800" class="form-control" required>
+                <div class="form-text">Chọn theo khung 30 phút.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Giờ Kết thúc</label>
+                <input type="time" name="endTime" step="1800" class="form-control" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold">Lý do</label>
+                <input type="text" name="reason" class="form-control" placeholder="Ví dụ: Họp khẩn, Bận đột xuất..." required>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-danger w-100">
+                  <i class="bi bi-slash-circle me-1"></i> Chặn Khung giờ
+                </button>
+              </div>
+            </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Giờ Bận Đột Xuất (<span th:text="${#temporals.format(selectedDate, 'dd/MM/yyyy')}"></span>)</h5>
+            <table class="table table-striped small">
+              <thead>
+              <tr>
+                <th>Giờ Bắt đầu</th>
+                <th>Giờ Kết thúc</th>
+                <th>Lý do</th>
+                <th class="text-center">Gỡ chặn</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="block : ${myBlockTimes}">
+                <td th:text="${block.startTime}">10:00</td>
+                <td th:text="${block.endTime}">11:30</td>
+                <td th:text="${block.reason}">Họp khẩn</td>
+                <td class="text-center">
+                  <a th:href="@{/doctor/schedule/unblock/{id}(id=${block.id}, date=${selectedDate})}"
+                     class="btn btn-success btn-sm"
+                     onclick="return confirm('Bạn có chắc muốn gỡ chặn khung giờ này? Nó sẽ lập tức hiển thị cho bệnh nhân đặt.')">
+                    <i class="bi bi-unlock"></i>
+                  </a>
+                </td>
+              </tr>
+              <tr th:if="${myBlockTimes == null or myBlockTimes.isEmpty()}">
+                <td colspan="4" class="text-center text-muted py-3">
+                  Ngày này không có khung giờ bận đột xuất nào.
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Tự động set min date là hôm nay cho Date Picker (để tránh chọn quá khứ)
+      const dateInput = document.getElementById('selectedDate');
+      const d = new Date();
+      const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      dateInput.setAttribute('min', today);
+
+      // Nếu trang vừa load mà chưa có ngày nào được chọn (selectedDate), tự động chọn ngày hôm nay
+      if (!dateInput.value) {
+          dateInput.value = today;
+          document.getElementById('dateForm').submit();
+      }
+  });
+</script>
+</body>
+</html>

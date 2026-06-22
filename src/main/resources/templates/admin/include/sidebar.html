@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside id="sidebar" class="sidebar" th:fragment="sidebar">
+    <ul class="sidebar-nav" id="sidebar-nav">
+
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/dashboard}">
+                <i class="bi bi-grid"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+
+        <li class="nav-heading">Management</li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/departments}">
+                <i class="bi bi-building"></i>
+                <span>Quản lý Khoa</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/manage-doctor}">
+                <i class="bi bi-person-badge"></i>
+                <span>Quản lý bác sĩ</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/manage-user}">
+                <i class="bi bi-people"></i>
+                <span>Quản lý bệnh nhân</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/medical-records}">
+                <i class="bi bi-journal-medical"></i>
+                <span>Bệnh án điện tử</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/manage-booking}">
+                <i class="bi bi-calendar-check"></i>
+                <span>Lịch khám bệnh</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/manage-service}">
+                <i class="bi bi-journal-medical"></i>
+                <span>Quản lý dịch vụ</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/manage-news}">
+                <i class="bi bi-newspaper"></i> <span>Quản lý Tin tức</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/recruitment}">
+                <i class="bi bi-briefcase"></i> <span>Quản lý Tuyển dụng</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/admin/candidates}">
+                <i class="bi bi-person-lines-fill"></i>
+                <span>Danh sách Ứng viên</span>
+            </a>
+        </li>
+        <li class="nav-heading">Cá nhân</li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/profile}">
+                <i class="bi bi-person"></i>
+                <span>Hồ sơ cá nhân</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/logout}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Đăng xuất</span>
+            </a>
+        </li>
+    </ul>
+</aside>
+</body>
+</html>

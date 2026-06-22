@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<footer th:fragment="footer" class="custom-footer">
+
+    <style>
+        /* CSS Tùy chỉnh cho Footer - Thêm !important để chống xung đột Bootstrap */
+        .custom-footer {
+            background-color: #e8f0fe !important; /* Đảm bảo nhận màu nền xanh nhạt */
+            padding: 60px 0 30px;
+            color: #1f2937;
+            font-family: 'Inter', sans-serif;
+            border-top: 1px solid #d1d5db; /* Đường viền nhẹ bên trên */
+        }
+        .custom-footer .footer-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0b7a65;
+            margin-bottom: 16px;
+        }
+        .custom-footer p {
+            color: #4b5563;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+        .custom-footer h5 {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        /* Ép bỏ dấu chấm tròn (bullet) của ul/li */
+        .custom-footer ul {
+            list-style: none !important;
+            padding-left: 0 !important;
+            margin: 0;
+        }
+        .custom-footer ul li {
+            margin-bottom: 12px;
+        }
+
+        /* Ép màu link và bỏ gạch chân */
+        .custom-footer ul li a {
+            color: #4b5563 !important;
+            text-decoration: none !important;
+            font-size: 0.95rem;
+            transition: color 0.3s;
+        }
+        .custom-footer ul li a:hover {
+            color: #0b7a65 !important;
+        }
+
+        /* Phần Copyright */
+        .custom-footer .footer-bottom {
+            margin-top: 40px;
+            padding-top: 20px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            border-top: 1px solid rgba(0, 0, 0, 0.05); /* Đường kẻ mờ phân cách */
+        }
+    </style>
+
+    <div class="container">
+        <div class="row gy-4">
+
+            <div class="col-lg-4 col-md-6 pe-lg-4">
+                <div class="footer-brand">HealCare</div>
+                <p>Chăm sóc sức khỏe toàn diện, tận tâm và chuyên nghiệp cho mọi lứa tuổi.</p>
+                <div class="footer-bottom mt-4">
+                    © 2024 HealCare Family Care. All rights reserved.
+                </div>
+            </div>
+
+            <div class="col-lg-2 col-md-6">
+                <h5>Thông tin</h5>
+                <ul>
+                    <li><a th:href="@{/privacy}">Privacy Policy</a></li>
+                    <li><a th:href="@{/terms}">Terms of Service</a></li>
+                </ul>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <h5>Bệnh nhân</h5>
+                <ul>
+                    <li><a href="#">Patient Rights</a></li>
+                    <li><a href="#">Hướng dẫn đặt lịch</a></li>
+                </ul>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <h5>HealCare</h5>
+                <ul>
+                    <li><a th:href="@{/about}">Về chúng tôi</a></li>
+                    <li><a href="#">Careers</a></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</footer>
+
+</html>

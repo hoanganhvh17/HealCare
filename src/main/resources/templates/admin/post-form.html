@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1 th:text="${pageTitle}">Bài viết</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a th:href="@{/admin/manage-news}">Tin tức</a></li>
+        <li class="breadcrumb-item active" th:text="${pageTitle}"></li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+      <div class="col-lg-10">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Nội dung bài viết</h5>
+
+            <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+            <form th:action="@{/admin/manage-news/save}" th:object="${post}" method="post" enctype="multipart/form-data">
+              <input type="hidden" th:field="*{id}" />
+              <input type="hidden" th:field="*{image}" />
+              <div class="mb-3">
+              <label class="form-label fw-bold">Tiêu đề bài viết</label>
+              <input type="text" th:field="*{title}" class="form-control" required>
+              <div class="form-text text-primary"><i class="bi bi-info-circle"></i> Nếu là tin y tế khẩn cấp, vui lòng thêm tiền tố <strong>[Cảnh báo y tế]</strong> vào đầu tiêu đề để hệ thống tự động thông báo cho người dùng.</div>
+            </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">Chuyên mục <span class="text-danger">*</span></label>
+                <select th:field="*{category}" class="form-select" required>
+                  <option value="">-- Chọn chuyên mục --</option>
+                  <option value="NEWS">Hoạt động & Sự kiện</option>
+                  <option value="KNOWLEDGE">Y học thường thức</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Ảnh đại diện</label>
+                <input type="file" name="imageFile" class="form-control" accept="image/*">
+                <div class="mt-2" th:if="${post.image != null}">
+                  <img th:src="@{'/uploads/' + ${post.image}}" style="height: 100px; border-radius: 5px;">
+                  <small class="d-block text-muted">Ảnh hiện tại</small>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Tóm tắt (Hiển thị ở danh sách)</label>
+                <textarea th:field="*{summary}" class="form-control" rows="3" maxlength="500" required></textarea>
+                <div class="form-text">Tối đa 500 ký tự.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Nội dung chi tiết</label>
+                <textarea th:field="*{content}" class="form-control tinymce-editor" rows="15"></textarea>
+              </div>
+
+              <div class="text-center">
+                <button type="submit" class="btn btn-primary px-4">
+                  <i class="bi bi-save"></i>
+                  <span th:text="${post.id == null ? 'Đăng bài' : 'Cập nhật'}">Lưu</span>
+                </button>
+                <a th:href="@{/admin/manage-news}" class="btn btn-secondary px-4">Hủy</a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

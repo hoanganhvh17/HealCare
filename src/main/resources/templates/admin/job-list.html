@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Tuyển dụng')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Tuyển dụng</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Tuyển dụng</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Danh sách Vị trí tuyển dụng</h5>
+
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+              <span th:text="${successMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+              <span th:text="${errorMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <a th:href="@{/admin/recruitment/add}" class="btn btn-primary mb-3">
+              <i class="bi bi-plus-circle"></i> Đăng tin mới
+            </a>
+
+            <table class="table datatable">
+              <thead>
+              <tr>
+                <th>ID</th>
+                <th>Vị trí</th>
+                <th>Số lượng</th>
+                <th>Mức lương</th>
+                <th>Trạng thái</th>
+                <th>Ngày đăng</th>
+                <th>Hành động</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="job : ${jobs}">
+                <td th:text="${job.id}">1</td>
+                <td th:text="${job.title}" class="fw-bold">Bác sĩ Nội trú</td>
+                <td th:text="${job.quantity}">5</td>
+                <td th:text="${job.salary}">Thỏa thuận</td>
+                <td>
+                  <a th:href="@{/admin/recruitment/toggle/{id}(id=${job.id})}"
+                     class="badge text-decoration-none"
+                     th:classappend="${job.active ? 'bg-success' : 'bg-secondary'}"
+                     th:text="${job.active ? 'Đang tuyển' : 'Đã đóng'}"
+                     title="Nhấn để thay đổi trạng thái">
+                  </a>
+                </td>
+                <td th:text="${#temporals.format(job.createdAt, 'dd/MM/yyyy')}">01/01/2024</td>
+                <td>
+                  <a th:href="@{/admin/recruitment/edit/{id}(id=${job.id})}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
+                  <a th:href="@{/admin/recruitment/delete/{id}(id=${job.id})}" class="btn btn-danger btn-sm" onclick="return confirm('Xóa tin tuyển dụng này?')"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

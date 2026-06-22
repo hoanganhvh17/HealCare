@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Ứng viên')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Danh sách Ứng viên</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a th:href="@{/admin/recruitment}">Tuyển dụng</a></li>
+        <li class="breadcrumb-item active">Ứng viên</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Hồ sơ ứng tuyển</h5>
+
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+              <span th:text="${successMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+              <span th:text="${errorMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <table class="table datatable">
+              <thead>
+              <tr>
+                <th>ID</th>
+                <th>Họ tên / Liên hệ</th>
+                <th>Vị trí ứng tuyển</th>
+                <th>Ngày nộp</th>
+                <th>CV</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="c : ${candidates}">
+                <td th:text="${c.id}">1</td>
+                <td>
+                  <strong th:text="${c.fullName}">Nguyen Van A</strong><br>
+                  <small class="text-muted" th:text="${c.email}">email@example.com</small><br>
+                  <small class="text-muted" th:text="${c.phone}">0912...</small>
+                </td>
+                <td>
+                  <span class="badge bg-info text-dark" th:text="${c.jobPosting.title}">Bác sĩ</span>
+                </td>
+                <td th:text="${#temporals.format(c.submittedAt, 'dd/MM/yyyy HH:mm')}"></td>
+                <td>
+                  <a th:href="@{'/uploads/cv/' + ${c.cvFile}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-download"></i> Xem CV
+                  </a>
+                </td>
+                <td>
+                  <span th:if="${c.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ duyệt</span>
+                  <span th:if="${c.status.name() == 'APPROVED'}" class="badge bg-success">Đã duyệt</span>
+                  <span th:if="${c.status.name() == 'REJECTED'}" class="badge bg-danger">Từ chối</span>
+                </td>
+                <td>
+                  <div th:if="${c.status.name() == 'PENDING'}">
+                    <a th:href="@{/admin/candidates/approve/{id}(id=${c.id})}" class="btn btn-success btn-sm" title="Duyệt & Mời PV" onclick="return confirm('Duyệt hồ sơ này và gửi mail mời phỏng vấn?')">
+                      <i class="bi bi-check-lg"></i>
+                    </a>
+                    <a th:href="@{/admin/candidates/reject/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Từ chối" onclick="return confirm('Từ chối hồ sơ này?')">
+                      <i class="bi bi-x-lg"></i>
+                    </a>
+                  </div>
+                  <a th:href="@{/admin/candidates/delete/{id}(id=${c.id})}" class="btn btn-danger btn-sm mt-1" title="Xóa" onclick="return confirm('Xóa vĩnh viễn hồ sơ này?')">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

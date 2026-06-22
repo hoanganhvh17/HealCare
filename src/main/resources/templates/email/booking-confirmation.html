@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #0d6efd; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .info-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #666; width: 40%; }
+        .qr-section { text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>XÁC NHẬN ĐẶT LỊCH THÀNH CÔNG</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${patientName}"></strong>,</p>
+        <p>Cảm ơn bạn đã tin tưởng sử dụng dịch vụ tại <strong>MediTrust</strong>. Lịch hẹn của bạn đã được xác nhận thành công.</p>
+
+        <table class="info-table">
+            <tr><td class="label">Mã lịch hẹn:</td><td th:text="'#' + ${bookingId}"></td></tr>
+            <tr><td class="label">Bác sĩ:</td><td th:text="${doctorName}"></td></tr>
+            <tr><td class="label">Chuyên khoa:</td><td th:text="${departmentName}"></td></tr>
+            <tr><td class="label">Thời gian:</td><td th:text="${time} + ' - ' + ${date}"></td></tr>
+            <tr><td class="label">Hình thức:</td><td th:text="${type}"></td></tr>
+            <tr><td class="label">Phí khám:</td><td style="color: #d63384; font-weight: bold;" th:text="${price} + ' VNĐ'"></td></tr>
+        </table>
+
+        <div class="qr-section">
+            <p style="margin-bottom: 10px; font-weight: bold;">Mã QR Check-in của bạn:</p>
+            <img src="cid:qrCodeImage" width="200" height="200" alt="QR Code">
+            <p style="font-size: 24px; color: #666; margin-top: 10px;">Vui lòng đưa mã này cho lễ tân khi đến phòng khám.</p>
+        </div>
+    </div>
+    <div class="footer">
+        © 2026 MediTrust International Hospital. All rights reserved.<br>
+        Hotline: 0985 123 888 | Địa chỉ: Bắc Từ Liêm, Hà Nội.
+    </div>
+</div>
+</body>
+</html>

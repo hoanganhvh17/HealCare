@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Các Chuyên Khoa - HealCare</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f8fafc;
+      color: #334155;
+    }
+
+    .page-title-section {
+      padding-top: 120px !important;
+    }
+
+    .text-primary-teal {
+      color: #0d7b6a !important;
+    }
+
+    .bg-primary-teal {
+      background-color: #0d7b6a !important;
+    }
+
+    .btn-primary-teal {
+      background-color: #0d7b6a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .btn-primary-teal:hover {
+      background-color: #0a5f52;
+      color: white;
+    }
+
+    .btn-outline-gray {
+      background-color: transparent;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .btn-outline-gray:hover {
+      background-color: #f1f5f9;
+    }
+
+    /* Hero Title */
+    .page-title-section {
+      text-align: center;
+      padding: 3rem 0 2rem;
+    }
+
+    .page-title-section h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .page-title-section p {
+      color: #64748b;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Main Feature Card (Left) */
+    .feature-card-left {
+      background: linear-gradient(135deg, #e6f4f1 0%, #f1f8f9 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      height: 100%;
+    }
+
+    .icon-box-dark {
+      background-color: #0d7b6a;
+      color: white;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .pill-tag {
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      padding: 0.4rem 1rem;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      background: white;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      display: inline-block;
+    }
+
+    /* Symptom Card (Right) */
+    .symptom-card-right {
+      background-color: #60a5fa;
+      border-radius: 20px;
+      padding: 2.5rem;
+      height: 100%;
+      color: white;
+    }
+
+    .symptom-card-right h3 {
+      color: #1e3a8a;
+      font-weight: 700;
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .symptom-card-right p.subtitle {
+      color: #1e3a8a;
+      opacity: 0.8;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .symptom-item {
+      background-color: white;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      color: #334155;
+    }
+
+    .symptom-item i {
+      color: #64748b;
+      font-size: 1.2rem;
+      margin-top: 0.2rem;
+    }
+
+    .symptom-item h6 {
+      margin: 0 0 0.2rem 0;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .symptom-item p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    /* Specialty Grid */
+    .specialty-search-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      margin-top: 3rem;
+    }
+
+    .specialty-search-wrapper h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    .search-box {
+      position: relative;
+      width: 300px;
+    }
+
+    .search-box input {
+      border-radius: 50px;
+      padding-left: 2.5rem;
+      border: 1px solid #cbd5e1;
+      box-shadow: none;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+    }
+
+    .specialty-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      border: none;
+      transition: all 0.3s ease;
+      height: 100%;
+    }
+
+    .specialty-card:hover {
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      transform: translateY(-5px);
+    }
+
+    .icon-box-light {
+      background-color: #e0f2fe;
+      color: #0284c7;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .specialty-card h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: #1e293b;
+    }
+
+    .specialty-card p {
+      color: #64748b;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    .link-teal {
+      color: #0d7b6a;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .link-teal:hover {
+      color: #0a5f52;
+    }
+
+    /* Footer overrides for match */
+    .footer-custom {
+      background-color: #e2e8f0;
+      padding: 3rem 0;
+      margin-top: 4rem;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main container py-4">
+
+  <!-- Title Section -->
+  <div class="page-title-section">
+    <h1 class="text-primary-teal">Các Chuyên Khoa Y Tế</h1>
+    <p>Đội ngũ chuyên gia y tế hàng đầu tại HealCare luôn sẵn sàng mang đến dịch vụ chăm sóc sức khỏe toàn diện và chuyên sâu cho bạn và gia đình.</p>
+  </div>
+
+  <!-- Highlight Section -->
+  <div class="row g-4">
+    <!-- Left Card -->
+    <div class="col-lg-8">
+      <div class="feature-card-left">
+        <div class="icon-box-dark">
+          <i class="fas fa-stethoscope"></i>
+        </div>
+        <h2 class="fw-bold mb-3">Nội tổng quát (General Internal Medicine)</h2>
+        <p class="text-muted mb-4">Khám, chẩn đoán và điều trị không phẫu thuật các bệnh lý nội khoa cho người lớn. Tư vấn phòng ngừa, tầm soát bệnh lý và kiểm tra sức khỏe định kỳ toàn diện.</p>
+
+        <div class="mb-5">
+          <span class="pill-tag">Khám định kỳ</span>
+          <span class="pill-tag">Tầm soát bệnh lý</span>
+          <span class="pill-tag">Tư vấn sức khỏe</span>
+        </div>
+
+        <div class="d-flex gap-3 mt-auto">
+          <button class="btn btn-primary-teal">Xem Bác Sĩ Nội Khoa</button>
+          <button class="btn btn-outline-gray">Tìm hiểu thêm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Card -->
+    <div class="col-lg-4">
+      <div class="symptom-card-right">
+        <h3>Dấu hiệu cần khám Nội</h3>
+        <p class="subtitle">Tra cứu triệu chứng để đặt lịch đúng chuyên khoa.</p>
+
+        <div class="symptom-item">
+          <i class="fas fa-thermometer-half"></i>
+          <div>
+            <h6>Sốt, mệt mỏi kéo dài</h6>
+            <p>Cơ thể mệt mỏi suy nhược, sốt không rõ nguyên nhân.</p>
+          </div>
+        </div>
+
+        <div class="symptom-item">
+          <i class="bi bi-activity"></i>
+          <div>
+            <h6>Huyết áp bất thường</h6>
+            <p>Tăng hoặc giảm huyết áp, nhịp tim không đều.</p>
+          </div>
+        </div>
+
+        <div class="symptom-item">
+          <i class="fas fa-lungs"></i>
+          <div>
+            <h6>Rối loạn tiêu hóa</h6>
+            <p>Đau bụng, buồn nôn, thay đổi thói quen đại tiện.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Specialty Grid Section -->
+  <div class="specialty-search-wrapper">
+    <h2>Các Chuyên Khoa Khác</h2>
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" class="form-control" placeholder="Tìm chuyên khoa...">
+    </div>
+  </div>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    <!-- Card 1 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="fas fa-notes-medical"></i>
+        </div>
+        <h4>Nội Tổng Quát (General Internal Medicine)</h4>
+        <p>Khám và điều trị các bệnh lý nội khoa cơ bản, đánh giá sức khỏe tổng quát định kỳ.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="bi bi-heart"></i>
+        </div>
+        <h4>Tim Mạch (Cardiology)</h4>
+        <p>Chẩn đoán và điều trị các bệnh lý về tim, mạch máu, huyết áp. Hệ thống máy móc hiện đại đo điện tâm đồ, siêu âm tim.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="bi bi-person-circle"></i>
+        </div>
+        <h4>Da Liễu (Dermatology)</h4>
+        <p>Điều trị các vấn đề về da, tóc, móng. Ứng dụng công nghệ laser và ánh sáng trong thẩm mỹ nội khoa và bệnh lý da.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="fas fa-brain"></i>
+        </div>
+        <h4>Thần Kinh (Neurology)</h4>
+        <p>Chuyên sâu về các bệnh lý não, tủy sống, dây thần kinh và cơ. Điều trị đau đầu, mất ngủ, rối loạn tiền đình.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="fas fa-child"></i>
+        </div>
+        <h4>Cơ Xương Khớp (Orthopedics)</h4>
+        <p>Khám và điều trị chấn thương thể thao, thoái hóa khớp, loãng xương và phục hồi chức năng vận động.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="bi bi-eye"></i>
+        </div>
+        <h4>Nhãn Khoa (Ophthalmology)</h4>
+        <p>Chăm sóc thị lực toàn diện, đo khúc xạ, tầm soát các bệnh lý đáy mắt và phẫu thuật đục thủy tinh thể.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 7 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="bi bi-ear"></i>
+        </div>
+        <h4>Tai Mũi Họng (ENT)</h4>
+        <p>Nội soi chẩn đoán chính xác các bệnh lý vùng tai, mũi, họng. Điều trị viêm xoang, viêm amidan, suy giảm thính lực.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- Card 8 -->
+    <div class="col">
+      <div class="specialty-card">
+        <div class="icon-box-light">
+          <i class="fas fa-female"></i>
+        </div>
+        <h4>Sản Phụ Khoa (Obstetrics & Gynecology)</h4>
+        <p>Chăm sóc sức khỏe sinh sản, thai kỳ, khám và điều trị các bệnh lý phụ khoa.</p>
+        <a href="#" class="link-teal">Xem Bác Sĩ <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div th:replace="~{user/include/footer :: footer}"></div>
+
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

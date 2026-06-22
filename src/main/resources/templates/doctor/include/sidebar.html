@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside id="sidebar" class="sidebar" th:fragment="sidebar">
+  <ul class="sidebar-nav" id="sidebar-nav">
+
+    <li class="nav-item">
+      <a class="nav-link" th:href="@{/doctor/dashboard}"
+         th:classappend="${activePage == 'dashboard' ? '' : 'collapsed'}">
+        <i class="bi bi-grid"></i>
+        <span>Tổng quan (Dashboard)</span>
+      </a>
+    </li>
+
+    <li class="nav-heading">Công việc</li>
+
+    <li class="nav-item">
+      <a class="nav-link collapsed" th:href="@{/doctor/examinations}"
+         th:classappend="${activePage == 'examinations' ? 'active' : ''}">
+        <i class="bi bi-clipboard2-pulse"></i>
+        <span>Lịch khám bệnh</span>
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link collapsed" th:href="@{/doctor/manage-bookings}"
+         th:classappend="${activePage == 'manage-bookings' ? 'active' : ''}">
+        <i class="bi bi-table"></i>
+        <span>Quản lý Tất cả Lịch</span>
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link collapsed" th:href="@{/doctor/schedule-register}"
+         th:classappend="${activePage == 'schedule' ? 'active' : ''}">
+        <i class="bi bi-calendar-check"></i>
+        <span>Đăng ký Lịch trực</span>
+      </a>
+    </li>
+
+    <li class="nav-heading">Cá nhân</li>
+
+    <li class="nav-item">
+      <a class="nav-link collapsed" th:href="@{/profile}">
+        <i class="bi bi-person"></i>
+        <span>Hồ sơ cá nhân</span>
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link collapsed" th:href="@{/logout}">
+        <i class="bi bi-box-arrow-right"></i>
+        <span>Đăng xuất</span>
+      </a>
+    </li>
+
+  </ul>
+</aside>
+</body>
+</html>

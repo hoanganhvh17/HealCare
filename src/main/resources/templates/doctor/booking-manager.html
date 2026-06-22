@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Lịch khám')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Quản lý Tất cả Lịch hẹn</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Quản lý lịch</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Danh sách Lịch hẹn</h5>
+
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+              <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <table class="table datatable">
+              <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Bệnh nhân</th>
+                <th scope="col">Ngày hẹn</th>
+                <th scope="col">Giờ</th>
+                <th scope="col">Ghi chú</th>
+                <th scope="col">Trạng thái</th>
+                <th scope="col">Hành động</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="booking : ${listBookings}">
+                <th scope="row" th:text="'#' + ${booking.id}">#1</th>
+                <td>
+                  <span class="fw-bold" th:text="${booking.patientName != null ? booking.patientName : booking.user.fullName}">Patient Name</span><br>
+                  <small class="text-muted" th:text="${booking.patientPhone != null ? booking.patientPhone : booking.user.phone}">09xxx</small>
+                  <i th:if="${booking.patientName != null && booking.patientName != booking.user.fullName}"
+                     class="bi bi-info-circle text-primary"
+                     th:title="'Đặt bởi tài khoản: ' + ${booking.user.fullName}"></i>
+                </td>
+                <td th:text="${#temporals.format(booking.appointmentDate, 'dd-MM-yyyy')}">10-11-2025</td>
+                <td><span class="badge bg-light text-dark border" th:text="${booking.appointmentTime}">08:00</span></td>
+                <td th:text="${#strings.abbreviate(booking.notes, 30)}">Notes...</td>
+                <td>
+                  <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark"><i class="bi bi-hourglass"></i> Chờ xác nhận</span>
+                  <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-primary"><i class="bi bi-check2"></i> Đã xác nhận</span>
+                  <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger"><i class="bi bi-x-circle"></i> Đã hủy</span>
+                  <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-success"><i class="bi bi-clipboard-check"></i> Đã khám</span>
+                </td>
+                <td>
+                  <div th:if="${booking.status.name() == 'PENDING'}" class="d-flex gap-1">
+                    <a th:href="@{/doctor/bookings/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận" onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
+                      <i class="bi bi-check-lg"></i>
+                    </a>
+                    <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Từ chối" onclick="return confirm('Bạn có chắc muốn hủy lịch này?')">
+                      <i class="bi bi-x-lg"></i>
+                    </a>
+                  </div>
+
+                  <div th:if="${booking.status.name() == 'CONFIRMED'}" class="d-flex gap-1">
+
+                    <a th:if="${booking.appointmentDate.isEqual(#temporals.createToday())}"
+                       th:href="@{/doctor/medical-record/create/{id}(id=${booking.id})}"
+                       class="btn btn-outline-primary btn-sm"
+                       title="Thực hiện khám">
+                      <i class="bi bi-stethoscope"></i> Khám
+                    </a>
+
+                    <button th:unless="${booking.appointmentDate.isEqual(#temporals.createToday())}"
+                            class="btn btn-secondary btn-sm disabled"
+                            type="button"
+                            title="Chưa đến ngày hẹn (Chỉ được khám vào đúng ngày)">
+                      <i class="bi bi-lock-fill"></i> Chờ
+                    </button>
+
+                    <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-outline-danger btn-sm" title="Hủy lịch đột xuất" onclick="return confirm('Hủy lịch này? Bệnh nhân sẽ được thông báo.')">
+                      <i class="bi bi-x"></i>
+                    </a>
+                  </div>
+
+                  <div th:if="${booking.status.name() == 'COMPLETED'}">
+                    <a th:href="@{/doctor/medical-record/view/{id}(id=${booking.id})}" class="btn btn-outline-secondary btn-sm" title="Xem lại hồ sơ">
+                      <i class="bi bi-file-earmark-medical"></i> Xem
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+<script th:src="@{/assets-admin/vendor/simple-datatables/simple-datatables.js}"></script>
+<script th:src="@{/assets-admin/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets-admin/js/main.js}"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Cơ hội nghề nghiệp - MediTrust</title>
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+</head>
+
+<body class="careers-page">
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+
+  <div class="page-title">
+    <div class="breadcrumbs">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+          <li class="breadcrumb-item active">Tuyển dụng</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="title-wrapper">
+      <h1>Cơ hội nghề nghiệp</h1>
+      <p>Gia nhập đội ngũ MediTrust để cùng kiến tạo tương lai ngành y tế.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="row gy-4">
+        <div class="col-lg-6" th:each="job : ${jobs}">
+          <div class="card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">Đang tuyển</span>
+                <small class="text-muted" th:text="${#temporals.format(job.createdAt, 'dd/MM/yyyy')}">01/01/2025</small>
+              </div>
+
+              <h3 class="h4 mb-3">
+                <a th:href="@{/career-details/{id}(id=${job.id})}" class="text-decoration-none text-dark fw-bold" th:text="${job.title}">Vị trí</a>
+              </h3>
+
+              <div class="mb-4 text-secondary">
+                <p class="mb-1"><i class="bi bi-cash-coin me-2 text-primary"></i> <span th:text="${job.salary}"></span></p>
+                <p class="mb-1"><i class="bi bi-mortarboard me-2 text-primary"></i> <span th:text="${job.degree}"></span></p>
+                <p class="mb-0"><i class="bi bi-people me-2 text-primary"></i> Số lượng: <span th:text="${job.quantity}"></span></p>
+              </div>
+
+              <a th:href="@{/career-details/{id}(id=${job.id})}" class="btn btn-outline-primary w-100">Xem chi tiết & Ứng tuyển</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 text-center py-5" th:if="${#lists.isEmpty(jobs)}">
+          <p class="text-muted fs-5">Hiện chưa có vị trí nào đang tuyển dụng.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+</body>
+</html>

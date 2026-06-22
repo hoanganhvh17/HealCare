@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <title>Giờ làm việc - MediTrust</title>
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+  <style>
+    .hours-table th { width: 40%; background-color: #f8f9fa; }
+    .emergency-box { background: #ffebe6; border-left: 5px solid #dc3545; padding: 20px; border-radius: 4px; }
+  </style>
+</head>
+
+<body>
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+  <div class="page-title" style="padding: 40px 0;">
+    <div class="container">
+      <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li><li class="breadcrumb-item active">Giờ làm việc</li></ol></nav>
+      <h2>Thời gian làm việc</h2>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+              <h4 class="mb-4 text-primary"><i class="bi bi-clock me-2"></i> Giờ hành chính</h4>
+              <table class="table table-bordered hours-table">
+                <tbody>
+                <tr>
+                  <th>Thứ 2 - Thứ 6</th>
+                  <td>
+                    Sáng: 07:30 - 11:30<br>
+                    Chiều: 13:30 - 17:30
+                  </td>
+                </tr>
+                <tr>
+                  <th>Thứ 7</th>
+                  <td>
+                    Sáng: 08:00 - 12:00<br>
+                    Chiều: Nghỉ
+                  </td>
+                </tr>
+                <tr>
+                  <th>Chủ nhật & Ngày lễ</th>
+                  <td class="text-muted">Nghỉ (Chỉ trực cấp cứu)</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="emergency-box mb-4">
+            <h4 class="text-danger"><i class="bi bi-heart-pulse-fill"></i> Cấp cứu 24/7</h4>
+            <p>Khoa Cấp cứu của chúng tôi hoạt động liên tục <strong>24 giờ/ngày, 7 ngày/tuần</strong>, bao gồm cả ngày lễ và Tết.</p>
+            <p class="mb-0"><strong>Hotline Cấp cứu:</strong> <a href="tel:115" class="text-danger fw-bold fs-5">115</a> hoặc <a href="tel:0987654321" class="text-danger fw-bold fs-5">0987 654 321</a></p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+</body>
+</html>

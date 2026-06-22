@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{admin/include/header :: header (title='Quản lý Tin tức')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>Quản lý Tin tức</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Tin tức</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Danh sách Bài viết</h5>
+
+                        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+                            <span th:text="${successMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+                            <span th:text="${errorMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+
+                        <a th:href="@{/admin/manage-news/add}" class="btn btn-primary mb-3">
+                            <i class="bi bi-pencil-square"></i> Viết bài mới
+                        </a>
+
+                        <table class="table datatable">
+                            <thead>
+                            <tr>
+                                <th scope="col">ID</th>
+                                <th scope="col">Hình ảnh</th>
+                                <th scope="col">Tiêu đề</th>
+                                <th scope="col">Ngày đăng</th>
+                                <th scope="col">Tác giả</th>
+                                <th scope="col">Trạng thái</th>
+                                <th scope="col">Hành động</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="post : ${posts}">
+                                <td th:text="${post.id}">1</td>
+                                <td>
+                                    <img th:if="${post.image != null}" th:src="@{'/uploads/' + ${post.image}}" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;">
+                                </td>
+                                <td th:text="${post.title}" style="max-width: 300px;">Tiêu đề bài viết...</td>
+                                <td th:text="${#temporals.format(post.createdAt, 'dd/MM/yyyy HH:mm')}">01/01/2025</td>
+                                <td th:text="${post.author != null ? post.author.fullName : 'Unknown'}">Admin</td>
+                                <td>
+                                    <span th:if="${post.status == 'PUBLISHED'}" class="badge bg-success">Đã xuất bản</span>
+                                    <span th:if="${post.status == 'DRAFT'}" class="badge bg-warning text-dark">Bản nháp</span>
+                                </td>
+                                <td>
+                                    <a th:if="${post.status == 'DRAFT'}" th:href="@{/admin/manage-news/publish/{id}(id=${post.id})}" class="btn btn-success btn-sm" title="Xuất bản"><i class="bi bi-check-circle"></i></a>
+                                    <a th:href="@{/admin/manage-news/edit/{id}(id=${post.id})}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
+                                    <a th:href="@{/admin/manage-news/delete/{id}(id=${post.id})}" class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Xóa bài viết này?')"><i class="bi bi-trash"></i></a>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1 th:text="${pageTitle}">Tin tuyển dụng</h1>
+  </div>
+
+  <section class="section">
+    <div class="row">
+      <div class="col-lg-10">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Thông tin vị trí</h5>
+
+            <form th:action="@{/admin/recruitment/save}" th:object="${job}" method="post">
+              <input type="hidden" th:field="*{id}" />
+              <input type="hidden" th:field="*{createdAt}" />
+              <input type="hidden" th:field="*{active}" /> <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Vị trí tuyển dụng</label>
+                <input type="text" th:field="*{title}" class="form-control" required placeholder="VD: Bác sĩ chuyên khoa Nhi">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Số lượng</label>
+                <input type="number" th:field="*{quantity}" class="form-control" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Bằng cấp</label>
+                <input type="text" th:field="*{degree}" class="form-control" placeholder="VD: Đại học">
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label">Mức lương</label>
+                <input type="text" th:field="*{salary}" class="form-control" placeholder="VD: 15 - 20 triệu hoặc Thỏa thuận">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Mô tả công việc</label>
+                <textarea th:field="*{description}" class="form-control" rows="4" required></textarea>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Yêu cầu ứng viên</label>
+                <textarea th:field="*{requirements}" class="form-control" rows="4" required></textarea>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Quyền lợi được hưởng</label>
+                <textarea th:field="*{benefits}" class="form-control" rows="4"></textarea>
+              </div>
+
+              <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary">Lưu tin</button>
+                <a th:href="@{/admin/recruitment}" class="btn btn-secondary">Hủy</a>
+              </div>
+            </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Hồ sơ cá nhân - MediTrust</title>
+
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/aos/aos.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/glightbox/css/glightbox.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/swiper/swiper-bundle.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+
+  <style>
+    /* Style cho chọn sao đánh giá */
+    .rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 10px;
+    }
+    .rating input { display: none; }
+    .rating label {
+        cursor: pointer;
+        width: 30px;
+        height: 30px;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        transition: 0.3s;
+    }
+    .rating input:checked ~ label,
+    .rating label:hover,
+    .rating label:hover ~ label {
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffc107' stroke='%23ffc107' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
+    }
+  </style>
+</head>
+
+<body class="profile-page">
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+
+  <div class="page-title">
+    <div class="breadcrumbs">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+          <li class="breadcrumb-item active">Hồ sơ cá nhân</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="title-wrapper">
+      <h1>Hồ sơ của bạn</h1>
+    </div>
+  </div>
+
+  <section class="section profile">
+    <div class="container" data-aos="fade-up">
+      <div class="row">
+
+        <div class="col-xl-4">
+          <div class="card mb-4">
+            <div class="card-body profile-card pt-4 d-flex flex-column align-items-center">
+
+              <img th:if="${user.avatar != null && #strings.startsWith(user.avatar, 'http')}"
+                   th:src="${user.avatar}"
+                   alt="Profile"
+                   class="rounded-circle img-fluid"
+                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+
+              <img th:if="${user.avatar != null && !#strings.isEmpty(user.avatar) && !#strings.startsWith(user.avatar, 'http')}"
+                   th:src="@{'/uploads/' + ${user.avatar} + '?v=' + ${#dates.createNow().time}}"
+                   alt="Profile"
+                   class="rounded-circle img-fluid"
+                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+
+              <img th:if="${user.avatar == null || #strings.isEmpty(user.avatar)}"
+                   th:src="@{/assets/img/default-avatar.png}"
+                   alt="Profile"
+                   class="rounded-circle img-fluid"
+                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+              <h2 class="mt-3" th:text="${user.fullName}">Tên User</h2>
+              <h3 class="text-muted" th:text="${user.username}">@username</h3>
+
+              <div class="mt-3">
+                <form th:action="@{/user/upload-avatar}" method="post" enctype="multipart/form-data">
+                  <label class="btn btn-outline-primary btn-sm" style="cursor: pointer;">
+                    <i class="bi bi-upload"></i> Tải ảnh mới
+                    <input type="file" name="avatar" accept="image/*" hidden onchange="this.form.submit()">
+                  </label>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-8">
+
+          <div class="card mb-4 bg-light border-0 shadow-sm">
+            <div class="card-body d-flex align-items-center justify-content-between p-4">
+              <div>
+                <h5 class="text-muted mb-1 small text-uppercase fw-bold">Số dư ví hiện tại</h5>
+                <h2 class="text-success fw-bold mb-0">
+                  <i class="bi bi-wallet2 me-2"></i>
+                  <span th:text="${@globalHelper.getUserBalance(#authentication)}">0 đ</span>
+                </h2>
+              </div>
+              <button class="btn btn-success disabled" title="Tính năng đang phát triển">
+                <i class="bi bi-plus-circle"></i> Nạp thêm
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body pt-3">
+
+              <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+
+              <ul class="nav nav-tabs nav-tabs-bordered">
+                <li class="nav-item">
+                  <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-overview">Thông tin cá nhân</button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link" data-bs-toggle="tab" data-bs-target="#booking-history">Lịch sử khám bệnh</button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link" data-bs-toggle="tab" data-bs-target="#profile-change-password">Đổi mật khẩu</button>
+                </li>
+              </ul>
+
+              <div class="tab-content pt-2">
+
+                <div class="tab-pane fade show active profile-overview" id="profile-overview">
+                  <h5 class="card-title mt-3">Chỉnh sửa thông tin</h5>
+                  <form th:action="@{/user/update-profile}" th:object="${updateProfile}" method="post">
+                    <div class="row mb-3">
+                      <label for="fullName" class="col-md-4 col-lg-3 col-form-label">Họ và tên</label>
+                      <div class="col-md-8 col-lg-9"><input name="fullName" type="text" class="form-control" id="fullName" th:field="*{fullName}"></div>
+                    </div>
+                    <div class="row mb-3">
+                      <label for="email" class="col-md-4 col-lg-3 col-form-label">Email</label>
+                      <div class="col-md-8 col-lg-9">
+                        <input name="email" type="email" class="form-control" id="email" th:field="*{email}" readonly style="background-color: #e9ecef;">
+                        <small class="text-muted">Email không thể thay đổi</small>
+                      </div>
+                    </div>
+                    <div class="row mb-3">
+                      <label for="phone" class="col-md-4 col-lg-3 col-form-label">Số điện thoại</label>
+                      <div class="col-md-8 col-lg-9"><input name="phone" type="text" class="form-control" id="phone" th:field="*{phone}"></div>
+                    </div>
+                    <div class="text-center"><button type="submit" class="btn btn-primary">Lưu thay đổi</button></div>
+                  </form>
+                </div>
+
+                <div class="tab-pane fade pt-3" id="booking-history">
+                  <h5 class="card-title">Lịch sử đặt hẹn của bạn</h5>
+                  <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                      <thead>
+                      <tr>
+                        <th>Ngày</th>
+                        <th>Bác sĩ</th>
+                        <th>Khoa</th>
+                        <th>Giá</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      <tr th:each="booking : ${myBookings}">
+                        <td>
+                          <span th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}"></span><br>
+                          <small class="text-muted" th:text="${booking.appointmentTime}"></small>
+                        </td>
+                        <td th:text="'Dr. ' + ${booking.doctor.user.fullName}"></td>
+                        <td th:text="${booking.doctor.department.name}"></td>
+                        <td th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+
+                        <td>
+                          <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
+                          <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
+
+                          <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus != 'REFUNDED'}" class="badge bg-danger">Đã hủy</span>
+
+                          <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">
+                              <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
+                          </span>
+
+                          <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
+                        </td>
+                        <td>
+                          <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                             th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
+                             class="btn btn-sm btn-outline-danger"
+                             onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
+                            <i class="bi bi-x-circle"></i> Hủy
+                          </a>
+
+                          <div th:if="${booking.status.name() == 'COMPLETED'}" class="d-flex gap-1">
+                            <a th:href="@{/user/medical-record/view/{bookingId}(bookingId=${booking.id})}"
+                               class="btn btn-sm btn-outline-primary" title="Xem bệnh án">
+                              <i class="bi bi-file-earmark-medical"></i> KQ
+                            </a>
+
+                            <button type="button" class="btn btn-sm btn-warning text-dark"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#reviewModal"
+                                    th:data-booking-id="${booking.id}"
+                                    th:data-doctor-name="${booking.doctor.user.fullName}"
+                                    onclick="openReviewModal(this)">
+                              <i class="bi bi-star-fill"></i> ĐG
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr th:if="${#lists.isEmpty(myBookings)}">
+                        <td colspan="6" class="text-center py-4">Bạn chưa có lịch hẹn nào.</td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="tab-pane fade pt-3" id="profile-change-password">
+                  <div class="text-center py-5">
+                    <p class="mb-3">Để bảo mật tài khoản, bạn sẽ được chuyển đến trang đổi mật khẩu riêng.</p>
+                    <a th:href="@{/user/change-password}" class="btn btn-outline-primary">
+                      <i class="bi bi-key"></i> Đi đến trang Đổi mật khẩu
+                    </a>
+                  </div>
+                </div>
+
+              </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-star-fill me-2"></i>Đánh giá Bác sĩ</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form th:action="@{/user/review/submit}" method="post">
+        <div class="modal-body text-center">
+          <input type="hidden" name="bookingId" id="modalBookingId">
+
+          <p class="mb-2">Bạn cảm thấy dịch vụ của <br><strong>Dr. <span id="modalDoctorName"></span></strong> như thế nào?</p>
+
+          <div class="rating mb-3">
+            <input type="radio" name="rating" value="5" id="5" required checked><label for="5">☆</label>
+            <input type="radio" name="rating" value="4" id="4"><label for="4">☆</label>
+            <input type="radio" name="rating" value="3" id="3"><label for="3">☆</label>
+            <input type="radio" name="rating" value="2" id="2"><label for="2">☆</label>
+            <input type="radio" name="rating" value="1" id="1"><label for="1">☆</label>
+          </div>
+
+          <div class="form-floating">
+            <textarea class="form-control" name="comment" placeholder="Viết đánh giá của bạn" id="floatingTextarea2" style="height: 100px"></textarea>
+            <label for="floatingTextarea2">Viết cảm nhận của bạn (Tùy chọn)...</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="btn btn-primary">Gửi Đánh giá</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer id="footer" class="footer position-relative light-background">
+  <div class="container copyright text-center mt-4">
+    <p>© <span>Copyright</span> <strong class="px-1 sitename">MediTrust</strong> <span>All Rights Reserved</span></p>
+  </div>
+</footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+<div id="preloader"></div>
+
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/vendor/php-email-form/validate.js}"></script>
+<script th:src="@{/assets/vendor/aos/aos.js}"></script>
+<script th:src="@{/assets/vendor/purecounter/purecounter_vanilla.js}"></script>
+<script th:src="@{/assets/vendor/swiper/swiper-bundle.min.js}"></script>
+<script th:src="@{/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js}"></script>
+<script th:src="@{/assets/vendor/isotope-layout/isotope.pkgd.min.js}"></script>
+<script th:src="@{/assets/vendor/glightbox/js/glightbox.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+
+<script>
+  function openReviewModal(button) {
+      var bookingId = button.getAttribute('data-booking-id');
+      var doctorName = button.getAttribute('data-doctor-name');
+
+      document.getElementById('modalBookingId').value = bookingId;
+      document.getElementById('modalDoctorName').innerText = doctorName;
+  }
+</script>
+
+</body>
+</html>

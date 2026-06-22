@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Dashboard')}"></th:block>
+  <style>
+    /* Style cho Activity (Review List) */
+    .activity-item { position: relative; padding-bottom: 20px; border-left: 2px solid #eef0f2; padding-left: 20px; }
+    .activity-item:last-child { padding-bottom: 0; }
+    .activity-item::before { content: ""; position: absolute; left: -9px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #1977cc; }
+    .review-avatar-small { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; }
+
+    /* Custom card styles for ratings, deposits and refunds */
+    .dashboard .rating-card .card-icon {
+      color: #ffc107;
+      background: #fffdf0;
+    }
+    .dashboard .deposit-card .card-icon {
+      color: #89087e;
+      background: #f8e6f7;
+    }
+    .dashboard .refund-card .card-icon {
+      color: #e52b50;
+      background: #fdecf0;
+    }
+  </style>
+</head>
+
+<body>
+
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Dashboard</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Home</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section dashboard">
+    <div class="row">
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card revenue-card">
+          <div class="card-body">
+            <h5 class="card-title">Tổng số Bệnh nhân</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-people"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${patientCount}">0</h6>
+                <span class="text-muted small pt-2 ps-1">tài khoản</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card customers-card">
+          <div class="card-body">
+            <h5 class="card-title">Tổng số Bác sĩ</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-person-badge"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${doctorCount}">0</h6>
+                <span class="text-muted small pt-2 ps-1">nhân sự</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card sales-card">
+          <div class="card-body">
+            <h5 class="card-title">Tổng số Lịch hẹn</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-calendar-check"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${bookingCount}">0</h6>
+                <span th:if="${bookingTrend == 'up'}" class="text-success small pt-1 fw-bold">
+                  <i class="bi bi-arrow-up-short"></i> <span th:text="${bookingDiffPercent} + '% tăng'">0% tăng</span>
+                </span>
+                <span th:if="${bookingTrend == 'down'}" class="text-danger small pt-1 fw-bold">
+                  <i class="bi bi-arrow-down-short"></i> <span th:text="${bookingDiffPercent} + '% giảm'">0% giảm</span>
+                </span>
+                <span th:if="${bookingTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
+                  <span th:text="${bookingDiffPercent} + '% không đổi'">0% không đổi</span>
+                </span>
+                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card rating-card">
+          <div class="card-body">
+            <h5 class="card-title">Điểm Chất lượng</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-star-fill"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${avgRating}">0.0</h6>
+                <span th:if="${ratingTrend == 'up'}" class="text-success small pt-1 fw-bold">
+                  <i class="bi bi-arrow-up-short"></i> <span th:text="${ratingDiff} + ' tăng'">0.0 tăng</span>
+                </span>
+                <span th:if="${ratingTrend == 'down'}" class="text-danger small pt-1 fw-bold">
+                  <i class="bi bi-arrow-down-short"></i> <span th:text="${ratingDiff} + ' giảm'">0.0 giảm</span>
+                </span>
+                <span th:if="${ratingTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
+                  <span th:text="${ratingDiff} + ' không đổi'">0.0 không đổi</span>
+                </span>
+                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card deposit-card">
+          <div class="card-body">
+            <h5 class="card-title">Tổng tiền đặt cọc</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-cash-stack"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${#numbers.formatDecimal(totalDeposit, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h6>
+                <span th:if="${depositTrend == 'up'}" class="text-success small pt-1 fw-bold">
+                  <i class="bi bi-arrow-up-short"></i> <span th:text="${depositDiffPercent} + '% tăng'">0% tăng</span>
+                </span>
+                <span th:if="${depositTrend == 'down'}" class="text-danger small pt-1 fw-bold">
+                  <i class="bi bi-arrow-down-short"></i> <span th:text="${depositDiffPercent} + '% giảm'">0% giảm</span>
+                </span>
+                <span th:if="${depositTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
+                  <span th:text="${depositDiffPercent} + '% không đổi'">0% không đổi</span>
+                </span>
+                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-4 col-md-6">
+        <div class="card info-card refund-card">
+          <div class="card-body">
+            <h5 class="card-title">Tiền hoàn trả</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-arrow-counterclockwise"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${#numbers.formatDecimal(totalRefund, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h6>
+                <span th:if="${refundTrend == 'up'}" class="text-success small pt-1 fw-bold">
+                  <i class="bi bi-arrow-up-short"></i> <span th:text="${refundDiffPercent} + '% tăng'">0% tăng</span>
+                </span>
+                <span th:if="${refundTrend == 'down'}" class="text-danger small pt-1 fw-bold">
+                  <i class="bi bi-arrow-down-short"></i> <span th:text="${refundDiffPercent} + '% giảm'">0% giảm</span>
+                </span>
+                <span th:if="${refundTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
+                  <span th:text="${refundDiffPercent} + '% không đổi'">0% không đổi</span>
+                </span>
+                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Báo cáo <span>| 7 ngày qua</span></h5>
+            <div id="reportsChart" style="min-height: 350px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Tỷ lệ Trạng thái Lịch hẹn</h5>
+            <div id="statusPieChart" style="min-height: 350px;"></div>
+
+            <script th:inline="javascript">
+              document.addEventListener("DOMContentLoaded", () => {
+                  new ApexCharts(document.querySelector("#statusPieChart"), {
+                      series: [
+                          /*[[${statPending}]]*/ 10,
+                          /*[[${statConfirmed}]]*/ 20,
+                          /*[[${statCompleted}]]*/ 30,
+                          /*[[${statCancelled}]]*/ 5
+                      ],
+                      chart: { height: 350, type: 'pie', toolbar: { show: true } },
+                      labels: ['Chờ duyệt', 'Đã xác nhận', 'Đã hoàn thành', 'Đã hủy'],
+                      colors: ['#ffc107', '#0d6efd', '#198754', '#dc3545']
+                  }).render();
+              });
+            </script>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Phân bố Đánh giá (Toàn hệ thống)</h5>
+            <div id="ratingBarChart" style="min-height: 350px;"></div>
+            <script th:inline="javascript">
+              document.addEventListener("DOMContentLoaded", () => {
+                  new ApexCharts(document.querySelector("#ratingBarChart"), {
+                      series: [{
+                          name: 'Số lượng',
+                          data: [[${ratingDist}]] // [5 sao, 4 sao...]
+                      }],
+                      chart: { type: 'bar', height: 350 },
+                      plotOptions: { bar: { borderRadius: 4, horizontal: true } },
+                      dataLabels: { enabled: true },
+                      xaxis: { categories: ['5 Sao', '4 Sao', '3 Sao', '2 Sao', '1 Sao'] },
+                      colors: ['#ffc107']
+                  }).render();
+              });
+            </script>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Phản hồi mới nhất <span>| Top 5</span></h5>
+            <div class="activity">
+              <div th:each="rv : ${recentReviews}" class="activity-item d-flex">
+                <div class="activite-label me-3">
+                  <img th:if="${rv.booking.user.avatar != null}" th:src="@{'/uploads/' + ${rv.booking.user.avatar}}" class="review-avatar-small">
+                  <img th:if="${rv.booking.user.avatar == null}" th:src="@{/assets/img/default-avatar.png}" class="review-avatar-small">
+                </div>
+                <div class="activity-content">
+                  <div>
+                    <strong th:text="${rv.booking.user.fullName}">Tên BN</strong>
+                    <span class="text-muted small"> → </span>
+                    <strong class="text-primary" th:text="'Dr. ' + ${rv.booking.doctor.user.fullName}">Tên BS</strong>
+                  </div>
+                  <div class="text-warning small mb-1">
+                    <i class="bi bi-star-fill" th:each="i : ${#numbers.sequence(1, rv.rating)}"></i>
+                  </div>
+                  <p class="small text-muted mb-0 mt-1" th:text="${#strings.abbreviate(rv.comment, 80)}">Nội dung...</p>
+                  <div class="text-end text-muted" style="font-size: 11px;">
+                    <i class="bi bi-clock"></i> <span th:text="${#temporals.format(rv.createdAt, 'dd/MM HH:mm')}"></span>
+                  </div>
+                </div>
+              </div>
+              <div th:if="${recentReviews.isEmpty()}" class="text-center text-muted py-3">Chưa có đánh giá nào.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="card recent-sales overflow-auto">
+          <div class="card-body">
+            <h5 class="card-title">Lịch hẹn Gần đây <span>| Tất cả</span></h5>
+            <table class="table table-borderless datatable">
+              <thead>
+              <tr>
+                <th scope="col">#ID</th>
+                <th scope="col">Bệnh nhân</th>
+                <th scope="col">Bác sĩ</th>
+                <th scope="col">Giá (VNĐ)</th>
+                <th scope="col">Trạng thái</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="booking : ${listBookings}">
+                <th scope="row">
+                  <a th:href="@{/admin/manage-booking}" th:text="'#' + ${booking.id}">#ID</a>
+                </th>
+                <td th:text="${booking.user.fullName}">Tên BN</td>
+                <td th:text="${booking.doctor.user.fullName}">Tên BS</td>
+                <td th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'">300.000</td>
+                <td>
+                  <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning">Chờ xác nhận</span>
+                  <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
+                  <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
+                  <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã hoàn thành</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script th:src="@{/assets-admin/vendor/apexcharts/apexcharts.min.js}"></script>
+<script th:src="@{/assets-admin/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets-admin/vendor/echarts/echarts.min.js}"></script>
+<script th:src="@{/assets-admin/vendor/simple-datatables/simple-datatables.js}"></script>
+<script th:src="@{/assets-admin/js/main.js}"></script>
+
+<script th:inline="javascript">
+  document.addEventListener("DOMContentLoaded", () => {
+    const baseUrl = /*[[@{/}]]*/ '';
+
+    fetch(baseUrl + 'api/dashboard/booking-stats-7days')
+      .then(response => response.json())
+      .then(data => {
+        const categories = data.map(item => item.date);
+        const seriesData = data.map(item => item.count);
+
+        new ApexCharts(document.querySelector("#reportsChart"), {
+          series: [{
+            name: 'Lịch hẹn mới',
+            data: seriesData,
+          }],
+          chart: {
+            height: 350,
+            type: 'area',
+            toolbar: {
+              show: false
+            },
+          },
+          markers: {
+            size: 4
+          },
+          colors: ['#4154f1'],
+          fill: {
+            type: "gradient",
+            gradient: {
+              shadeIntensity: 1,
+              opacityFrom: 0.3,
+              opacityTo: 0.4,
+              stops: [0, 90, 100]
+            }
+          },
+          dataLabels: {
+            enabled: false
+          },
+          stroke: {
+            curve: 'smooth',
+            width: 2
+          },
+          xaxis: {
+            type: 'datetime',
+            categories: categories
+          },
+          tooltip: {
+            x: {
+              format: 'dd/MM/yy'
+            },
+          }
+        }).render();
+      })
+      .catch(error => console.error('Lỗi khi tải dữ liệu biểu đồ:', error));
+  });
+</script>
+</body>
+</html>

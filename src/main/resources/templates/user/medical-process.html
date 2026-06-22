@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <title>Quy trình khám bệnh & Quy định - MediTrust</title>
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+  <style>
+    /* Style cho quy trình khám (Cũ) */
+    .process-step { position: relative; padding-left: 50px; margin-bottom: 40px; }
+    .step-number {
+        position: absolute; left: 0; top: 0;
+        width: 40px; height: 40px;
+        background: #1977cc; color: #fff;
+        border-radius: 50%; text-align: center; line-height: 40px; font-weight: bold; font-size: 1.2rem;
+    }
+    .process-step::before {
+        content: ''; position: absolute; left: 19px; top: 40px; bottom: -40px;
+        width: 2px; background: #e0e0e0;
+    }
+    .process-step:last-child::before { display: none; }
+
+    /* Style cho phần Quy định (Mới) */
+    .policy-section {
+        background-color: #f8f9fa;
+        padding: 30px;
+        border-radius: 8px;
+        border-left: 5px solid #1977cc;
+        margin-top: 50px;
+    }
+    .accordion-button:not(.collapsed) {
+        color: #1977cc;
+        background-color: #e7f1ff;
+        font-weight: bold;
+    }
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: rgba(25, 119, 204, 0.1);
+    }
+    .highlight-text {
+        color: #dc3545;
+        font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+  <div class="page-title" style="padding: 40px 0;">
+    <div class="container">
+      <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li><li class="breadcrumb-item active">Quy trình & Quy định</li></ol></nav>
+      <h2>Quy trình Khám chữa bệnh</h2>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+          <div class="process-container">
+
+            <div class="process-step">
+              <div class="step-number">1</div>
+              <h4>Đăng ký & Tiếp nhận</h4>
+              <p>Quý khách có thể đặt lịch trước qua Website để được ưu tiên. Khi đến bệnh viện, vui lòng xuất trình mã đặt lịch tại Quầy Lễ tân.</p>
+              <a th:href="@{/appointment}" class="btn btn-sm btn-outline-primary">Đặt lịch ngay</a>
+            </div>
+
+            <div class="process-step">
+              <div class="step-number">2</div>
+              <h4>Khám chuyên khoa</h4>
+              <p>Bác sĩ chuyên khoa sẽ thăm khám lâm sàng, kiểm tra các triệu chứng và chỉ định các xét nghiệm cận lâm sàng cần thiết.</p>
+            </div>
+
+            <div class="process-step">
+              <div class="step-number">3</div>
+              <h4>Thực hiện Xét nghiệm / Chụp chiếu</h4>
+              <p>Quý khách thực hiện các chỉ định (Xét nghiệm máu, X-quang, Siêu âm...) và chờ kết quả tại khu vực chờ tiện nghi.</p>
+            </div>
+
+            <div class="process-step">
+              <div class="step-number">4</div>
+              <h4>Chẩn đoán & Tư vấn</h4>
+              <p>Bác sĩ đọc kết quả, chẩn đoán bệnh, kê đơn thuốc và tư vấn phác đồ điều trị hoặc chế độ dinh dưỡng phù hợp.</p>
+            </div>
+
+            <div class="process-step">
+              <div class="step-number">5</div>
+              <h4>Thanh toán & Nhận thuốc</h4>
+              <p>Thanh toán viện phí tại quầy thu ngân và nhận thuốc tại Nhà thuốc bệnh viện. Kết thúc quy trình.</p>
+            </div>
+
+          </div>
+
+          <div class="policy-section" id="booking-policy">
+            <h3 class="text-center mb-4 text-primary fw-bold text-uppercase">Quy định & Chính sách Đặt lịch</h3>
+
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+              <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"></i>
+              <div>
+                Vui lòng đọc kỹ các quy định dưới đây trước khi tiến hành thanh toán để đảm bảo quyền lợi của quý khách.
+              </div>
+            </div>
+
+            <div class="accordion" id="accordionPolicy">
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                    1. Quy định về Thanh toán
+                  </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionPolicy">
+                  <div class="accordion-body">
+                    <ul>
+                      <li>Để đảm bảo lịch hẹn được giữ chỗ chắc chắn, Quý khách vui lòng <strong>thanh toán trước 100% phí khám</strong> thông qua cổng thanh toán VNPay.</li>
+                      <li>Lịch hẹn chỉ được hệ thống xác nhận (Trạng thái: <strong>CONFIRMED</strong>) sau khi giao dịch thanh toán thành công.</li>
+                      <li>Hóa đơn điện tử sẽ được gửi về Email của Quý khách sau khi hoàn tất thanh toán.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    2. Chính sách Hủy lịch & Thời gian quy định
+                  </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionPolicy">
+                  <div class="accordion-body">
+                    <p>Để đảm bảo lịch trình làm việc của Bác sĩ, chúng tôi áp dụng quy tắc <strong>"24 Giờ"</strong>:</p>
+                    <ul>
+                      <li><span class="text-success fw-bold"><i class="bi bi-check-circle"></i> ĐƯỢC PHÉP HỦY:</span> Nếu thời điểm hủy <strong>cách giờ khám ít nhất 24 tiếng</strong>. <br>
+                        <em>(Ví dụ: Lịch khám 08:00 sáng mai -> Phải hủy trước 08:00 sáng nay).</em>
+                      </li>
+                      <li><span class="text-danger fw-bold"><i class="bi bi-x-circle"></i> KHÔNG ĐƯỢC HỦY:</span> Trong vòng <strong>24 tiếng</strong> trước giờ hẹn. Lúc này hệ thống sẽ khóa chức năng hủy để tránh làm gián đoạn công tác chuẩn bị của bệnh viện.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingThree">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                    3. Cơ chế Hoàn tiền & Ví Y tế (Medical Wallet)
+                  </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionPolicy">
+                  <div class="accordion-body">
+                    <p>Khi hủy lịch thành công (đúng quy định), số tiền đã thanh toán sẽ được xử lý như sau:</p>
+                    <ul>
+                      <li>Tiền sẽ được <strong>hoàn lại 100%</strong> vào <span class="fw-bold text-primary">Ví Y tế</span> trên tài khoản MediTrust của Quý khách ngay lập tức.</li>
+                      <li>Số dư trong Ví được dùng để đặt lịch khám mới hoặc thanh toán các dịch vụ khác (trừ trực tiếp khi thanh toán).</li>
+                      <li><small class="text-muted text-fst-italic">*Lưu ý: Hiện tại hệ thống ưu tiên hoàn về Ví để tái sử dụng dịch vụ. Nếu Quý khách có nhu cầu rút tiền mặt về Ngân hàng, vui lòng liên hệ bộ phận CSKH (xử lý trong 3-5 ngày làm việc).</small></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingFour">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                    4. Trường hợp Bác sĩ hoặc Bệnh viện hủy lịch
+                  </button>
+                </h2>
+                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#accordionPolicy">
+                  <div class="accordion-body">
+                    <ul>
+                      <li>Trong trường hợp bất khả kháng (Bác sĩ có lịch đột xuất, công tác, hoặc lý do sức khỏe), hệ thống hoặc Bác sĩ sẽ chủ động hủy lịch hẹn.</li>
+                      <li>Quý khách sẽ được thông báo qua Email và SMS ngay lập tức.</li>
+                      <li><strong>100% số tiền</strong> sẽ được hoàn lại vào Ví của Quý khách (Bất kể thời gian hủy là khi nào).</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+    <div class="pagetitle">
+        <h1 th:text="${pageTitle}">Thêm Bác sĩ</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a th:href="@{/admin/manage-doctor}">Quản lý Bác sĩ</a></li>
+                <li class="breadcrumb-item active" th:text="${pageTitle}"></li>
+            </ol>
+        </nav>
+    </div><section class="section">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Điền thông tin Bác sĩ</h5>
+
+                    <form th:action="@{/admin/manage-doctor/save}" method="post" class="row g-3" enctype="multipart/form-data">
+
+                        <h5 class="card-title pb-0">1. Thông tin tài khoản</h5>
+
+                        <div class="col-md-6">
+                            <label for="fullName" class="form-label">Họ tên</label>
+                            <input type="text" th:field="${user.fullName}" class="form-control" id="fullName" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('user.fullName')}" th:errors="${user.fullName}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Username (để đăng nhập)</label>
+                            <input type="text" th:field="${user.username}" class="form-control" id="username" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('user.username')}" th:errors="${user.username}"></div>
+                        </div>
+                        <div class="col-12">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" th:field="${user.email}" class="form-control" id="email" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('user.email')}" th:errors="${user.email}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">Mật khẩu</label>
+                            <input type="password" name="password" class="form-control" id="password" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('user.password')}" th:errors="${user.password}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Số điện thoại</label>
+                            <input type="tel" th:field="${user.phone}" class="form-control" id="phone">
+                        </div>
+                        <div class="col-12 mt-3">
+                            <label class="form-label">Ảnh đại diện</label>
+                            <input type="file" name="avatarFile" class="form-control" accept="image/png, image/jpeg, image/jpg">
+                        </div>
+
+
+                        <h5 class="card-title pb-0 mt-4">2. Thông tin chuyên môn</h5>
+
+                        <div class="col-md-6">
+                            <label for="department" class="form-label">Chuyên khoa</label>
+                            <select th:field="${doctor.department}" id="department" class="form-select" required>
+                                <option value="">-- Chọn Khoa --</option>
+                                <option th:each="dept : ${allDepartments}"
+                                        th:value="${dept.id}"
+                                        th:text="${dept.name}">
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="degree" class="form-label">Bằng cấp</label>
+                            <input type="text" th:field="${doctor.degree}" class="form-control" id="degree" placeholder="vd: Tiến sĩ, Thạc sĩ...">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="price" class="form-label">Giá khám (VNĐ)</label>
+                            <input type="number" th:field="${doctor.price}" class="form-control" id="price" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="experienceYears" class="form-label">Số năm kinh nghiệm</label>
+                            <input type="number" th:field="${doctor.experienceYears}" class="form-control" id="experienceYears">
+                        </div>
+                        <div class="col-12">
+                            <label for="bio" class="form-label">Tiểu sử (Bio)</label>
+                            <textarea th:field="${doctor.bio}" class="form-control" id="bio" rows="4"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">Lưu</button>
+                            <a th:href="@{/admin/manage-doctor}" class="btn btn-secondary">Hủy</a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>
+<!--<!DOCTYPE html>-->
+<!--<html lang="en" xmlns:th="http://www.thymeleaf.org">-->
+<!--<head>-->
+<!--    <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>-->
+<!--</head>-->
+<!--<body>-->
+<!--<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>-->
+<!--<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>-->
+
+<!--<main id="main" class="main">-->
+
+<!--    <div class="pagetitle">-->
+<!--        <h1 th:text="${pageTitle}">Thêm Bác sĩ</h1>-->
+<!--        <nav>-->
+<!--            <ol class="breadcrumb">-->
+<!--                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>-->
+<!--                <li class="breadcrumb-item"><a th:href="@{/admin/manage-doctor}">Quản lý Bác sĩ</a></li>-->
+<!--                <li class="breadcrumb-item active" th:text="${pageTitle}"></li>-->
+<!--            </ol>-->
+<!--        </nav>-->
+<!--    </div>-->
+
+<!--    <section class="section">-->
+<!--        <div class="row">-->
+<!--            <div class="col-lg-8">-->
+<!--                <div class="card">-->
+<!--                    <div class="card-body">-->
+<!--                        <h5 class="card-title">Điền thông tin Bác sĩ</h5>-->
+
+<!--                        <form th:action="@{/admin/manage-doctor/save}" method="post" class="row g-3" enctype="multipart/form-data">-->
+
+<!--                            <h5 class="card-title pb-0">1. Thông tin tài khoản</h5>-->
+
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="fullName" class="form-label">Họ tên</label>-->
+<!--                                <input type="text" th:field="${user.fullName}" class="form-control" id="fullName" required>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="username" class="form-label">Username (để đăng nhập)</label>-->
+<!--                                <input type="text" th:field="${user.username}" class="form-control" id="username" required>-->
+<!--                            </div>-->
+<!--                            <div class="col-12">-->
+<!--                                <label for="email" class="form-label">Email</label>-->
+<!--                                <input type="email" th:field="${user.email}" class="form-control" id="email" required>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="password" class="form-label">Mật khẩu</label>-->
+<!--                                <input type="password" th:field="${user.password}" class="form-control" id="password" required>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="phone" class="form-label">Số điện thoại</label>-->
+<!--                                <input type="tel" th:field="${user.phone}" class="form-control" id="phone">-->
+<!--                            </div>-->
+
+<!--                            <div class="col-12">-->
+<!--                                <label class="form-label">Ảnh đại diện</label>-->
+<!--                                <input type="file" name="avatarFile" class="form-control" accept="image/*">-->
+<!--                            </div>-->
+<!--                            <h5 class="card-title pb-0 mt-4">2. Thông tin chuyên môn</h5>-->
+
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="department" class="form-label">Chuyên khoa</label>-->
+<!--                                <select th:field="${doctor.department}" id="department" class="form-select" required>-->
+<!--                                    <option value="">&#45;&#45; Chọn Khoa &#45;&#45;</option>-->
+<!--                                    <option th:each="dept : ${allDepartments}"-->
+<!--                                            th:value="${dept.id}"-->
+<!--                                            th:text="${dept.name}">-->
+<!--                                    </option>-->
+<!--                                </select>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="degree" class="form-label">Bằng cấp</label>-->
+<!--                                <input type="text" th:field="${doctor.degree}" class="form-control" id="degree" placeholder="vd: Tiến sĩ, Thạc sĩ...">-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="price" class="form-label">Giá khám (VNĐ)</label>-->
+<!--                                <input type="number" th:field="${doctor.price}" class="form-control" id="price" required>-->
+<!--                            </div>-->
+<!--                            <div class="col-md-6">-->
+<!--                                <label for="experienceYears" class="form-label">Số năm kinh nghiệm</label>-->
+<!--                                <input type="number" th:field="${doctor.experienceYears}" class="form-control" id="experienceYears">-->
+<!--                            </div>-->
+<!--                            <div class="col-12">-->
+<!--                                <label for="bio" class="form-label">Tiểu sử (Bio)</label>-->
+<!--                                <textarea th:field="${doctor.bio}" class="form-control" id="bio" rows="4"></textarea>-->
+<!--                            </div>-->
+
+<!--                            <div class="text-center">-->
+<!--                                <button type="submit" class="btn btn-primary">Lưu</button>-->
+<!--                                <a th:href="@{/admin/manage-doctor}" class="btn btn-secondary">Hủy</a>-->
+<!--                            </div>-->
+<!--                        </form>-->
+
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </section>-->
+
+<!--</main>-->
+<!--<th:block th:replace="~{admin/include/footer :: footer}"></th:block>-->
+<!--</body>-->
+<!--</html>-->

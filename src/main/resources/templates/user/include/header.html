@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<header th:fragment="header-nav" id="header" class="header d-flex align-items-center fixed-top bg-white shadow-sm py-2">
+    <input type="hidden" id="current-user-id" th:value="${#authorization.expression('isAuthenticated()') ? #authentication.name : 'guest'}" />
+
+    <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
+
+        <!-- Logo -->
+        <a th:href="@{/}" class="logo d-flex align-items-center me-auto me-xl-0 text-decoration-none">
+            <h1 class="sitename m-0 fw-bold" style="color: #00796b;">HealCare</h1>
+        </a>
+
+        <!-- Navigation Menu -->
+        <nav id="navmenu" class="navmenu mx-auto">
+            <ul class="d-flex list-unstyled m-0 gap-4 align-items-center">
+                <li>
+                    <a th:href="@{/}" th:classappend="${activePage == 'home'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Trang chủ</a>
+                </li>
+                <li>
+                    <a th:href="@{/departments}" th:classappend="${activePage == 'departments'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Chuyên khoa</a>
+                </li>
+                <li>
+                    <a th:href="@{/services}" th:classappend="${activePage == 'services'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Dịch vụ</a>
+                </li>
+                <li>
+                    <a th:href="@{/doctors}" th:classappend="${activePage == 'doctors'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Đội ngũ bác sĩ</a>
+                </li>
+                <li>
+                    <a th:href="@{/news}" th:classappend="${activePage == 'news'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Tin tức</a>
+                </li>
+                <li>
+                    <a th:href="@{/about}" th:classappend="${activePage == 'about'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Giới thiệu</a>
+                </li>
+            </ul>
+            <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+        </nav>
+
+        <!-- Right Side Actions -->
+        <div class="d-flex align-items-center gap-4">
+
+            <!-- Nút Đặt lịch khám -->
+            <a class="btn fw-bold px-4 py-2 rounded-pill shadow-sm" style="background-color: #00796b; color: white;" th:href="@{/appointment}">
+                Đặt lịch khám
+            </a>
+
+            <div class="d-flex align-items-center gap-3">
+                <!-- Icon Thông báo (Bell) -->
+                <a href="#" class="text-dark fs-5 position-relative" style="color: #00796b !important;">
+                    <i class="bi bi-bell"></i>
+                </a>
+
+                <!-- Chưa đăng nhập -->
+                <div sec:authorize="!isAuthenticated()">
+                    <a class="text-dark fs-5" th:href="@{/login}" style="color: #00796b !important;" title="Đăng nhập">
+                        <i class="bi bi-person-circle"></i>
+                    </a>
+                </div>
+
+                <!-- Đã đăng nhập: Giữ nguyên logic hiển thị Dropdown & Avatar của bạn -->
+                <div sec:authorize="isAuthenticated()" class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark fs-5" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #00796b !important;">
+
+                        <!-- Hiển thị Icon nếu không có Avatar -->
+                        <i th:if="${#authentication.principal.avatar == null or #strings.isEmpty(#authentication.principal.avatar)}" class="bi bi-person-circle"></i>
+
+                        <!-- Hiển thị Avatar (URL ngoài) -->
+                        <img th:if="${#authentication.principal.avatar != null and #strings.startsWith(#authentication.principal.avatar, 'http')}"
+                             th:src="${#authentication.principal.avatar}"
+                             alt="Avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover; border: 2px solid #00796b;">
+
+                        <!-- Hiển thị Avatar (Local) -->
+                        <img th:if="${#authentication.principal.avatar != null and !#strings.isEmpty(#authentication.principal.avatar) and !#strings.startsWith(#authentication.principal.avatar, 'http')}"
+                             th:src="@{'/uploads/' + ${#authentication.principal.avatar}}"
+                             alt="Avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover; border: 2px solid #00796b;">
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end text-small shadow border-0 mt-2" aria-labelledby="userDropdown">
+                        <li class="px-3 py-2 bg-light border-bottom mb-2 rounded-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small text-uppercase fw-bold">Số dư ví</span>
+                                <span class="text-success fw-bold">
+                                    <i class="bi bi-wallet2 me-1"></i>
+                                    <span th:text="${@globalHelper.getUserBalance(#authentication)}">0 đ</span>
+                                </span>
+                            </div>
+                        </li>
+                        <li><a class="dropdown-item py-2" th:href="@{/user/profile}"><i class="bi bi-person me-2 text-primary"></i>Hồ sơ cá nhân</a></li>
+                        <li><a class="dropdown-item py-2" th:href="@{/user/profile}"><i class="bi bi-clock-history me-2 text-info"></i>Lịch sử khám bệnh</a></li>
+
+                        <li sec:authorize="hasRole('ADMIN')"><hr class="dropdown-divider"></li>
+                        <li sec:authorize="hasRole('ADMIN')">
+                            <a class="dropdown-item text-danger fw-bold" th:href="@{/admin/dashboard}">Trang Quản trị</a>
+                        </li>
+
+                        <li sec:authorize="hasRole('DOCTOR')"><hr class="dropdown-divider"></li>
+                        <li sec:authorize="hasRole('DOCTOR')">
+                            <a class="dropdown-item text-primary fw-bold" th:href="@{/doctor/dashboard}">Trang Bác sĩ</a>
+                        </li>
+
+                        <li><hr class="dropdown-divider"></li>
+
+                        <li>
+                            <form th:action="@{/logout}" method="post" class="m-0">
+                                <button type="submit" class="dropdown-item text-danger py-2"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</header>
+</html>

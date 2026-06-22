@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng nhập</title>
+    <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="card p-4 shadow-lg col-md-5 mx-auto">
+        <h3 class="text-center mb-4">Đăng nhập</h3>
+        <div th:if="${param.error}" class="alert alert-danger text-center">
+            Tài khoản hoặc mật khẩu không chính xác!
+        </div>
+        <div th:if="${param.logout}" class="alert alert-success text-center">
+            Bạn đã đăng xuất thành công.
+        </div>
+        <form th:action="@{/login}" method="post">
+            <input type="text" name="username" class="form-control mb-3" placeholder="Tên đăng nhập hoặc Email" required>
+            <input type="password" name="password" class="form-control mb-3" placeholder="Mật khẩu" required>
+            <button class="btn btn-success w-100">Đăng nhập</button>
+            <!-- Trong form login, thêm đoạn này vào dưới nút Đăng nhập -->
+
+            <div class="text-center mt-3">
+                <p class="text-muted small">Hoặc đăng nhập bằng</p>
+                <a href="/oauth2/authorization/google" class="btn btn-outline-danger w-100">
+                    <i class="bi bi-google me-2"></i> Google
+                </a>
+            </div>
+        </form>
+        <p class="text-center mt-3">Chưa có tài khoản? <a th:href="@{/register}">Đăng ký</a></p>
+    </div>
+</div>
+</body>
+</html>

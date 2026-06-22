@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Hồ sơ Bệnh nhân')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<!-- Chú ý: Dùng Sidebar của Bác sĩ -->
+<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Kho lưu trữ Bệnh án: <span class="text-primary fw-bold" th:text="${patient.fullName}"></span></h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/examinations}">Danh sách khám</a></li>
+        <li class="breadcrumb-item active">Lịch sử bệnh nhân</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="card shadow-sm border-0">
+      <div class="card-body pt-4">
+        <h5 class="card-title pt-0">Tất cả lần khám trong quá khứ (<span th:text="${listRecords.size()}"></span>)</h5>
+
+        <div th:if="${listRecords.isEmpty()}" class="alert alert-info">
+          Bệnh nhân này chưa có hồ sơ khám bệnh nào trong quá khứ.
+        </div>
+
+        <table th:if="${!listRecords.isEmpty()}" class="table table-hover datatable">
+          <thead class="table-light">
+          <tr>
+            <th>Mã HS</th>
+            <th>Ngày khám</th>
+            <th>Bác sĩ khám</th>
+            <th>Chuyên khoa</th>
+            <th>Mã ICD-10</th>
+            <th>Chẩn đoán kết luận</th>
+            <th class="text-center">Hành động</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="rec : ${listRecords}">
+            <td class="fw-bold text-primary" th:text="'HS-' + ${rec.id}"></td>
+            <td th:text="${#temporals.format(rec.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+            <td th:text="${rec.booking.doctor.user.fullName}">Dr. B</td>
+            <td th:text="${rec.booking.doctor.department.name}">Khoa</td>
+            <td>
+              <span th:if="${rec.diagnosisCode != null}" class="badge bg-secondary" th:text="${rec.diagnosisCode}"></span>
+              <span th:unless="${rec.diagnosisCode != null}" class="text-muted small">--</span>
+            </td>
+            <td th:text="${#strings.abbreviate(rec.diagnosis, 40)}">Viêm họng...</td>
+            <td class="text-center">
+              <!-- Mở chi tiết bệnh án ở 1 tab mới nữa để bác sĩ đối chiếu dễ dàng -->
+              <a th:href="@{/doctor/medical-record/view/{id}(id=${rec.booking.id})}" target="_blank" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-file-medical"></i> Xem chi tiết
+              </a>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+<script th:src="@{/assets/vendor/simple-datatables/simple-datatables.js}"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Bệnh án')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Quản lý Hồ sơ Bệnh án</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Bệnh án điện tử</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Danh sách Bệnh án (<span th:text="${listRecords.size()}"></span>)</h5>
+
+        <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+
+        <table class="table table-hover datatable">
+          <thead>
+          <tr>
+            <th>Mã HS</th>
+            <th>Ngày khám</th>
+            <th>Bệnh nhân</th>
+            <th>Bác sĩ</th>
+            <th>Chẩn đoán sơ bộ</th>
+            <th>Hành động</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="rec : ${listRecords}">
+            <td th:text="'HS-' + ${rec.id}"></td>
+            <td th:text="${#temporals.format(rec.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+            <td>
+              <div class="fw-bold" th:text="${rec.booking.user.fullName}">Nguyen Van A</div>
+              <small class="text-muted" th:text="${rec.booking.user.phone}"></small>
+            </td>
+            <td th:text="${rec.booking.doctor.user.fullName}">Dr. B</td>
+            <td th:text="${#strings.abbreviate(rec.diagnosis, 50)}">Viêm họng...</td>
+            <td>
+              <a th:href="@{/admin/medical-records/view/{id}(id=${rec.id})}" class="btn btn-primary btn-sm">
+                <i class="bi bi-eye"></i> Xem chi tiết
+              </a>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+<script th:src="@{/assets-admin/vendor/simple-datatables/simple-datatables.js}"></script>
+<script th:src="@{/assets-admin/js/main.js}"></script>
+</body>
+</html>

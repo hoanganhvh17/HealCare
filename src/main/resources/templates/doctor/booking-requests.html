@@ -1,0 +1,176 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en" xmlns:th="http://www.thymeleaf.org">-->
+<!--<head>-->
+<!--  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Yêu cầu')}"></th:block>-->
+<!--</head>-->
+<!--<body>-->
+
+<!--<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>-->
+<!--<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>-->
+
+<!--<main id="main" class="main">-->
+
+<!--  <div class="pagetitle">-->
+<!--    <h1>Yêu cầu đặt lịch mới</h1>-->
+<!--    <nav>-->
+<!--      <ol class="breadcrumb">-->
+<!--        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Dashboard</a></li>-->
+<!--        <li class="breadcrumb-item active">Chờ xác nhận</li>-->
+<!--      </ol>-->
+<!--    </nav>-->
+<!--  </div>-->
+
+<!--  <section class="section">-->
+<!--    <div class="card">-->
+<!--      <div class="card-body">-->
+<!--        <h5 class="card-title">Danh sách chờ duyệt (<span th:text="${pendingBookings.size()}"></span>)</h5>-->
+
+<!--        <div th:if="${pendingBookings.isEmpty()}" class="alert alert-info">-->
+<!--          <i class="bi bi-info-circle me-1"></i> Hiện tại không có yêu cầu đặt lịch nào cần xử lý.-->
+<!--        </div>-->
+
+<!--        <div th:unless="${pendingBookings.isEmpty()}" class="table-responsive">-->
+<!--          <table class="table table-hover align-middle">-->
+<!--            <thead class="table-light">-->
+<!--            <tr>-->
+<!--              <th>Ngày hẹn</th>-->
+<!--              <th>Giờ</th>-->
+<!--              <th>Bệnh nhân</th>-->
+<!--              <th>SĐT</th>-->
+<!--              <th>Triệu chứng/Ghi chú</th>-->
+<!--              <th class="text-center">Hành động</th>-->
+<!--            </tr>-->
+<!--            </thead>-->
+<!--            <tbody>-->
+<!--            <tr th:each="b : ${pendingBookings}">-->
+<!--              <td th:classappend="${b.appointmentDate == #temporals.createToday()} ? 'text-danger fw-bold' : ''">-->
+<!--                <span th:text="${#temporals.format(b.appointmentDate, 'dd/MM/yyyy')}"></span>-->
+<!--                <span th:if="${b.appointmentDate == #temporals.createToday()}" class="badge bg-danger ms-1">Hôm nay</span>-->
+<!--              </td>-->
+<!--              <td>-->
+<!--                <span class="badge bg-light text-dark border" th:text="${b.appointmentTime}">08:00</span>-->
+<!--              </td>-->
+<!--              <td class="fw-bold text-primary" th:text="${b.user.fullName}">Nguyen Van A</td>-->
+<!--              <td th:text="${b.user.phone}">0912...</td>-->
+<!--              <td>-->
+<!--                <small class="text-muted fst-italic" th:text="${b.notes != null && !b.notes.isEmpty() ? b.notes : 'Không có ghi chú'}"></small>-->
+<!--              </td>-->
+<!--              <td class="text-center">-->
+<!--                <div class="d-flex justify-content-center gap-2">-->
+<!--                  <a th:href="@{/doctor/bookings/confirm/{id}(id=${b.id})}"-->
+<!--                     class="btn btn-success btn-sm"-->
+<!--                     onclick="return confirm('Bạn có chắc muốn nhận lịch này? Hệ thống sẽ gửi email xác nhận cho bệnh nhân.')">-->
+<!--                    <i class="bi bi-check-circle me-1"></i> Nhận-->
+<!--                  </a>-->
+
+<!--                  <a th:href="@{/doctor/bookings/cancel/{id}(id=${b.id})}"-->
+<!--                     class="btn btn-outline-danger btn-sm"-->
+<!--                     onclick="return confirm('Từ chối lịch hẹn này? Hành động này sẽ hủy lịch và báo cho bệnh nhân.')">-->
+<!--                    <i class="bi bi-x-circle me-1"></i> Hủy-->
+<!--                  </a>-->
+<!--                </div>-->
+<!--              </td>-->
+<!--            </tr>-->
+<!--            </tbody>-->
+<!--          </table>-->
+<!--        </div>-->
+
+<!--      </div>-->
+<!--    </div>-->
+<!--  </section>-->
+
+<!--</main>-->
+
+<!--<th:block th:replace="~{admin/include/footer :: footer}"></th:block>-->
+<!--</body>-->
+<!--</html>-->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Quản lý Yêu cầu')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Yêu cầu đặt lịch mới</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Chờ xác nhận</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Danh sách chờ duyệt (<span th:text="${pendingBookings.size()}"></span>)</h5>
+
+        <div th:if="${pendingBookings.isEmpty()}" class="alert alert-info">
+          <i class="bi bi-info-circle me-1"></i> Hiện tại không có yêu cầu đặt lịch nào cần xử lý.
+        </div>
+
+        <div th:unless="${pendingBookings.isEmpty()}" class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+              <th>Ngày hẹn</th>
+              <th>Giờ</th>
+              <th>Người bệnh</th> <th>SĐT Liên hệ</th>
+              <th>Triệu chứng/Ghi chú</th>
+              <th class="text-center">Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="b : ${pendingBookings}">
+              <td th:classappend="${b.appointmentDate == #temporals.createToday()} ? 'text-danger fw-bold' : ''">
+                <span th:text="${#temporals.format(b.appointmentDate, 'dd/MM/yyyy')}"></span>
+                <span th:if="${b.appointmentDate == #temporals.createToday()}" class="badge bg-danger ms-1">Hôm nay</span>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border" th:text="${b.appointmentTime}">08:00</span>
+              </td>
+
+              <td>
+                <span class="fw-bold text-primary" th:text="${b.patientName}">Tên BN</span>
+                <div th:if="${b.patientName != b.user.fullName}" class="small text-muted">
+                  (Đặt bởi: <span th:text="${b.user.fullName}"></span>)
+                </div>
+              </td>
+              <td th:text="${b.patientPhone}">0912...</td>
+              <td>
+                <small class="text-muted fst-italic" th:text="${b.notes != null && !b.notes.isEmpty() ? b.notes : 'Không có ghi chú'}"></small>
+              </td>
+              <td class="text-center">
+                <div class="d-flex justify-content-center gap-2">
+                  <a th:href="@{/doctor/bookings/confirm/{id}(id=${b.id})}"
+                     class="btn btn-success btn-sm"
+                     onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
+                    <i class="bi bi-check-circle me-1"></i> Nhận
+                  </a>
+                  <a th:href="@{/doctor/bookings/cancel/{id}(id=${b.id})}"
+                     class="btn btn-outline-danger btn-sm"
+                     onclick="return confirm('Từ chối lịch hẹn này?')">
+                    <i class="bi bi-x-circle me-1"></i> Hủy
+                  </a>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

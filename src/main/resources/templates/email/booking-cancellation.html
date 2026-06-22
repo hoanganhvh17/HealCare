@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #dc3545; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .reason-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin: 20px 0; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header"><h2>THÔNG BÁO HỦY LỊCH HẸN</h2></div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${patientName}"></strong>,</p>
+        <p>Chúng tôi rất tiếc phải thông báo rằng lịch hẹn của bạn tại <strong>MediTrust</strong> đã bị hủy.</p>
+        <div class="reason-box">
+            <strong>Lý do hủy:</strong> <span th:text="${reason}"></span>
+        </div>
+        <p><strong>Chi tiết lịch hẹn đã hủy:</strong></p>
+        <ul>
+            <li>Bác sĩ: <span th:text="${doctorName}"></span></li>
+            <li>Thời gian: <span th:text="${time} + ' ngày ' + ${date}"></span></li>
+        </ul>
+        <p><strong>Tiền cọc khám bệnh của quý khách sẽ được hoàn về ví trong vòng 24h.</strong></p>
+        <p>Bạn có thể truy cập website để đặt lại lịch hẹn vào thời điểm khác phù hợp hơn.</p>
+    </div>
+    <div class="footer">© 2026 MediTrust International Hospital</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <title>500 - Lỗi hệ thống</title>
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+  <style>
+    body { background: #f6f9ff; color: #444444; }
+    .error-container { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    .error-code { font-size: 8rem; font-weight: 700; color: #ffc107; line-height: 1; margin-bottom: 20px; } /* Màu vàng cảnh báo */
+    .error-message { font-size: 1.5rem; margin-bottom: 30px; color: #012970; }
+    .btn-back { background: #4154f1; border: 0; padding: 10px 30px; color: #fff; border-radius: 4px; text-decoration: none; }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <section class="error-container">
+    <h1 class="error-code">500</h1>
+    <h2 class="error-message">Đã xảy ra lỗi hệ thống.</h2>
+    <p class="text-muted mb-4">Hệ thống đang gặp sự cố kỹ thuật. Chúng tôi đã ghi nhận và sẽ khắc phục sớm nhất.</p>
+
+    <div class="d-flex gap-3">
+      <a class="btn-back" th:href="@{/}">Về Trang chủ</a>
+      <a class="btn btn-outline-secondary" href="javascript:history.back()">Quay lại</a>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

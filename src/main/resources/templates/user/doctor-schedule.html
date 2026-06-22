@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <title>Lịch trực Bác sĩ - MediTrust</title>
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+  <style>
+    /* === CSS TỐI ƯU CHO ẢNH VÀ BẢNG === */
+
+    /* Card bao quanh */
+    .schedule-card {
+        border: none;
+        box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* Header bảng */
+    .schedule-table thead th {
+        background-color: #f8f9fa;
+        color: #444;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+        padding: 15px;
+        border-bottom: 2px solid #eee;
+    }
+
+    /* Ô dữ liệu */
+    .schedule-table td {
+        vertical-align: middle;
+        padding: 15px;
+        border-bottom: 1px solid #f1f1f1;
+    }
+
+    /* --- QUAN TRỌNG: XỬ LÝ ẢNH ĐẠI DIỆN --- */
+    .doctor-avatar {
+        width: 60px;       /* Chiều rộng cố định */
+        height: 60px;      /* Chiều cao cố định (bằng chiều rộng -> hình vuông) */
+        object-fit: cover; /* Cắt ảnh vừa khung, không bao giờ bị méo */
+        object-position: top center; /* Ưu tiên lấy phần mặt */
+        border-radius: 50%; /* Bo tròn hoàn toàn */
+        border: 2px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-right: 15px;
+        flex-shrink: 0; /* Không bị co lại khi màn hình nhỏ */
+    }
+
+    /* Thông tin bác sĩ */
+    .doctor-info-container {
+        display: flex;
+        align-items: center;
+    }
+
+    .doctor-name {
+        font-weight: 700;
+        font-size: 1rem;
+        margin: 0;
+        line-height: 1.2;
+        color: #2c4964;
+        text-decoration: none;
+    }
+    .doctor-name:hover { color: #1977cc; }
+
+    .dept-badge {
+        font-size: 0.75rem;
+        background-color: #e6f2ff;
+        color: #1977cc;
+        padding: 3px 8px;
+        border-radius: 4px;
+        margin-top: 4px;
+        display: inline-block;
+        font-weight: 600;
+    }
+
+    /* Nút giờ (Time Slot) */
+    .time-slot-btn {
+        display: inline-block; /* Thay đổi để xếp ngang được */
+        width: auto;
+        min-width: 110px; /* Độ rộng tối thiểu cho đẹp */
+        margin-bottom: 6px;
+        background-color: #fff;
+        color: #1977cc;
+        border: 1px solid #cce5ff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        flex-grow: 1; /* Để các nút dàn đều */
+    }
+
+    .time-slot-btn:hover:not(.disabled) {
+        background-color: #1977cc;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(25, 119, 204, 0.2);
+    }
+
+    .time-slot-btn.disabled {
+        background-color: #f8f9fa;
+        color: #adb5bd;
+        border-color: #eee;
+        text-decoration: line-through; /* Gạch ngang chữ */
+        cursor: not-allowed;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    /* Style riêng cho trạng thái Booked (Đỏ nhẹ) */
+    .time-slot-btn.disabled.booked {
+        background-color: #fff5f5;
+        color: #dc3545;
+        border-color: #ffcccc;
+    }
+  </style>
+</head>
+
+<body>
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+  <div class="page-title" style="padding: 40px 0;">
+    <div class="container">
+      <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li><li class="breadcrumb-item active">Lịch làm việc</li></ol></nav>
+      <h2>Tra cứu Lịch làm việc</h2>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="card schedule-card mb-4">
+        <div class="card-body p-4 bg-light">
+          <form th:action="@{/doctor-schedule}" method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label fw-bold text-muted small text-uppercase">Ngày khám</label>
+              <input type="date" id="searchDate" name="searchDate" class="form-control shadow-sm border-0" th:value="${searchDate}" onchange="this.form.submit()">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold text-muted small text-uppercase">Chuyên khoa</label>
+              <select name="departmentId" class="form-select shadow-sm border-0" onchange="this.form.submit()">
+                <option value="">-- Tất cả --</option>
+                <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${d.id == currentDepartmentId}"></option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold text-muted small text-uppercase">Bác sĩ</label>
+              <select name="doctorId" class="form-select shadow-sm border-0" onchange="this.form.submit()">
+                <option value="">-- Tất cả --</option>
+                <option th:each="d : ${doctors}" th:value="${d.id}" th:text="${d.user.fullName}" th:selected="${d.id == currentDoctorId}"></option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-primary w-100 shadow-sm fw-bold"><i class="bi bi-search"></i> Tìm kiếm</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card schedule-card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table schedule-table mb-0">
+              <thead>
+              <tr>
+                <th style="width: 25%; text-align: left; padding-left: 30px;">Thông tin Bác sĩ</th>
+                <th style="width: 25%;">Sáng</th>
+                <th style="width: 25%;">Chiều</th>
+                <th style="width: 25%;">Tối</th>
+              </tr>
+              </thead>
+
+              <tbody>
+              <tr th:each="entry : ${doctorSlotsMap}">
+                <td style="padding-left: 30px;">
+                  <div class="doctor-info-container">
+                    <a th:href="@{/doctors/{id}(id=${entry.key.id})}">
+                      <img th:if="${entry.key.user.avatar != null}"
+                           th:src="@{'/uploads/' + ${entry.key.user.avatar}}"
+                           class="doctor-avatar">
+                      <img th:if="${entry.key.user.avatar == null}"
+                           th:src="@{/assets/img/default-doctor.png}"
+                           class="doctor-avatar">
+                    </a>
+                    <div>
+                      <a th:href="@{/doctors/{id}(id=${entry.key.id})}" class="doctor-name" th:text="'Dr. ' + ${entry.key.user.fullName}"></a>
+                      <div class="dept-badge" th:text="${entry.key.department.name}">Khoa</div>
+                    </div>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <th:block th:each="slot : ${entry.value}">
+                      <a th:if="${slot.session == 'Sáng'}"
+                         th:href="@{/appointment(doctorId=${entry.key.id}, appointmentDate=${searchDate}, appointmentTime=${slot.time})}"
+                         class="time-slot-btn"
+                         th:classappend="${!slot.available ? 'disabled ' + slot.statusClass : ''}"
+                         th:title="${!slot.available ? (slot.statusClass == 'booked' ? 'Đã có người đặt' : 'Đã qua giờ') : 'Đặt lịch ngay'}">
+                        <span th:text="${slot.time}"></span>
+                      </a>
+                    </th:block>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <th:block th:each="slot : ${entry.value}">
+                      <a th:if="${slot.session == 'Chiều'}"
+                         th:href="@{/appointment(doctorId=${entry.key.id}, appointmentDate=${searchDate}, appointmentTime=${slot.time})}"
+                         class="time-slot-btn"
+                         th:classappend="${!slot.available ? 'disabled ' + slot.statusClass : ''}"
+                         th:title="${!slot.available ? (slot.statusClass == 'booked' ? 'Đã có người đặt' : 'Đã qua giờ') : 'Đặt lịch ngay'}">
+                        <span th:text="${slot.time}"></span>
+                      </a>
+                    </th:block>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <th:block th:each="slot : ${entry.value}">
+                      <a th:if="${slot.session == 'Tối'}"
+                         th:href="@{/appointment(doctorId=${entry.key.id}, appointmentDate=${searchDate}, appointmentTime=${slot.time})}"
+                         class="time-slot-btn"
+                         th:classappend="${!slot.available ? 'disabled ' + slot.statusClass : ''}"
+                         th:title="${!slot.available ? (slot.statusClass == 'booked' ? 'Đã có người đặt' : 'Đã qua giờ') : 'Đặt lịch ngay'}">
+                        <span th:text="${slot.time}"></span>
+                      </a>
+                    </th:block>
+                  </div>
+                </td>
+              </tr>
+
+              <tr th:if="${doctorSlotsMap.isEmpty()}">
+                <td colspan="4" class="text-center py-5">
+                  <div class="text-muted">
+                    <i class="bi bi-calendar2-x display-4 mb-3 d-block opacity-50"></i>
+                    <h5>Không có lịch trực nào</h5>
+                    <p class="small">Vui lòng chọn ngày khác hoặc chuyên khoa khác.</p>
+                  </div>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+      const dateInput = document.getElementById('searchDate');
+      // Set min date là hôm nay
+      const d = new Date();
+      const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      dateInput.setAttribute('min', today);
+  });
+</script>
+</body>
+</html>

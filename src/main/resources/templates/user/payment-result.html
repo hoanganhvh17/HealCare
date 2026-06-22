@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Kết quả thanh toán</title>
+    <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+    <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+</head>
+<body>
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main mt-5 pt-5">
+    <div class="container text-center py-5">
+        <div th:if="${successMessage}" class="card shadow p-5 border-success border-top border-4">
+            <div class="mb-3 text-success"><i class="bi bi-check-circle-fill display-1"></i></div>
+            <h2 class="text-success">Thanh toán Thành công!</h2>
+            <p class="lead" th:text="${successMessage}"></p>
+            <a th:href="@{/user/profile}" class="btn btn-primary mt-3">Xem lịch sử khám</a>
+        </div>
+
+        <div th:if="${errorMessage}" class="card shadow p-5 border-danger border-top border-4">
+            <div class="mb-3 text-danger"><i class="bi bi-x-circle-fill display-1"></i></div>
+            <h2 class="text-danger">Thanh toán Thất bại</h2>
+            <p class="lead" th:text="${errorMessage}"></p>
+            <a th:href="@{/appointment}" class="btn btn-secondary mt-3">Thử đặt lại</a>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+</body>
+</html>

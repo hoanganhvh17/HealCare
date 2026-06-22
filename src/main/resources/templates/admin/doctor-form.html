@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>
+</head>
+
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+    <div class="pagetitle">
+        <h1 th:text="${pageTitle}">Form Bác sĩ</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a th:href="@{/admin/manage-doctor}">Quản lý Bác sĩ</a></li>
+                <li class="breadcrumb-item active" th:text="${pageTitle}"></li>
+            </ol>
+        </nav>
+    </div><section class="section">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Điền thông tin Bác sĩ</h5>
+
+                    <form th:action="@{/admin/manage-doctor/save}" th:object="${doctor}" method="post" class="row g-3">
+
+                        <input type="hidden" th:field="*{id}" />
+
+                        <div class="col-md-6">
+                            <label for="user" class="form-label">Tài khoản User (Đăng nhập)</label>
+                            <select th:field="*{user}" id="user" class="form-select" required>
+                                <option value="">-- Chọn User --</option>
+                                <option th:each="u : ${allUsers}"
+                                        th:value="${u.id}"
+                                        th:text="${u.fullName} + ' (ID: ' + ${u.id} + ')'"
+                                        th:selected="${doctor.user != null && doctor.user.id == u.id}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="department" class="form-label">Chuyên khoa</label>
+                            <select th:field="*{department}" id="department" class="form-select" required>
+                                <option value="">-- Chọn Khoa --</option>
+                                <option th:each="dept : ${allDepartments}"
+                                        th:value="${dept.id}"
+                                        th:text="${dept.name}"
+                                        th:selected="${doctor.department != null && doctor.department.id == dept.id}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="degree" class="form-label">Bằng cấp</label>
+                            <input type="text" th:field="*{degree}" class="form-control" id="degree" placeholder="vd: Tiến sĩ, Thạc sĩ...">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="price" class="form-label">Giá khám (VNĐ)</label>
+                            <input type="number" th:field="*{price}" class="form-control" id="price" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="experienceYears" class="form-label">Số năm kinh nghiệm</label>
+                            <input type="number" th:field="*{experienceYears}" class="form-control" id="experienceYears">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="bio" class="form-label">Tiểu sử (Bio)</label>
+                            <textarea th:field="*{bio}" class="form-control" id="bio" rows="4"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">Lưu</button>
+                            <a th:href="@{/admin/manage-doctor}" class="btn btn-secondary">Hủy</a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main><th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+</body>
+</html>

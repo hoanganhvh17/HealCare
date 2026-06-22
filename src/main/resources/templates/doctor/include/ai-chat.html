@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="chat-widget">
+    <style>
+        .ai-chat-widget { position: fixed; bottom: 30px; right: 30px; z-index: 9999; font-family: 'Roboto', sans-serif; }
+        .ai-chat-toggle { width: 60px; height: 60px; border-radius: 50%; background-color: #198754; color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 28px; cursor: pointer; transition: transform 0.2s ease; display: flex; align-items: center; justify-content: center;}
+        .ai-chat-toggle:hover { transform: scale(1.05); }
+
+        .ai-chat-box {
+            position: fixed !important;
+            bottom: 95px;
+            right: 30px;
+            width: 380px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+            min-width: 320px;
+            min-height: 400px;
+            z-index: 10000;
+        }
+
+        .ai-chat-header { background: linear-gradient(135deg, #198754, #146c43); color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .window-controls button { background: none; border: none; color: white; margin-left: 10px; font-size: 16px; cursor: pointer; transition: opacity 0.2s; }
+        .window-controls button:hover { opacity: 0.7; }
+
+        .ai-chat-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .ai-chat-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f4f7f6; display: flex; flex-direction: column; gap: 12px; }
+
+        .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+        .chat-msg.bot { background: white; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #333; }
+        .chat-msg.user { background: #198754; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+
+        .ai-chat-input-area { padding: 12px; background: white; border-top: 1px solid #eee; display: flex; gap: 8px; }
+        .ai-chat-input-area input { flex: 1; border: 1px solid #dee2e6; border-radius: 20px; padding: 8px 16px; outline: none; }
+        .ai-chat-input-area button { background: #198754; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; }
+
+        .typing-dots { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; height: 24px; }
+        .typing-dots span { width: 6px; height: 6px; background-color: #198754; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+
+        /* Chỉnh CSS Markdown cho đẹp trong chat box */
+        .chat-msg p { margin-bottom: 5px; }
+        .chat-msg ul { padding-left: 20px; margin-bottom: 5px; }
+        .chat-msg strong { color: inherit; }
+    </style>
+
+    <div id="doctor-ai-chat-widget" class="ai-chat-widget">
+        <div id="doctor-ai-chat-box" class="ai-chat-box d-none">
+            <div class="ai-chat-header" id="doctor-ai-chat-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-robot fs-5"></i>
+                    <span class="fw-bold" style="font-size: 15px;">Trợ lý Bác sĩ</span>
+                </div>
+                <div class="window-controls">
+                    <button id="doctor-btn-new-chat" title="Xóa lịch sử chat"><i class="bi bi-eraser"></i></button>
+                    <button id="doctor-btn-close"><i class="bi bi-x-lg"></i></button>
+                </div>
+            </div>
+
+            <div class="ai-chat-body">
+                <div id="doctor-ai-chat-messages" class="ai-chat-messages">
+                    <div class="chat-msg bot">Xin chào Bác sĩ! Em là trợ lý AI. Bác sĩ có thể hỏi em về lịch làm việc, bệnh nhân hôm nay nhé!</div>
+                </div>
+            </div>
+
+            <div class="ai-chat-input-area">
+                <input type="text" id="doctor-ai-chat-input" placeholder="Ví dụ: Lịch hôm nay của tôi...">
+                <button type="button" id="doctor-ai-chat-send"><i class="bi bi-send"></i></button>
+            </div>
+        </div>
+
+        <button type="button" id="doctor-ai-chat-toggle" class="ai-chat-toggle">
+            <i class="bi bi-chat-dots-fill"></i>
+        </button>
+    </div>
+
+    <!-- Cần Marked.js để parse markdown sang HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script th:src="@{/assets-admin/js/doctor-ai-chat.js}"></script>
+</div>
+</body>
+</html>

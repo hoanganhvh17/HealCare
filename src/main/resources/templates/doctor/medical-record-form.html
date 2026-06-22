@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Thực hiện Khám bệnh')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{doctor/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Bệnh án Điện tử</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/examinations}">Danh sách khám</a></li>
+        <li class="breadcrumb-item active">Nhập liệu</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+
+      <!-- CỘT TRÁI: THÔNG TIN BỆNH NHÂN & LỊCH SỬ KHÁM (PATIENT CONTEXT) -->
+      <div class="col-lg-4">
+
+        <!-- THÔNG TIN CƠ BẢN -->
+        <div class="card mb-3">
+          <div class="card-body profile-card pt-4 d-flex flex-column align-items-center text-center">
+            <h5 class="fw-bold text-primary mb-0" th:text="${booking.patientName}">Tên Bệnh Nhân</h5>
+            <div th:if="${booking.patientName != booking.user.fullName}" class="text-muted small mb-2">
+              (Đặt bởi: <span th:text="${booking.user.fullName}"></span>)
+            </div>
+            <div class="w-100 text-start mt-3 small">
+              <p class="mb-1"><strong><i class="bi bi-telephone me-2"></i>SĐT:</strong> <span th:text="${booking.patientPhone}"></span></p>
+              <p class="mb-1"><strong><i class="bi bi-gender-ambiguous me-2"></i>Giới tính:</strong> <span th:text="${booking.user.gender}"></span></p>
+              <p class="mb-0"><strong><i class="bi bi-clock me-2"></i>Giờ hẹn:</strong> <span class="badge bg-info text-dark" th:text="${booking.appointmentTime}"></span></p>
+            </div>
+            <!-- NÚT BẤM MỞ HỒ SƠ QUÁ KHỨ (MỚI THÊM) -->
+            <div class="w-100 mt-3 pt-3 border-top">
+              <a th:href="@{/doctor/medical-record/patient-records/{userId}(userId=${booking.user.id})}" target="_blank" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+                <i class="bi bi-folder2-open me-1"></i> Xem toàn bộ hồ sơ bệnh án
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- CẢNH BÁO DỊ ỨNG (ALLERGY ALERT) -->
+        <div class="card mb-3 border-danger" th:if="${allergies != null and !allergies.isEmpty()}">
+          <div class="card-header bg-danger text-white py-2 fw-bold">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> CẢNH BÁO DỊ ỨNG
+          </div>
+          <div class="card-body py-2 px-3 small">
+            <ul class="mb-0 ps-3 text-danger fw-bold">
+              <li th:each="alg : ${allergies}">
+                <span th:text="${alg.allergen}"></span> - <span th:text="${alg.reaction}"></span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- TIMELINE LỊCH SỬ KHÁM BỆNH -->
+        <div class="card">
+          <div class="card-header bg-light py-2 fw-bold text-secondary">
+            <i class="bi bi-clock-history me-1"></i> Lịch sử khám gần đây
+          </div>
+          <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
+            <div th:if="${historyRecords == null or historyRecords.isEmpty()}" class="text-muted small text-center mt-2">
+              Chưa có dữ liệu lịch sử khám.
+            </div>
+            <!-- Bắt đầu Timeline item -->
+            <div class="border-start border-2 border-primary ps-3 mb-3 position-relative" th:each="hist, iterStat : ${historyRecords}">
+              <div class="position-absolute bg-primary rounded-circle" style="width: 10px; height: 10px; left: -6px; top: 5px;"></div>
+              <div class="text-primary fw-bold small" th:text="${#temporals.format(hist.createdAt, 'dd/MM/yyyy')}">12/05/2025</div>
+              <div class="fw-bold text-dark" th:text="${hist.diagnosisCode != null ? '[' + hist.diagnosisCode + '] ' + hist.diagnosis : hist.diagnosis}">Viêm họng hạt</div>
+              <div class="text-muted small" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" th:text="${hist.prescription}">Paracetamol 500mg...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CỘT PHẢI: FORM NHẬP BỆNH ÁN EMR (INPUT FORM) -->
+      <div class="col-lg-8">
+        <form th:action="@{/doctor/medical-record/save}" method="post">
+          <input type="hidden" name="bookingId" th:value="${booking.id}">
+
+          <div class="card mb-3 border-top border-3 border-primary">
+            <div class="card-body pt-3">
+              <h6 class="fw-bold text-primary mb-3"><i class="bi bi-heart-pulse me-2"></i>Chỉ số Sinh tồn (Vitals)</h6>
+              <div class="row g-2 small">
+                <div class="col-md-3">
+                  <label class="text-muted">Mạch (bpm)</label>
+                  <input type="number" class="form-control form-control-sm" name="vitalHeartRate" placeholder="VD: 80">
+                </div>
+                <div class="col-md-3">
+                  <label class="text-muted">Huyết áp (mmHg)</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" name="vitalSystolic" placeholder="Tâm thu">
+                    <span class="input-group-text">/</span>
+                    <input type="number" class="form-control" name="vitalDiastolic" placeholder="T.trương">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <label class="text-muted">Nhiệt độ (°C)</label>
+                  <input type="number" step="0.1" class="form-control form-control-sm" name="vitalTemp" placeholder="VD: 37.5">
+                </div>
+                <div class="col-md-3">
+                  <label class="text-muted">Cân nặng (kg)</label>
+                  <input type="number" step="0.5" class="form-control form-control-sm" name="vitalWeight" placeholder="VD: 60">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-body pt-3">
+              <h6 class="fw-bold text-primary mb-3"><i class="bi bi-file-medical me-2"></i>Chẩn đoán Lâm sàng</h6>
+              <div class="mb-3">
+                <label class="form-label text-muted small fw-bold">Triệu chứng <span class="text-danger">*</span></label>
+                <textarea name="symptoms" class="form-control" rows="2" placeholder="Bệnh nhân than phiền gì..." required></textarea>
+              </div>
+              <div class="row">
+                <div class="col-md-9">
+                  <label class="form-label text-muted small fw-bold">Kết luận bệnh <span class="text-danger">*</span></label>
+                  <input type="text" name="diagnosis" class="form-control" placeholder="Ví dụ: Viêm phế quản cấp" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label text-muted small fw-bold">Mã bệnh (ICD-10)</label>
+                  <input type="text" name="diagnosisCode" class="form-control" placeholder="VD: J20.9">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-body pt-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-capsule me-2"></i>Kê đơn thuốc</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddMedicine"><i class="bi bi-plus-circle me-1"></i>Thêm thuốc</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0" id="prescriptionTable">
+                  <thead class="table-light text-muted small text-center">
+                  <tr>
+                    <th width="30%">Tên thuốc</th>
+                    <th width="15%">Hàm lượng</th>
+                    <th width="10%">SL</th>
+                    <th width="10%">ĐV</th>
+                    <th width="30%">Cách dùng</th>
+                    <th width="5%">Xóa</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <!-- Javascript sẽ render dòng trống vào đây -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="mt-2">
+                <textarea name="prescriptionText" class="form-control form-control-sm" rows="1" placeholder="Ghi chú thêm về đơn thuốc (nếu có)..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-body pt-3">
+              <h6 class="fw-bold text-primary mb-2"><i class="bi bi-journal-text me-2"></i>Lời dặn của Bác sĩ</h6>
+              <textarea name="doctorNotes" class="form-control" rows="2" placeholder="Nghỉ ngơi, ăn uống, hẹn tái khám..."></textarea>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a th:href="@{/doctor/examinations}" class="btn btn-secondary">Hủy bỏ</a>
+            <button type="submit" class="btn btn-success" onclick="return confirm('Xác nhận lưu hồ sơ bệnh án? Dữ liệu sẽ không thể thay đổi sau khi lưu.')">
+              <i class="bi bi-save me-1"></i> Lưu Bệnh Án
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Đoạn Script nhỏ xử lý việc thêm bớt dòng trong bảng Kê đơn thuốc -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.querySelector('#prescriptionTable tbody');
+        const btnAdd = document.getElementById('btnAddMedicine');
+
+        function addMedicineRow() {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><input type="text" name="medName[]" class="form-control form-control-sm" placeholder="Tên thuốc..." required></td>
+            <td><input type="text" name="medDosage[]" class="form-control form-control-sm" placeholder="VD: 500mg"></td>
+            <td><input type="number" name="medQuantity[]" class="form-control form-control-sm text-center" min="1" value="1" required></td>
+            <td><input type="text" name="medUnit[]" class="form-control form-control-sm" placeholder="Viên" required></td>
+            <td><input type="text" name="medInstruction[]" class="form-control form-control-sm" placeholder="Sáng 1, Tối 1..." required></td>
+            <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-danger btn-remove"><i class="bi bi-trash"></i></button></td>
+          `;
+          tableBody.appendChild(tr);
+
+          tr.querySelector('.btn-remove').addEventListener('click', function() {
+            tr.remove();
+          });
+        }
+
+        // Tạo sẵn 1 dòng khi mở form
+        addMedicineRow();
+
+        btnAdd.addEventListener('click', addMedicineRow);
+      });
+    </script>
+
+
+  </section>
+
+</main>
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

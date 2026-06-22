@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <title th:text="${job.title} + ' - Tuyển dụng'">Chi tiết công việc</title>
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+</head>
+
+<body>
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+  <div class="page-title" style="padding: 40px 0;">
+    <div class="container">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+          <li class="breadcrumb-item"><a th:href="@{/careers}">Tuyển dụng</a></li>
+          <li class="breadcrumb-item active" th:text="${job.title}">Chi tiết</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+              <h2 class="text-primary mb-3" th:text="${job.title}">Tiêu đề</h2>
+
+              <div class="row mb-4 g-3 bg-light p-3 rounded">
+                <div class="col-sm-6"><strong><i class="bi bi-cash me-2"></i> Mức lương:</strong> <span th:text="${job.salary}"></span></div>
+                <div class="col-sm-6"><strong><i class="bi bi-people me-2"></i> Số lượng:</strong> <span th:text="${job.quantity}"></span></div>
+                <div class="col-sm-6"><strong><i class="bi bi-mortarboard me-2"></i> Bằng cấp:</strong> <span th:text="${job.degree}"></span></div>
+                <div class="col-sm-6"><strong><i class="bi bi-calendar3 me-2"></i> Ngày đăng:</strong> <span th:text="${#temporals.format(job.createdAt, 'dd/MM/yyyy')}"></span></div>
+              </div>
+
+              <hr>
+
+              <h5 class="mt-4 fw-bold text-dark">Mô tả công việc</h5>
+              <p style="white-space: pre-line;" th:text="${job.description}"></p>
+
+              <h5 class="mt-4 fw-bold text-dark">Yêu cầu ứng viên</h5>
+              <p style="white-space: pre-line;" th:text="${job.requirements}"></p>
+
+              <h5 class="mt-4 fw-bold text-dark">Quyền lợi</h5>
+              <p style="white-space: pre-line;" th:text="${job.benefits}"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card border-0 shadow bg-light sticky-top" style="top: 100px;">
+            <div class="card-body p-4">
+              <h4 class="mb-3 text-center">Ứng tuyển ngay</h4>
+
+              <div th:if="${successMessage}" class="alert alert-success small" th:text="${successMessage}"></div>
+              <div th:if="${errorMessage}" class="alert alert-danger small" th:text="${errorMessage}"></div>
+
+              <form th:action="@{/career-apply}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="jobId" th:value="${job.id}">
+
+                <div class="mb-3">
+                  <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                  <input type="text" name="fullName" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Email <span class="text-danger">*</span></label>
+                  <input type="email" name="email" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                  <input type="tel" name="phone" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Giới thiệu ngắn</label>
+                  <textarea name="introduction" class="form-control" rows="3" placeholder="Giới thiệu sơ lược về kinh nghiệm..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">CV (PDF/Word) <span class="text-danger">*</span></label>
+                  <input type="file" name="cvFile" class="form-control" accept=".pdf,.doc,.docx" required>
+                  <div class="form-text">Chấp nhận file .pdf, .doc, .docx</div>
+                </div>
+
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-primary">Gửi hồ sơ</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+</body>
+</html>

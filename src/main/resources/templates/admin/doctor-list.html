@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{admin/include/header :: header (title='Quản lý Bác sĩ')}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>Quản lý Bác sĩ</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Quản lý Bác sĩ</li>
+            </ol>
+        </nav>
+    </div><section class="section">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tất cả Bác sĩ</h5>
+
+                    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <span th:text="${successMessage}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-octagon me-1"></i>
+                        <span th:text="${errorMessage}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+
+                    <a th:href="@{/admin/manage-doctor/add}" class="btn btn-primary mb-3">
+                        <i class="bi bi-plus-circle"></i> Thêm Bác sĩ mới
+                    </a>
+
+                    <table class="table datatable">
+                        <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Tên Bác sĩ</th>
+                            <th scope="col">Chuyên khoa</th>
+                            <th scope="col">Bằng cấp</th>
+                            <th scope="col">Giá khám</th>
+                            <th scope="col">Hành động</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="doc : ${listDoctors}">
+                            <td th:text="${doc.id}">1</td>
+                            <td th:text="${doc.user.fullName}">Dr. Walter White</td>
+                            <td th:text="${doc.department.name}">Tim mạch</td>
+                            <td th:text="${doc.degree}">Tiến sĩ</td>
+                            <td th:text="${#numbers.formatDecimal(doc.price, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'">500,000 VNĐ</td>
+                            <td>
+                                <a th:href="@{/admin/manage-doctor/edit/{id}(id=${doc.id})}" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                &nbsp;
+                                <a th:href="@{/admin/manage-doctor/delete/{id}(id=${doc.id})}" class="btn btn-danger btn-sm"
+                                   onclick="return confirm('Bạn có chắc muốn xóa Bác sĩ này?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main><th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

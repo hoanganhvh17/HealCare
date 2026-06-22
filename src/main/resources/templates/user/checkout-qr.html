@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Thanh toán QR - MediTrust</title>
+
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+
+  <style>
+    .qr-container {
+        max-width: 500px;
+        margin: 80px auto;
+        background: #fff;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .qr-image { width: 100%; max-width: 300px; border: 1px solid #eee; border-radius: 8px; padding: 10px; }
+    .payment-info { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: left; }
+    .spinner-border { width: 1.5rem; height: 1.5rem; border-width: 0.2em; }
+  </style>
+</head>
+
+<body class="bg-light">
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+  <div class="container">
+    <div class="qr-container">
+      <h4 class="mb-3 fw-bold text-primary">Thanh toán Lịch khám</h4>
+      <p class="text-muted small">Mở ứng dụng ngân hàng và quét mã QR bên dưới để thanh toán.</p>
+
+      <img th:src="${qrUrl}" alt="VietQR" class="qr-image mb-3">
+
+      <div class="payment-info">
+        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+          <span class="text-muted">Mã lịch hẹn:</span>
+          <span class="fw-bold" th:text="'#' + ${booking.id}">#0</span>
+        </div>
+        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+          <span class="text-muted">Số tiền:</span>
+          <span class="fw-bold text-danger" th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'">0 VNĐ</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Nội dung CK:</span>
+          <span class="fw-bold text-primary" th:text="${addInfo}">MDTRUST</span>
+        </div>
+      </div>
+
+      <div class="mt-4 p-3 bg-warning bg-opacity-10 rounded text-warning fw-bold d-flex align-items-center justify-content-center gap-2">
+        <div class="spinner-border text-warning" role="status"></div>
+        Hệ thống đang chờ nhận tiền...
+      </div>
+
+      <p class="mt-3 small text-muted">Trang này sẽ tự động chuyển hướng khi thanh toán thành công. Tuyệt đối không sửa nội dung chuyển khoản!</p>
+    </div>
+  </div>
+</main>
+
+<script th:inline="javascript">
+  document.addEventListener("DOMContentLoaded", function() {
+      // Lấy ID booking từ Thymeleaf
+      const bookingId = /*[[${booking.id}]]*/ 0;
+
+      if (bookingId > 0) {
+          // Thiết lập vòng lặp cứ 3 giây gọi API hỏi trạng thái 1 lần
+          const checkInterval = setInterval(async () => {
+              try {
+                  const response = await fetch(`/api/payment/check-status?id=${bookingId}`);
+                  if (response.ok) {
+                      const status = await response.text();
+                      if (status === 'PAID') {
+                          clearInterval(checkInterval); // Dừng lặp
+                          // Đổi giao diện thành công và chuyển hướng
+                          document.querySelector('.bg-warning').innerHTML = '<i class="bi bi-check-circle-fill text-success fs-4"></i> <span class="text-success ms-2">Thanh toán thành công! Đang chuyển hướng...</span>';
+                          setTimeout(() => {
+                              window.location.href = '/user/profile'; // Đá về trang Lịch sử khám
+                          }, 1500);
+                      }
+                  }
+              } catch (error) {
+                  console.error("Lỗi khi check trạng thái:", error);
+              }
+          }, 3000); // 3000ms = 3 giây
+      }
+  });
+</script>
+
+</body>
+</html>

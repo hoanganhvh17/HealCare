@@ -1,0 +1,177 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en" xmlns:th="http://www.thymeleaf.org">-->
+
+<!--<head>-->
+<!--  <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>-->
+<!--</head>-->
+
+<!--<body>-->
+<!--<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>-->
+<!--<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>-->
+
+<!--<main id="main" class="main">-->
+
+<!--  <div class="pagetitle">-->
+<!--    <h1 th:text="${pageTitle}">Form Dịch vụ</h1>-->
+<!--    <nav>-->
+<!--      <ol class="breadcrumb">-->
+<!--        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>-->
+<!--        <li class="breadcrumb-item"><a th:href="@{/admin/manage-service}">Quản lý Dịch vụ</a></li>-->
+<!--        <li class="breadcrumb-item active" th:text="${pageTitle}"></li>-->
+<!--      </ol>-->
+<!--    </nav>-->
+<!--  </div><section class="section">-->
+<!--  <div class="row">-->
+<!--    <div class="col-lg-8">-->
+<!--      <div class="card">-->
+<!--        <div class="card-body">-->
+<!--          <h5 class="card-title">Điền thông tin Dịch vụ</h5>-->
+
+<!--          <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>-->
+
+<!--          <form th:action="@{/admin/manage-service/save}" th:object="${service}" method="post" class="row g-3">-->
+
+<!--            <input type="hidden" th:field="*{id}" />-->
+
+<!--            <div class="col-12">-->
+<!--              <label for="name" class="form-label">Tên Dịch vụ</label>-->
+<!--              <input type="text" th:field="*{name}" class="form-control" id="name" required>-->
+<!--            </div>-->
+
+<!--            <div class="col-12">-->
+<!--              <label for="price" class="form-label">Mô tả Giá</label>-->
+<!--              <input type="text" th:field="*{price}" class="form-control" id="price" required placeholder="vd: (Theo bảng giá, khoảng 300.000đ)">-->
+<!--              <small>Đây là chuỗi văn bản (String) mô tả giá, không phải con số.</small>-->
+<!--            </div>-->
+
+<!--            <div class="col-12">-->
+<!--              <label for="category" class="form-label">Phân loại (Category)</label>-->
+<!--              <input type="text" th:field="*{category}" class="form-control" id="category" required placeholder="vd: Primary, Specialty, Diagnostics...">-->
+<!--            </div>-->
+
+<!--            <div class="col-12">-->
+<!--              <label for="description" class="form-label">Mô tả chi tiết Dịch vụ</label>-->
+<!--              <textarea th:field="*{description}" class="form-control" id="description" rows="4"></textarea>-->
+<!--            </div>-->
+<!--            <div class="col-12">-->
+<!--              <label for="image" class="form-label">Tên file ảnh (vd: service-1.jpg)</label>-->
+<!--              <input type="text" th:field="*{image}" class="form-control" id="image">-->
+<!--            </div>-->
+
+<!--            <div class="text-center">-->
+<!--              <button type="submit" class="btn btn-primary">Lưu</button>-->
+<!--              <a th:href="@{/admin/manage-service}" class="btn btn-secondary">Hủy</a>-->
+<!--            </div>-->
+<!--          </form>-->
+
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</section>-->
+
+<!--</main><th:block th:replace="~{admin/include/footer :: footer}"></th:block>-->
+<!--</body>-->
+<!--</html>-->
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title=${pageTitle})}"></th:block>
+</head>
+
+<body>
+<th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1 th:text="${pageTitle}">Thông tin Dịch vụ</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Bảng điều khiển</a></li>
+        <li class="breadcrumb-item"><a th:href="@{/admin/manage-service}">Quản lý Dịch vụ</a></li>
+        <li class="breadcrumb-item active" th:text="${pageTitle}"></li>
+      </ol>
+    </nav>
+  </div><section class="section">
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Thông tin chi tiết Dịch vụ</h5>
+
+          <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-octagon me-1"></i>
+            <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+
+          <form th:action="@{/admin/manage-service/save}" th:object="${service}"
+                method="post" enctype="multipart/form-data" class="row g-3">
+
+            <input type="hidden" th:field="*{id}" />
+            <input type="hidden" th:field="*{image}" />
+
+            <div class="col-12">
+              <label for="name" class="form-label">Tên Dịch vụ Y tế <span class="text-danger">*</span></label>
+              <input type="text" th:field="*{name}" class="form-control" id="name" required>
+            </div>
+
+            <div class="col-12">
+              <label for="category" class="form-label">Nhóm Dịch vụ (Phân loại) <span class="text-danger">*</span></label>
+              <select th:field="*{category}" id="category" class="form-select" required>
+                <option value="">-- Vui lòng chọn nhóm dịch vụ --</option>
+                <option value="Primary">Chăm sóc Cơ bản (Primary Care)</option>
+                <option value="Specialty">Chuyên khoa (Specialty Care)</option>
+                <option value="Diagnostics">Chẩn đoán & Xét nghiệm (Diagnostics)</option>
+                <option value="Emergency">Cấp cứu (Emergency)</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label for="price" class="form-label">Chi phí tham khảo <span class="text-danger">*</span></label>
+              <input type="text" th:field="*{price}" class="form-control" id="price" required
+                     placeholder="Ví dụ: Theo BHYT, Khoảng 300.000đ...">
+              <div class="form-text">Nhập mô tả chi phí dưới dạng văn bản.</div>
+            </div>
+
+            <div class="col-12">
+              <label for="description" class="form-label">Mô tả chuyên môn</label>
+              <textarea th:field="*{description}" class="form-control" id="description" rows="5"
+                        placeholder="Mô tả quy trình, đối tượng áp dụng..."></textarea>
+            </div>
+
+            <div class="col-12">
+              <label for="imageFile" class="form-label">Hình ảnh minh họa</label>
+              <input type="file" name="imageFile" class="form-control" id="imageFile" accept="image/*">
+              <div class="form-text">Hỗ trợ định dạng: .jpg, .png, .jpeg</div>
+
+              <div class="mt-3" th:if="${service.image != null}">
+                <label>Ảnh hiện tại:</label><br>
+                <img th:src="@{'/assets/img/health/' + ${service.image}}"
+                     onerror="this.style.display='none'"
+                     alt="Service Image" class="img-thumbnail" style="max-height: 150px;">
+                <div class="small text-muted mt-1" th:text="${service.image}"></div>
+              </div>
+            </div>
+
+            <div class="text-center mt-4">
+              <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu dữ liệu</button>
+              <a th:href="@{/admin/manage-service}" class="btn btn-secondary"><i class="bi bi-x-circle me-1"></i> Hủy bỏ</a>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+</body>
+</html>
