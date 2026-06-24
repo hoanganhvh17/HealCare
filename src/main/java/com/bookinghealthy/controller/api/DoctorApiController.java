@@ -3,6 +3,7 @@ package com.bookinghealthy.controller.api;
 import com.bookinghealthy.dto.DoctorDTO;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.service.DoctorService;
+import com.bookinghealthy.service.ReviewService; // <-- THÊM IMPORT
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,26 +19,33 @@ public class DoctorApiController {
     @Autowired
     private DoctorService doctorService;
 
+    @Autowired
+    private ReviewService reviewService;
+
     @GetMapping("/doctors")
-    public List<DoctorDTO> getDoctorsByDepartment(@RequestParam Long departmentId) {
+    public List<DoctorDTO> getDoctorsByDepartment(@RequestParam(required = false) Long departmentId) {
+        List<Doctor> doctors;
 
-        List<Doctor> doctors = doctorService.findByDepartmentId(departmentId);
-
+        if (departmentId != null) {
+            doctors = doctorService.findByDepartmentId(departmentId);
+        } else {
+            doctors = doctorService.findAll();
+        }
         return doctors.stream()
-                .map(DoctorDTO::new)
+                .map(doctor -> {
+                    Double avgRating = reviewService.getAverageRating(doctor.getId());
+                    return new DoctorDTO(doctor, avgRating);
+                })
                 .collect(Collectors.toList());
     }
-    // === THÊM API MỚI NÀY ===
-    /**
-     * Lấy thông tin chi tiết của 1 bác sĩ (dưới dạng DTO)
-     * Dùng cho JavaScript khi trang appointment tải
-     */
+
     @GetMapping("/doctor/{id}")
     public ResponseEntity<DoctorDTO> getDoctorById(@PathVariable Long id) {
-        Optional<Doctor> doctorOpt = doctorService.findById(id); // findById đã có @EntityGraph
+        Optional<Doctor> doctorOpt = doctorService.findById(id);
 
         if (doctorOpt.isPresent()) {
-            DoctorDTO doctorDTO = new DoctorDTO(doctorOpt.get());
+            Double avgRating = reviewService.getAverageRating(id);
+            DoctorDTO doctorDTO = new DoctorDTO(doctorOpt.get(), avgRating);
             return ResponseEntity.ok(doctorDTO);
         } else {
             return ResponseEntity.notFound().build();

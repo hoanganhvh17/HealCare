@@ -1,116 +1,268 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 
-<header th:fragment="header-nav" id="header" class="header d-flex align-items-center fixed-top bg-white shadow-sm py-2">
-  <input type="hidden" id="current-user-id" th:value="${#authorization.expression('isAuthenticated()') ? #authentication.name : 'guest'}" />
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Giới thiệu - HealCare</title>
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/aos/aos.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/swiper/swiper-bundle.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/glightbox/css/glightbox.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
 
-  <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
+  <style>
+    :root {
+      --primary-teal: #006B63;
+      --text-main: #333333;
+      --text-muted: #555555;
+      --bg-card: #F8F9FA;
+      --border-card: #E5E9F0;
+    }
 
-    <!-- Logo -->
-    <a th:href="@{/}" class="logo d-flex align-items-center me-auto me-xl-0 text-decoration-none">
-      <h1 class="sitename m-0 fw-bold" style="color: #00796b;">HealCare</h1>
-    </a>
+    .about-page .main {
+      padding-top: 120px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      background-color: #ffffff;
+    }
 
-    <!-- Navigation Menu -->
-    <nav id="navmenu" class="navmenu mx-auto">
-      <ul class="d-flex list-unstyled m-0 gap-4 align-items-center">
-        <li>
-          <a th:href="@{/}" th:classappend="${activePage == 'home'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Trang chủ</a>
-        </li>
-        <li>
-          <a th:href="@{/departments}" th:classappend="${activePage == 'departments'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Chuyên khoa</a>
-        </li>
-        <li>
-          <a th:href="@{/services}" th:classappend="${activePage == 'services'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Dịch vụ</a>
-        </li>
-        <li>
-          <a th:href="@{/doctors}" th:classappend="${activePage == 'doctors'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Đội ngũ bác sĩ</a>
-        </li>
-        <li>
-          <a th:href="@{/news}" th:classappend="${activePage == 'news'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Tin tức</a>
-        </li>
-        <li>
-          <a th:href="@{/about}" th:classappend="${activePage == 'about'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Giới thiệu</a>
-        </li>
-      </ul>
-      <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
-    </nav>
+    .btn-teal {
+      background-color: var(--primary-teal);
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: opacity 0.3s;
+      display: inline-block;
+    }
+    .btn-teal:hover {
+      color: #fff;
+      opacity: 0.9;
+    }
 
-    <!-- Right Side Actions -->
-    <div class="d-flex align-items-center gap-4">
+    /* Hero Section */
+    .hero-section {
+      padding: 60px 0 80px;
+    }
+    .hero-title {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--primary-teal);
+      line-height: 1.2;
+      margin-bottom: 1.5rem;
+    }
+    .hero-text {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+      max-width: 90%;
+    }
+    .hero-img {
+      width: 100%;
+      border-radius: 16px;
+      object-fit: cover;
+      box-shadow: 0 10px 30px rgba(0, 107, 99, 0.1);
+    }
 
-      <!-- Nút Đặt lịch khám -->
-      <a class="btn fw-bold px-4 py-2 rounded-pill shadow-sm" style="background-color: #00796b; color: white;" th:href="@{/appointment}">
-        Đặt lịch khám
-      </a>
+    /* Section Titles */
+    .section-title {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--primary-teal);
+      text-align: center;
+      margin-bottom: 3rem;
+    }
 
-      <div class="d-flex align-items-center gap-3">
-        <!-- Icon Thông báo (Bell) -->
-        <a href="#" class="text-dark fs-5 position-relative" style="color: #00796b !important;">
-          <i class="bi bi-bell"></i>
-        </a>
+    /* Features Section */
+    .features-section {
+      padding: 60px 0;
+    }
+    .feature-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      padding: 40px 30px;
+      height: 100%;
+      transition: transform 0.3s;
+    }
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    }
+    .icon-box {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+    }
+    .icon-blue { background: #E0F2FE; color: #0284C7; }
+    .icon-red { background: #FEE2E2; color: #DC2626; }
+    .icon-green { background: #DCFCE7; color: #16A34A; }
 
-        <!-- Chưa đăng nhập -->
-        <div sec:authorize="!isAuthenticated()">
-          <a class="text-dark fs-5" th:href="@{/login}" style="color: #00796b !important;" title="Đăng nhập">
-            <i class="bi bi-person-circle"></i>
-          </a>
+    .feature-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #111;
+    }
+    .feature-text {
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+      margin-bottom: 0;
+    }
+
+    /* Team Section */
+    .team-section {
+      padding: 60px 0 80px;
+    }
+    .team-member {
+      text-align: center;
+    }
+    .team-member img {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    .team-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: #111;
+    }
+    .team-role {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+
+<body class="about-page">
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main">
+
+  <section class="hero-section" data-aos="fade-up" data-aos-delay="100">
+    <div class="container">
+      <div class="row align-items-center gy-5">
+        <div class="col-lg-6 pr-lg-5">
+          <h1 class="hero-title">Sứ Mệnh Chăm Sóc Sức<br>Khỏe Thông Minh</h1>
+          <p class="hero-text">Tại HealCare, chúng tôi tin rằng công nghệ có thể mang lại sự an tâm tuyệt đối. Bằng cách kết hợp trí tuệ nhân tạo (AI) với chuyên môn y tế hàng đầu, chúng tôi tối ưu hóa quá trình tìm kiếm, đặt lịch và chăm sóc sức khỏe gia đình bạn.</p>
+          <a href="#about" class="btn-teal">Tìm Hiểu Thêm</a>
         </div>
-
-        <!-- Đã đăng nhập: Giữ nguyên logic hiển thị Dropdown & Avatar của bạn -->
-        <div sec:authorize="isAuthenticated()" class="dropdown">
-          <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark fs-5" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #00796b !important;">
-
-            <!-- Hiển thị Icon nếu không có Avatar -->
-            <i th:if="${#authentication.principal.avatar == null or #strings.isEmpty(#authentication.principal.avatar)}" class="bi bi-person-circle"></i>
-
-            <!-- Hiển thị Avatar (URL ngoài) -->
-            <img th:if="${#authentication.principal.avatar != null and #strings.startsWith(#authentication.principal.avatar, 'http')}"
-                 th:src="${#authentication.principal.avatar}"
-                 alt="Avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover; border: 2px solid #00796b;">
-
-            <!-- Hiển thị Avatar (Local) -->
-            <img th:if="${#authentication.principal.avatar != null and !#strings.isEmpty(#authentication.principal.avatar) and !#strings.startsWith(#authentication.principal.avatar, 'http')}"
-                 th:src="@{'/uploads/' + ${#authentication.principal.avatar}}"
-                 alt="Avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover; border: 2px solid #00796b;">
-          </a>
-
-          <ul class="dropdown-menu dropdown-menu-end text-small shadow border-0 mt-2" aria-labelledby="userDropdown">
-            <li class="px-3 py-2 bg-light border-bottom mb-2 rounded-top">
-              <div class="d-flex justify-content-between align-items-center">
-                <span class="text-muted small text-uppercase fw-bold">Số dư ví</span>
-                <span class="text-success fw-bold">
-                                    <i class="bi bi-wallet2 me-1"></i>
-                                    <span th:text="${@globalHelper.getUserBalance(#authentication)}">0 đ</span>
-                                </span>
-              </div>
-            </li>
-            <li><a class="dropdown-item py-2" th:href="@{/user/profile}"><i class="bi bi-person me-2 text-primary"></i>Hồ sơ cá nhân</a></li>
-            <li><a class="dropdown-item py-2" th:href="@{/user/profile}"><i class="bi bi-clock-history me-2 text-info"></i>Lịch sử khám bệnh</a></li>
-
-            <li sec:authorize="hasRole('ADMIN')"><hr class="dropdown-divider"></li>
-            <li sec:authorize="hasRole('ADMIN')">
-              <a class="dropdown-item text-danger fw-bold" th:href="@{/admin/dashboard}">Trang Quản trị</a>
-            </li>
-
-            <li sec:authorize="hasRole('DOCTOR')"><hr class="dropdown-divider"></li>
-            <li sec:authorize="hasRole('DOCTOR')">
-              <a class="dropdown-item text-primary fw-bold" th:href="@{/doctor/dashboard}">Trang Bác sĩ</a>
-            </li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li>
-              <form th:action="@{/logout}" method="post" class="m-0">
-                <button type="submit" class="dropdown-item text-danger py-2"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
-              </form>
-            </li>
-          </ul>
+        <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
+          <img src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="HealCare Health" class="hero-img">
         </div>
       </div>
     </div>
+  </section>
 
-  </div>
-</header>
+  <section id="about" class="features-section" data-aos="fade-up" data-aos-delay="150">
+    <div class="container">
+      <h2 class="section-title">Công Nghệ Cốt Lõi</h2>
+      <div class="row gy-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="icon-box icon-blue">
+              <i class="bi bi-stars"></i>
+            </div>
+            <h3 class="feature-title">Smart Matching AI</h3>
+            <p class="feature-text">Hệ thống AI phân tích triệu chứng và lịch sử bệnh lý để kết nối bạn với chuyên gia y tế phù hợp nhất, giảm thiểu thời gian chờ đợi và tăng hiệu quả điều trị.</p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="icon-box icon-red">
+              <i class="bi bi-briefcase-medical"></i>
+            </div>
+            <h3 class="feature-title">Tự Động Hóa Cấp Cứu</h3>
+            <p class="feature-text">Tính năng Autofill tự động điền thông tin y tế quan trọng trong tình huống khẩn cấp, giúp đội ngũ y tế nắm bắt tình trạng bệnh nhân ngay lập tức, cứu sống sinh mạng.</p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="icon-box icon-green">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <h3 class="feature-title">Quản Lý Gia Đình</h3>
+            <p class="feature-text">Một nền tảng duy nhất để theo dõi hồ sơ sức khỏe, lịch tiêm chủng và đơn thuốc của mọi thành viên trong gia đình một cách bảo mật và trực quan.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="team-section" data-aos="fade-up" data-aos-delay="200">
+    <div class="container">
+      <h2 class="section-title">Đội Ngũ Lãnh Đạo & Cố Vấn</h2>
+      <div class="row gy-4 justify-content-center">
+        <div class="col-lg-3 col-md-6">
+          <div class="team-member">
+            <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="Dr. Nguyễn Văn A">
+            <h4 class="team-name">Dr. Nguyễn Văn A</h4>
+            <p class="team-role">Giám Đốc Y Khoa</p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="team-member">
+            <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="Lê Thị B">
+            <h4 class="team-name">Lê Thị B</h4>
+            <p class="team-role">Giám Đốc Công Nghệ (CTO)</p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="team-member">
+            <img src="https://images.unsplash.com/photo-1537368910025-700350fe46c7?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="Dr. Trần Văn C">
+            <h4 class="team-name">Dr. Trần Văn C</h4>
+            <p class="team-role">Trưởng Ban Cố Vấn Y Tế</p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="team-member">
+            <img src="https://images.unsplash.com/photo-1594824432258-2e061801265d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="Dr. Phạm Thị D">
+            <h4 class="team-name">Dr. Phạm Thị D</h4>
+            <p class="team-role">Chuyên Gia Nhi Khoa</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div th:replace="~{user/include/footer :: footer}"></div>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
+<a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+<div id="preloader"></div>
+
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/vendor/php-email-form/validate.js}"></script>
+<script th:src="@{/assets/vendor/aos/aos.js}"></script>
+<script th:src="@{/assets/vendor/purecounter/purecounter_vanilla.js}"></script>
+<script th:src="@{/assets/vendor/swiper/swiper-bundle.min.js}"></script>
+<script th:src="@{/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js}"></script>
+<script th:src="@{/assets/vendor/isotope-layout/isotope.pkgd.min.js}"></script>
+<script th:src="@{/assets/vendor/glightbox/js/glightbox.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+
+</body>
 </html>

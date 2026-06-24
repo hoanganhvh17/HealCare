@@ -32,6 +32,7 @@
       border: none;
       width: 100%;
       transition: all 0.3s;
+      cursor: pointer;
     }
     .btn-teal:hover { background-color: #0a5f52; color: white; }
 
@@ -46,20 +47,6 @@
       transition: all 0.3s;
     }
     .btn-light-blue:hover { background-color: #bfdbfe; }
-
-    /* Header Title Area */
-    .page-header-text h1 {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 0.5rem;
-    }
-    .page-header-text p {
-      color: #64748b;
-      font-size: 1.05rem;
-      max-width: 600px;
-      line-height: 1.6;
-    }
 
     /* Filter Sidebar */
     .filter-card {
@@ -77,9 +64,7 @@
       font-weight: 700;
       color: #1e293b;
     }
-    .filter-group {
-      margin-bottom: 1.5rem;
-    }
+    .filter-group { margin-bottom: 1.5rem; }
     .filter-label {
       font-size: 0.9rem;
       font-weight: 600;
@@ -95,29 +80,21 @@
       padding: 0.6rem 2.25rem 0.6rem 1rem;
       box-shadow: none;
     }
-    .form-select:focus {
-      border-color: #0d7b6a;
-      box-shadow: 0 0 0 0.25rem rgba(13, 123, 106, 0.1);
-    }
-    .rating-item {
+
+    /* Interactive Stars CSS */
+    .interactive-stars {
       display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      margin-bottom: 0.8rem;
-      font-size: 0.95rem;
-      color: #475569;
+      gap: 6px;
+      font-size: 1.8rem;
+      cursor: pointer;
+      color: #cbd5e1; /* Màu xám mặc định */
     }
-    .form-check-input {
-      width: 1.2rem;
-      height: 1.2rem;
-      border-color: #cbd5e1;
+    .interactive-stars i {
+      transition: color 0.2s;
     }
-    .form-check-input:checked {
-      background-color: #0d7b6a;
-      border-color: #0d7b6a;
+    .interactive-stars i.active {
+      color: #f59e0b; /* Màu vàng khi được chọn */
     }
-    .stars i { color: #22c55e; font-size: 1.1rem; margin-right: 2px;}
-    .stars i.empty { color: #cbd5e1; }
 
     /* Doctor Card */
     .doctor-card {
@@ -130,115 +107,25 @@
       flex-direction: column;
       transition: all 0.3s;
     }
-    .doctor-card:hover {
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-    }
+    .doctor-card:hover { box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
     .doctor-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 1rem;
     }
-    .doctor-info-wrap {
-      display: flex;
-      gap: 1rem;
-    }
-    .doctor-avatar {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      object-fit: cover;
-      background-color: #f1f5f9;
-    }
-    .doctor-name {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin: 0 0 0.2rem 0;
-      color: #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .verified-icon {
-      color: #10b981;
-      font-size: 1.1rem;
-    }
-    .doctor-spec {
-      color: #0d7b6a;
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-    .rating-badge {
-      background: #d1fae5;
-      color: #065f46;
-      padding: 0.3rem 0.6rem;
-      border-radius: 50px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
+    .doctor-info-wrap { display: flex; gap: 1rem; }
+    .doctor-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background-color: #f1f5f9; }
+    .doctor-name { font-size: 1.15rem; font-weight: 700; margin: 0 0 0.2rem 0; color: #1e293b; display: flex; align-items: center; gap: 0.4rem; }
+    .verified-icon { color: #10b981; font-size: 1.1rem; }
+    .doctor-spec { color: #0d7b6a; font-size: 0.9rem; font-weight: 500; }
+    .rating-badge { background: #d1fae5; color: #065f46; padding: 0.3rem 0.6rem; border-radius: 50px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem; }
+    .doctor-desc { color: #475569; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem; }
 
-    .doctor-desc {
-      color: #475569;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin-bottom: 1rem;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .tag-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .spec-tag {
-      background: #e2e8f0;
-      color: #334155;
-      padding: 0.3rem 0.8rem;
-      border-radius: 50px;
-      font-size: 0.8rem;
-      font-weight: 500;
-    }
-
-    .schedule-section {
-      border-top: 1px solid #e2e8f0;
-      padding-top: 1rem;
-      margin-top: auto;
-      margin-bottom: 1.5rem;
-    }
-    .schedule-title {
-      font-size: 0.85rem;
-      color: #64748b;
-      margin-bottom: 0.8rem;
-    }
-    .time-slots {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .time-slot {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 0.4rem 0.8rem;
-      text-align: center;
-      font-size: 0.85rem;
-      background: #f8fafc;
-      color: #1e293b;
-      min-width: 80px;
-    }
-    .time-slot.disabled {
-      background: #f1f5f9;
-      color: #94a3b8;
-      border-color: #e2e8f0;
-    }
-    .slot-date { font-weight: 600; display: block; margin-bottom: 2px;}
-    .slot-time { display: block; }
+    .schedule-section { border-top: 1px solid #e2e8f0; padding-top: 1rem; margin-top: auto; margin-bottom: 1.5rem; }
+    .schedule-title { font-size: 0.85rem; color: #64748b; margin-bottom: 0.8rem; }
+    .time-slots { display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 32px; }
+    .time-slot { border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.4rem 0.8rem; text-align: center; font-size: 0.85rem; background: #f8fafc; color: #1e293b; min-width: 80px; }
   </style>
 </head>
 
@@ -249,12 +136,11 @@
 <main class="main container" style="padding-top: 130px; padding-bottom: 4rem;">
 
   <div class="page-header-text mb-5">
-    <h1>Đội ngũ Bác sĩ</h1>
-    <p>Tìm kiếm và đặt lịch hẹn với các chuyên gia y tế hàng đầu của chúng tôi. Lọc theo chuyên khoa, đánh giá, hoặc thời gian trống để tìm bác sĩ phù hợp nhất.</p>
+    <h1 style="font-size: 2.2rem; font-weight: 700; color: #1e293b;">Đội ngũ Bác sĩ</h1>
+    <p style="color: #64748b; font-size: 1.05rem;">Tìm kiếm và đặt lịch hẹn với các chuyên gia y tế hàng đầu của chúng tôi.</p>
   </div>
 
   <div class="row g-4">
-
     <div class="col-lg-3">
       <div class="filter-card sticky-lg-top" style="top: 100px; z-index: 1;">
         <div class="filter-header">
@@ -264,194 +150,41 @@
 
         <div class="filter-group">
           <label class="filter-label">Chuyên khoa</label>
-          <select class="form-select">
-            <option selected>Tất cả chuyên khoa</option>
-            <option value="1">Nhi khoa</option>
-            <option value="2">Tim mạch</option>
-            <option value="3">Nội khoa</option>
+          <select class="form-select" id="departmentFilter">
+            <option value="" th:selected="${currentDepartmentId == null}">Tất cả chuyên khoa</option>
+            <option th:each="dept : ${departments}"
+                    th:value="${dept.id}"
+                    th:text="${dept.name}"
+                    th:selected="${dept.id == currentDepartmentId}">Tên khoa</option>
           </select>
         </div>
 
         <div class="filter-group">
-          <label class="filter-label">Đánh giá</label>
-          <div class="rating-item">
-            <input class="form-check-input" type="radio" name="ratingFilter" id="rating4" checked>
-            <label class="form-check-label d-flex align-items-center" for="rating4">
-              <span class="stars me-2">
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star empty"></i>
-              </span>
-              4.0+
-            </label>
+          <label class="filter-label">Đánh giá tối thiểu</label>
+          <div class="interactive-stars" id="starFilter">
+            <i class="bi bi-star-fill" data-value="1"></i>
+            <i class="bi bi-star-fill" data-value="2"></i>
+            <i class="bi bi-star-fill" data-value="3"></i>
+            <i class="bi bi-star-fill" data-value="4"></i>
+            <i class="bi bi-star-fill" data-value="5"></i>
           </div>
-          <div class="rating-item">
-            <input class="form-check-input" type="radio" name="ratingFilter" id="rating3">
-            <label class="form-check-label d-flex align-items-center" for="rating3">
-              <span class="stars me-2">
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star empty"></i>
-                <i class="bi bi-star empty"></i>
-              </span>
-              3.0+
-            </label>
-          </div>
+          <small class="text-muted mt-1 d-block" id="starFilterText">Hiển thị tất cả</small>
         </div>
 
         <div class="filter-group">
           <label class="filter-label">Thời gian trống</label>
-          <select class="form-select">
-            <option selected>Hôm nay</option>
-            <option value="1">Ngày mai</option>
-            <option value="2">Trong tuần này</option>
+          <select class="form-select" id="timeFilter">
+            <option value="today" selected>Hôm nay</option>
+            <option value="tomorrow">Ngày mai</option>
           </select>
         </div>
 
-        <div class="filter-group mb-4">
-          <label class="filter-label">Địa điểm</label>
-          <select class="form-select">
-            <option selected>Tất cả cơ sở</option>
-            <option value="1">Cơ sở Hà Nội</option>
-            <option value="2">Cơ sở TP.HCM</option>
-          </select>
-        </div>
-
-        <button class="btn btn-light-blue">Xóa bộ lọc</button>
+        <button class="btn btn-light-blue w-100" id="clearFilterBtn">Xóa bộ lọc</button>
       </div>
     </div>
 
     <div class="col-lg-9">
-      <div class="row g-4">
-
-        <div class="col-md-6">
-          <div class="doctor-card">
-            <div class="doctor-header">
-              <div class="doctor-info-wrap">
-                <img th:src="@{/assets/img/doctors/doctor-female-1.webp}" alt="BS. Nguyễn Anh" class="doctor-avatar">
-                <div>
-                  <h3 class="doctor-name">BS. Nguyễn Anh <i class="bi bi-patch-check verified-icon"></i></h3>
-                  <p class="doctor-spec">Nhi khoa</p>
-                </div>
-              </div>
-              <div class="rating-badge">
-                <i class="bi bi-star-fill"></i> 4.9 (120)
-              </div>
-            </div>
-
-            <p class="doctor-desc">Hơn 15 năm kinh nghiệm trong lĩnh vực Nhi khoa. Chuyên điều trị các bệnh hô hấp và dinh dưỡng...</p>
-
-            <div class="tag-list">
-              <span class="spec-tag">Hô hấp</span>
-              <span class="spec-tag">Dinh dưỡng</span>
-              <span class="spec-tag">Tiêm chủng</span>
-            </div>
-
-            <div class="schedule-section">
-              <p class="schedule-title">Lịch trống gần nhất:</p>
-              <div class="time-slots">
-                <div class="time-slot">
-                  <span class="slot-date">Hôm nay</span>
-                  <span class="slot-time">14:00</span>
-                </div>
-                <div class="time-slot">
-                  <span class="slot-date">Hôm nay</span>
-                  <span class="slot-time">15:30</span>
-                </div>
-                <div class="time-slot disabled">
-                  <span class="slot-date">Ngày mai</span>
-                  <span class="slot-time">Kín lịch</span>
-                </div>
-              </div>
-            </div>
-
-            <button class="btn-teal">Đặt lịch ngay</button>
-          </div>
-        </div>
-
-        <div class="col-md-6">
-          <div class="doctor-card">
-            <div class="doctor-header">
-              <div class="doctor-info-wrap">
-                <img th:src="@{/assets/img/doctors/doctor-male-1.webp}" alt="PGS. TS. Trần Minh" class="doctor-avatar">
-                <div>
-                  <h3 class="doctor-name">PGS. TS. Trần Minh <i class="bi bi-patch-check verified-icon"></i></h3>
-                  <p class="doctor-spec">Tim mạch</p>
-                </div>
-              </div>
-              <div class="rating-badge">
-                <i class="bi bi-star-fill"></i> 4.8 (85)
-              </div>
-            </div>
-
-            <p class="doctor-desc">Chuyên gia hàng đầu về phẫu thuật tim mạch và điều trị các bệnh lý tim bẩm sinh. Cựu Trưởng...</p>
-
-            <div class="tag-list">
-              <span class="spec-tag">Phẫu thuật</span>
-              <span class="spec-tag">Tim bẩm sinh</span>
-            </div>
-
-            <div class="schedule-section">
-              <p class="schedule-title">Lịch trống gần nhất:</p>
-              <div class="time-slots">
-                <div class="time-slot">
-                  <span class="slot-date">T5, 24/10</span>
-                  <span class="slot-time">09:00</span>
-                </div>
-                <div class="time-slot">
-                  <span class="slot-date">T5, 24/10</span>
-                  <span class="slot-time">10:30</span>
-                </div>
-              </div>
-            </div>
-
-            <button class="btn-teal">Đặt lịch ngay</button>
-          </div>
-        </div>
-
-        <div class="col-md-6">
-          <div class="doctor-card">
-            <div class="doctor-header">
-              <div class="doctor-info-wrap">
-                <img th:src="@{/assets/img/doctors/doctor-male-2.webp}" alt="BS. Phạm Tuấn" class="doctor-avatar">
-                <div>
-                  <h3 class="doctor-name">BS. Phạm Tuấn <i class="bi bi-patch-check verified-icon"></i></h3>
-                  <p class="doctor-spec">Nội khoa</p>
-                </div>
-              </div>
-              <div class="rating-badge">
-                <i class="bi bi-star-fill"></i> 4.8 (105)
-              </div>
-            </div>
-
-            <p class="doctor-desc">Bác sĩ chuyên khoa Nội tổng quát, có nhiều kinh nghiệm trong khám và điều trị các bệnh lý ngườ...</p>
-
-            <div class="tag-list">
-              <span class="spec-tag">Khám tổng quát</span>
-              <span class="spec-tag">Bệnh người lớn</span>
-            </div>
-
-            <div class="schedule-section">
-              <p class="schedule-title">Lịch trống gần nhất:</p>
-              <div class="time-slots">
-                <div class="time-slot">
-                  <span class="slot-date">Ngày mai</span>
-                  <span class="slot-time">08:30</span>
-                </div>
-                <div class="time-slot">
-                  <span class="slot-date">Ngày mai</span>
-                  <span class="slot-time">10:00</span>
-                </div>
-              </div>
-            </div>
-
-            <button class="btn-light-blue">Xem toàn bộ lịch</button>
-          </div>
-        </div>
-
+      <div class="row g-4" id="doctorListContainer">
       </div>
     </div>
   </div>
@@ -460,6 +193,267 @@
 
 <div th:replace="~{user/include/footer :: footer}"></div>
 
-<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}" defer></script>
+
+<script th:inline="javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    const departmentFilter = document.getElementById("departmentFilter");
+    const timeFilter = document.getElementById("timeFilter");
+    const doctorListContainer = document.getElementById("doctorListContainer");
+    const clearFilterBtn = document.getElementById("clearFilterBtn");
+    const starFilterIcons = document.querySelectorAll("#starFilter i");
+    const starFilterText = document.getElementById("starFilterText");
+
+    let allFetchedDoctors = []; // Lưu trữ danh sách bác sĩ lấy từ API
+    let currentMinRating = 0;   // 0 nghĩa là không lọc theo sao
+
+    // --- LOGIC XỬ LÝ CHỌN SAO ---
+    starFilterIcons.forEach(star => {
+      // Hiệu ứng hover
+      star.addEventListener("mouseover", function() {
+        const val = parseInt(this.getAttribute("data-value"));
+        starFilterIcons.forEach(s => {
+          if (parseInt(s.getAttribute("data-value")) <= val) {
+            s.style.color = "#f59e0b"; // Vàng
+          } else {
+            s.style.color = "#cbd5e1"; // Xám
+          }
+        });
+      });
+
+      // Trả lại màu theo giá trị đã chọn khi di chuột ra ngoài
+      star.parentElement.addEventListener("mouseout", function() {
+        updateStarUI();
+      });
+
+      // Xử lý khi click chọn sao
+      star.addEventListener("click", function() {
+        currentMinRating = parseInt(this.getAttribute("data-value"));
+        starFilterText.textContent = `Từ ${currentMinRating} sao trở lên`;
+        updateStarUI();
+
+        // Gọi lại hàm render để lọc dữ liệu
+        renderDoctorCards();
+      });
+    });
+
+    function updateStarUI() {
+      starFilterIcons.forEach(s => {
+        if (parseInt(s.getAttribute("data-value")) <= currentMinRating) {
+          s.classList.add("active");
+          s.style.color = "#f59e0b";
+        } else {
+          s.classList.remove("active");
+          s.style.color = "#cbd5e1";
+        }
+      });
+    }
+
+    // --- HÀM GỌI API LẤY DANH SÁCH BÁC SĨ ---
+    function fetchDoctorsByDepartment(departmentId) {
+      const apiUrl = departmentId ? `/api/doctors?departmentId=${departmentId}` : `/api/doctors`;
+
+      doctorListContainer.innerHTML = `
+        <div class="col-12 text-center text-muted">
+          <div class="spinner-border text-teal" role="status"></div>
+          <p class="mt-2">Đang tải danh sách bác sĩ...</p>
+        </div>`;
+
+      fetch(apiUrl)
+              .then(response => {
+                if (!response.ok) throw new Error("Không thể tải dữ liệu từ API");
+                return response.json();
+              })
+              .then(doctors => {
+                allFetchedDoctors = doctors; // Lưu lại để dùng cho bộ lọc Sao
+                renderDoctorCards();
+              })
+              .catch(error => {
+                console.error("Error fetching doctors:", error);
+                doctorListContainer.innerHTML = `
+            <div class="col-12 text-center text-danger">
+              <p><i class="bi bi-exclamation-triangle me-1"></i> Lỗi tải dữ liệu.</p>
+            </div>`;
+              });
+    }
+
+    // --- HÀM RENDER & LỌC SAO ---
+    function renderDoctorCards() {
+      doctorListContainer.innerHTML = "";
+
+      // 1. Lọc danh sách bác sĩ theo Rating
+      const filteredDoctors = allFetchedDoctors.filter(doc => {
+        const docRating = doc.rating || 5.0; // Nếu null mặc định là 5
+        return docRating >= currentMinRating;
+      });
+
+      if (filteredDoctors.length === 0) {
+        doctorListContainer.innerHTML = `
+          <div class="col-12 text-center text-muted">
+            <p><i class="bi bi-search me-1"></i> Không tìm thấy bác sĩ nào phù hợp tiêu chí.</p>
+          </div>`;
+        return;
+      }
+
+      // 2. In thẻ HTML
+      filteredDoctors.forEach(doctor => {
+        const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doctor.price);
+        const ratingDisplay = doctor.rating ? doctor.rating.toFixed(1) : '5.0';
+
+        const cardHtml = `
+          <div class="col-md-6 doctor-card-wrapper" id="doc-wrapper-${doctor.id}">
+            <div class="doctor-card">
+              <div class="doctor-header">
+                <div class="doctor-info-wrap">
+                  <img src="${doctor.avatar}" alt="${doctor.fullName}" class="doctor-avatar">
+                  <div>
+                    <h3 class="doctor-name">
+                      ${doctor.degree ? doctor.degree : 'BS.'} ${doctor.fullName}
+                      <i class="bi bi-patch-check verified-icon"></i>
+                    </h3>
+                    <p class="doctor-spec">${doctor.departmentName}</p>
+                  </div>
+                </div>
+                <div class="rating-badge">
+                  <i class="bi bi-star-fill"></i> ${ratingDisplay}
+                </div>
+              </div>
+
+              <div class="doctor-desc">
+                <p class="mb-1"><i class="bi bi-briefcase text-muted me-2"></i>Kinh nghiệm: <strong>${doctor.experienceYears} năm</strong></p>
+                <p class="mb-0 text-teal"><i class="bi bi-cash-coin me-2"></i>Giá khám: <strong>${formattedPrice}</strong></p>
+              </div>
+
+              <div class="schedule-section">
+                <p class="schedule-title">Lịch trống <span class="fw-bold target-date-label"></span>:</p>
+                <div class="time-slots" data-doctor-id="${doctor.id}">
+                  <span class="text-muted small w-100"><i class="spinner-border spinner-border-sm me-1 text-teal"></i> Đang tải lịch...</span>
+                </div>
+              </div>
+
+              <button class="btn-teal" onclick="location.href='/appointment?doctorId=${doctor.id}'">Đặt lịch ngay</button>
+            </div>
+          </div>
+        `;
+        doctorListContainer.insertAdjacentHTML('beforeend', cardHtml);
+      });
+
+      // 3. Chạy hàm kiểm tra lịch trống cho các bác sĩ vừa render
+      loadAllSchedules();
+    }
+
+    // --- HÀM TÍNH LỊCH TRỐNG (LỌC THEO THỜI GIAN) ---
+    async function loadAllSchedules() {
+      const allTimeSlots = [
+        "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
+        "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
+        "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+      ];
+
+      // Xác định ngày cần kiểm tra dựa vào Dropdown Thời gian
+      let targetDate = new Date();
+      let isCheckingToday = true;
+      let dateLabel = "(Hôm nay)";
+
+      if (timeFilter.value === "tomorrow") {
+        targetDate.setDate(targetDate.getDate() + 1);
+        isCheckingToday = false;
+        dateLabel = "(Ngày mai)";
+      }
+
+      const currentDateStr = targetDate.getFullYear() + '-' + String(targetDate.getMonth() + 1).padStart(2, '0') + '-' + String(targetDate.getDate()).padStart(2, '0');
+      const currentHour = new Date().getHours();     // Luôn lấy giờ thực tế hiện tại
+      const currentMinute = new Date().getMinutes();
+
+      const timeSlotContainers = document.querySelectorAll('.time-slots[data-doctor-id]');
+
+      timeSlotContainers.forEach(async (container) => {
+        const doctorId = container.getAttribute('data-doctor-id');
+        const wrapper = document.getElementById(`doc-wrapper-${doctorId}`);
+
+        // Cập nhật nhãn thời gian trên giao diện
+        wrapper.querySelector('.target-date-label').textContent = dateLabel;
+
+        try {
+          const res = await fetch(`/api/bookings/booked-slots?doctorId=${doctorId}&date=${currentDateStr}`);
+          let bookedTimes = [];
+          if (res.ok) bookedTimes = await res.json();
+
+          let availableSlots = [];
+          for (let slot of allTimeSlots) {
+            const [slotHourStr, slotMinuteStr] = slot.split(':');
+            const slotHour = parseInt(slotHourStr);
+            const slotMinute = parseInt(slotMinuteStr);
+
+            let isPast = false;
+            // Chỉ chặn giờ quá khứ nếu đang xem lịch của "Hôm nay"
+            if (isCheckingToday) {
+              if (slotHour < currentHour || (slotHour === currentHour && slotMinute <= currentMinute)) {
+                isPast = true;
+              }
+            }
+
+            const isBooked = bookedTimes.some(booked => booked.split(' - ')[0] === slot);
+            if (!isPast && !isBooked) {
+              availableSlots.push(slot);
+            }
+          }
+
+          // Render ra DOM hoặc Ẩn thẻ nếu kín lịch
+          container.innerHTML = '';
+          if (availableSlots.length > 0) {
+            wrapper.style.display = 'block'; // Hiển thị card
+
+            const slotsToShow = availableSlots.slice(0, 3);
+            slotsToShow.forEach(slot => {
+              const span = document.createElement('span');
+              span.className = 'time-slot';
+              span.textContent = slot;
+              container.appendChild(span);
+            });
+
+            if (availableSlots.length > 3) {
+              const extraSpan = document.createElement('span');
+              extraSpan.className = 'time-slot';
+              extraSpan.style = 'background: none; color: #64748b; font-weight: bold; border: 1px solid #cbd5e1;';
+              extraSpan.textContent = '+' + (availableSlots.length - 3);
+              container.appendChild(extraSpan);
+            }
+          } else {
+            // NẾU KÍN LỊCH -> ẨN LUÔN BÁC SĨ NÀY KHỎI DANH SÁCH (Chức năng Lọc)
+            wrapper.style.display = 'none';
+          }
+
+        } catch (err) {
+          container.innerHTML = '<span class="text-muted small">Không tải được lịch</span>';
+        }
+      });
+    }
+
+    // --- LẮNG NGHE SỰ KIỆN FILTER ---
+    departmentFilter.addEventListener("change", function () {
+      fetchDoctorsByDepartment(this.value);
+    });
+
+    timeFilter.addEventListener("change", function () {
+      // Khi đổi ngày, chỉ cần chạy lại hàm tính lịch, không cần gọi lại API bác sĩ
+      renderDoctorCards();
+    });
+
+    clearFilterBtn.addEventListener("click", function () {
+      departmentFilter.value = "";
+      timeFilter.value = "today";
+
+      currentMinRating = 0;
+      starFilterText.textContent = "Hiển thị tất cả";
+      updateStarUI();
+
+      fetchDoctorsByDepartment("");
+    });
+
+    // --- KHỞI CHẠY ---
+    fetchDoctorsByDepartment(departmentFilter.value);
+  });
+</script>
 </body>
 </html>

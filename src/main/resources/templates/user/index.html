@@ -55,7 +55,7 @@
     .hero-img { border-radius: 24px; width: 100%; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.08); }
 
     /* Emergency Banner */
-    .emergency-banner { background-color: var(--hc-red-bg); border-radius: 16px; padding: 24px 32px; margin: 40px auto 60px; display: flex; align-items: center; justify-content: space-between; }
+    .emergency-banner { background-color: var(--hc-red-bg); border-radius: 16px; padding: 24px 32px; margin: 40px auto 60px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;}
     .emergency-icon { width: 50px; height: 50px; background-color: #ffcfcf; color: var(--hc-red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 20px; }
     .emergency-text h4 { color: #111827; font-weight: 700; margin-bottom: 4px; font-size: 1.15rem; }
     .emergency-text p { color: var(--hc-text-muted); margin: 0; font-size: 0.95rem; }
@@ -72,11 +72,11 @@
     .dept-card:hover { border-color: var(--hc-primary); box-shadow: 0 10px 25px rgba(11, 122, 101, 0.08); transform: translateY(-3px); }
     .dept-icon-wrapper { width: 48px; height: 48px; background-color: var(--hc-icon-bg); color: var(--hc-primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 20px; }
     .dept-card h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: #111827; }
-    .dept-card p { font-size: 0.9rem; color: var(--hc-text-muted); margin: 0; line-height: 1.6; }
+    .dept-card p { font-size: 0.9rem; color: var(--hc-text-muted); margin: 0; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
     /* Doctors Section */
     .doctors-section { background-color: var(--hc-bg-gray); padding: 80px 0; }
-    .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+    .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; flex-wrap: wrap; gap: 15px;}
     .section-header h2 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; color: #111827; }
     .section-header p { color: var(--hc-text-muted); margin: 0; }
     .view-all-link { color: var(--hc-primary); text-decoration: none; font-weight: 500; }
@@ -89,7 +89,7 @@
     .doc-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; color: #111827;}
     .doc-specialty { display: inline-block; background-color: var(--hc-icon-bg); color: var(--hc-primary); font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 100px; }
     .time-slot-label { font-size: 0.85rem; color: var(--hc-text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-    .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; min-height: 32px; }
     .time-slot { background-color: var(--hc-light-blue); color: var(--hc-text-blue); padding: 8px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; }
     .btn-select-doc { width: 100%; background-color: var(--hc-light-blue); color: var(--hc-text-blue); border: none; padding: 12px; border-radius: 8px; font-weight: 600; margin-top: auto; transition: all 0.3s; }
     .btn-select-doc:hover { background-color: #d2e3fc; }
@@ -160,14 +160,14 @@
         <p>Đội ngũ chuyên gia hàng đầu trong các lĩnh vực y tế trọng điểm, đảm bảo chẩn đoán chính xác và điều trị hiệu quả.</p>
       </div>
 
-      <div class="row gy-4">
-        <div class="col-lg-3 col-md-6" th:each="dept : ${featuredDepartments}" data-aos="fade-up" data-aos-delay="100">
+      <div class="row gy-4 justify-content-center">
+        <div class="col-lg-4 col-md-6" th:each="dept : ${featuredDepartments}" data-aos="fade-up" data-aos-delay="100">
           <div class="dept-card">
             <div class="dept-icon-wrapper">
-              <i class="bi bi-heart-pulse"></i>
+              <i class="bi bi-hospital"></i>
             </div>
-            <h4 th:text="${dept.name}">Nội tổng quát</h4>
-            <p th:text="${dept.description}">Khám, chẩn đoán và điều trị các bệnh lý nội khoa phổ biến, theo dõi sức khỏe định kỳ.</p>
+            <h4 th:text="${dept.name}">Tên chuyên khoa</h4>
+            <p th:text="${dept.description}">Mô tả chi tiết chuyên khoa...</p>
           </div>
         </div>
       </div>
@@ -186,30 +186,31 @@
 
       <div class="row gy-4">
         <div class="col-lg-4 col-md-6" th:each="doctor : ${featuredDoctors}" data-aos="fade-up" data-aos-delay="100">
-          <div class="doctor-card">
+
+          <div class="doctor-card" th:attr="data-doctor-id=${doctor.id}">
             <div class="doc-info-header">
               <img th:if="${doctor.user.avatar != null}" th:src="@{'/uploads/' + ${doctor.user.avatar}}" class="doc-avatar" alt="Avatar">
               <img th:if="${doctor.user.avatar == null}" th:src="@{/assets/img/default-doctor.png}" class="doc-avatar" alt="Default Avatar">
 
               <div>
-                <div class="doc-name" th:text="${doctor.user.fullName != null ? doctor.user.fullName : 'BS. Nguyễn Văn A'}">BS. Nguyễn Hoàng Phương</div>
-                <div class="doc-specialty" th:text="${doctor.department != null ? doctor.department.name : 'Nội Tổng quát'}">Nội Tổng quát</div>
+                <div class="doc-name" th:text="${doctor.user.fullName != null ? 'BS. ' + doctor.user.fullName : 'Bác sĩ'}">Tên bác sĩ</div>
+                <div class="doc-specialty" th:text="${doctor.department != null ? doctor.department.name : 'Chưa cập nhật'}">Chuyên khoa</div>
               </div>
             </div>
 
             <div class="time-slot-label">
-              <i class="bi bi-calendar2-week"></i> Lịch khám gần nhất:
+              <i class="bi bi-calendar2-week"></i> Lịch trống tiếp theo:
             </div>
 
             <div class="time-slots">
-              <span class="time-slot">09:30, Hôm nay</span>
-              <span class="time-slot">14:15, Hôm nay</span>
+              <span class="text-muted small w-100"><i class="spinner-border spinner-border-sm me-1"></i> Đang tải lịch...</span>
             </div>
 
-            <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn-select-doc text-center text-decoration-none">
+            <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn-select-doc text-center text-decoration-none mt-auto">
               Đặt lịch khám
             </a>
           </div>
+
         </div>
       </div>
     </div>
@@ -264,6 +265,77 @@
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 <script th:src="@{/assets/vendor/aos/aos.js}"></script>
 <script th:src="@{/assets/js/main.js}"></script>
+
+<script th:inline="javascript">
+  document.addEventListener("DOMContentLoaded", function() {
+    // Khai báo mảng tất cả các ca khám tiêu chuẩn (mỗi ca 30p)
+    const allTimeSlots = [
+      "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
+      "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
+      "17:30", "18:00", "18:30", "19:00"
+    ];
+
+    const today = new Date();
+    const currentDateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const currentHour = today.getHours();
+    const currentMinute = today.getMinutes();
+
+    // Lặp qua tất cả các thẻ bác sĩ đang hiển thị
+    document.querySelectorAll('.doctor-card').forEach(async (card) => {
+      const doctorId = card.getAttribute('data-doctor-id');
+      if(!doctorId) return;
+
+      const timeSlotsContainer = card.querySelector('.time-slots');
+
+      try {
+        // Gọi lại chính API check lịch kín mà bạn đã làm bên trang Đặt Lịch
+        const res = await fetch(`/api/bookings/booked-slots?doctorId=${doctorId}&date=${currentDateStr}`);
+        let bookedTimes = [];
+        if (res.ok) {
+          bookedTimes = await res.json();
+        }
+
+        let availableSlots = [];
+        // Thuật toán: Loại bỏ các giờ bị đặt và giờ quá khứ
+        for (let slot of allTimeSlots) {
+          const [slotHourStr, slotMinuteStr] = slot.split(':');
+          const slotHour = parseInt(slotHourStr);
+          const slotMinute = parseInt(slotMinuteStr);
+
+          let isPast = false;
+          if (slotHour < currentHour || (slotHour === currentHour && slotMinute <= currentMinute)) {
+            isPast = true;
+          }
+
+          // Dùng includes vì API của bạn có thể trả về "08:00 - 08:30" thay vì chỉ "08:00"
+          const isBooked = bookedTimes.some(booked => booked.split(' - ')[0] === slot);
+          if (!isPast && !isBooked) {
+            availableSlots.push(slot);
+          }
+        }
+
+        // Xóa trạng thái loading
+        timeSlotsContainer.innerHTML = '';
+
+        // Render tối đa 3 khung giờ trống đầu tiên
+        if (availableSlots.length > 0) {
+          const slotsToShow = availableSlots.slice(0, 3);
+          slotsToShow.forEach(slot => {
+            const span = document.createElement('span');
+            span.className = 'time-slot';
+            span.textContent = slot;
+            timeSlotsContainer.appendChild(span);
+          });
+        } else {
+          timeSlotsContainer.innerHTML = '<span class="text-danger small fw-medium"><i class="bi bi-x-circle me-1"></i> Hôm nay đã kín lịch</span>';
+        }
+
+      } catch (err) {
+        timeSlotsContainer.innerHTML = '<span class="text-muted small">Không tải được lịch</span>';
+      }
+    });
+  });
+</script>
 
 </body>
 </html>

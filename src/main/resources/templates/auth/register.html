@@ -2,25 +2,371 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Đăng ký tài khoản</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký tài khoản - HealCare</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-teal: #006B63;
+            --primary-hover: #00534D;
+            --bg-color: #E8F0F6; /* Màu nền xanh xám nhạt giống ảnh */
+            --text-dark: #1F2937;
+            --text-muted: #6B7280;
+            --error-red: #D32F2F;
+            --error-bg: #FEF2F2;
+            --border-color: #D1D5DB;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+        }
+
+        .register-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 2.5rem 3rem;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: none;
+            border-top: 6px solid var(--primary-teal); /* Viền trên màu xanh */
+        }
+
+        /* Icon Header */
+        .header-icon {
+            width: 56px;
+            height: 56px;
+            background-color: #E6F2F1;
+            color: var(--primary-teal);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 1.5rem auto;
+        }
+
+        .register-title {
+            font-weight: 700;
+            color: var(--text-dark);
+            font-size: 1.75rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .register-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        /* Section Title */
+        .section-title {
+            color: var(--primary-teal);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #F3F4F6;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-label .text-danger {
+            color: var(--error-red) !important;
+        }
+
+        /* Input Styles */
+        .input-icon-wrapper {
+            position: relative;
+        }
+
+        .input-icon-wrapper .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9CA3AF;
+            font-size: 1.1rem;
+            z-index: 10;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            padding: 0.65rem 1rem 0.65rem 2.5rem; /* Padding left để chừa chỗ cho icon */
+            border: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            transition: all 0.2s;
+        }
+
+        .form-control::placeholder {
+            color: #9CA3AF;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-teal);
+            box-shadow: 0 0 0 3px rgba(0, 107, 99, 0.1);
+        }
+
+        /* Nút con mắt ẩn/hiện mật khẩu */
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9CA3AF;
+            z-index: 10;
+            font-size: 1.1rem;
+        }
+
+        .toggle-password:hover {
+            color: var(--text-dark);
+        }
+
+        /* Validation Styles */
+        .form-control.is-invalid {
+            border-color: var(--error-red);
+            background-color: var(--error-bg);
+            background-image: none;
+            color: var(--error-red);
+        }
+
+        .is-invalid ~ .input-icon {
+            color: var(--error-red) !important;
+        }
+
+        .error-message {
+            color: var(--error-red);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 0.4rem;
+            display: none;
+        }
+
+        .is-invalid ~ .error-message {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+        }
+
+        /* Checkbox Style */
+        .form-check-input:checked {
+            background-color: var(--primary-teal);
+            border-color: var(--primary-teal);
+        }
+        .form-check-label {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+        .form-check-label a {
+            color: var(--primary-teal);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .form-check-label a:hover {
+            text-decoration: underline;
+        }
+
+        /* Button Style */
+        .btn-teal {
+            background-color: var(--primary-teal);
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 0.75rem;
+            border: none;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn-teal:hover {
+            background-color: var(--primary-hover);
+            color: white;
+        }
+
+        /* Footer */
+        .footer-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            margin-top: 2rem;
+            border-top: 1px solid #F3F4F6;
+            padding-top: 1.5rem;
+        }
+
+        .footer-text a {
+            color: var(--primary-teal);
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 0.2rem;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 576px) {
+            .register-card {
+                padding: 2rem 1.5rem;
+                margin: 0 1rem;
+            }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="card p-4 shadow-lg col-md-6 mx-auto">
-        <h3 class="text-center mb-4">Đăng ký tài khoản</h3>
-        <form th:action="@{/register}" th:object="${user}" method="post">
-            <input type="text" th:field="*{username}" class="form-control mb-3" placeholder="Tên đăng nhập" required>
-            <input type="email" th:field="*{email}" class="form-control mb-3" placeholder="Email" required>
-            <input type="password" th:field="*{password}" class="form-control mb-3" placeholder="Mật khẩu" required>
-            <input type="text" th:field="*{fullName}" class="form-control mb-3" placeholder="Họ và tên">
-            <input type="text" th:field="*{phone}" class="form-control mb-3" placeholder="Số điện thoại">
-            <button class="btn btn-primary w-100">Đăng ký</button>
-        </form>
-        <p class="text-center mt-3">Đã có tài khoản? <a th:href="@{/login}">Đăng nhập</a></p>
-        <p th:if="${error}" class="text-danger text-center mt-2" th:text="${error}"></p>
-        <p th:if="${success}" class="text-success text-center mt-2" th:text="${success}"></p>
+<body>
+
+<div class="register-card">
+
+    <!-- Header Icon & Title -->
+    <div class="header-icon">
+        <i class="bi bi-shield-plus"></i>
+    </div>
+    <h3 class="register-title">Tạo Tài Khoản</h3>
+    <p class="register-subtitle">Tham gia cùng HealCare để trải nghiệm dịch vụ chăm sóc sức khỏe tốt nhất.</p>
+
+    <!-- Global Errors/Success from backend -->
+    <div th:if="${error}" class="alert alert-danger text-center small py-2 mb-4 rounded-3 border-0 bg-danger bg-opacity-10 text-danger fw-medium" th:text="${error}"></div>
+    <div th:if="${success}" class="alert alert-success text-center small py-2 mb-4 rounded-3 border-0 bg-success bg-opacity-10 text-success fw-medium" th:text="${success}"></div>
+
+    <form th:action="@{/register}" th:object="${user}" method="post">
+
+        <!-- SECTION 1: THÔNG TIN CÁ NHÂN -->
+        <div class="section-title">Thông tin cá nhân</div>
+
+        <div class="row mb-3">
+            <!-- Sử dụng 12 cột cho Full Name để đảm bảo map với 1 trường duy nhất của bạn -->
+            <div class="col-12 mb-3 mb-md-0">
+                <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-person input-icon"></i>
+                    <input type="text" th:field="*{fullName}" class="form-control" placeholder="Ví dụ: Nguyễn Văn A" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-telephone input-icon"></i>
+                    <input type="tel" th:field="*{phone}" class="form-control" placeholder="0912345678" required>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" th:classappend="${error != null} ? 'text-danger' : ''">Email <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-envelope input-icon"></i>
+                    <!-- Nếu có lỗi email, bạn có thể thêm class 'is-invalid' vào đây -->
+                    <input type="email" th:field="*{email}" class="form-control" placeholder="email@example.com" required>
+                    <div class="error-message"><i class="bi bi-exclamation-circle"></i> Định dạng không hợp lệ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: THÔNG TIN TÀI KHOẢN -->
+        <div class="section-title">Thông tin tài khoản</div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <label class="form-label">Tên đăng nhập <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-person-badge input-icon"></i>
+                    <input type="text" th:field="*{username}" class="form-control" placeholder="nguyenvana123" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <label class="form-label">Mật khẩu <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-lock input-icon"></i>
+                    <input type="password" th:field="*{password}" id="password" class="form-control pe-5" placeholder="••••••••" required>
+                    <i class="bi bi-eye toggle-password" onclick="togglePasswordVisibility('password', this)"></i>
+                </div>
+                <div class="form-text">Ít nhất 8 ký tự.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                <div class="input-icon-wrapper">
+                    <i class="bi bi-shield-check input-icon"></i>
+                    <!-- Tách riêng Confirm Password, không dùng th:field để tránh lỗi mapping Object -->
+                    <input type="password" name="confirmPassword" id="confirmPassword" class="form-control pe-5" placeholder="••••••••" required>
+                    <i class="bi bi-eye toggle-password" onclick="togglePasswordVisibility('confirmPassword', this)"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkbox Điều khoản -->
+        <div class="form-check mb-4 mt-2">
+            <input class="form-check-input" type="checkbox" id="terms" required>
+            <label class="form-check-label" for="terms">
+                Tôi đồng ý với <a href="#">Điều khoản dịch vụ</a> và <a href="#">Chính sách bảo mật</a> của HealCare.
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-teal w-100">
+            Đăng ký tài khoản <i class="bi bi-person-plus ms-1"></i>
+        </button>
+
+    </form>
+
+    <div class="footer-text">
+        Đã có tài khoản? <a th:href="@{/login}">Đăng nhập ngay</a>
     </div>
 </div>
+
+<!-- Script xử lý ẩn hiện mật khẩu -->
+<script>
+    function togglePasswordVisibility(inputId, iconElement) {
+        const passwordInput = document.getElementById(inputId);
+
+        // Đổi type của input
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+
+        // Đổi icon
+        if (type === 'text') {
+            iconElement.classList.remove('bi-eye');
+            iconElement.classList.add('bi-eye-slash');
+        } else {
+            iconElement.classList.remove('bi-eye-slash');
+            iconElement.classList.add('bi-eye');
+        }
+    }
+</script>
 </body>
 </html>

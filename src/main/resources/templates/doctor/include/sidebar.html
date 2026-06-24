@@ -1,60 +1,102 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<aside id="sidebar" class="sidebar" th:fragment="sidebar">
-  <ul class="sidebar-nav" id="sidebar-nav">
+<aside id="sidebar" class="sidebar d-flex flex-column" th:fragment="sidebar" style="background-color: #F8FAFC; border-right: 1px solid #E2E8F0; padding-top: 20px; z-index: 999;">
+
+  <style>
+    /* CSS Tùy chỉnh riêng cho Sidebar giống thiết kế */
+    .sidebar-profile { text-align: center; margin-bottom: 25px; }
+    .sidebar-profile img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid #fff; margin-bottom: 10px; }
+    .sidebar-profile h5 { font-weight: 700; color: #006B63; font-size: 1.15rem; margin-bottom: 2px; }
+    .sidebar-profile span { font-size: 0.75rem; color: #64748B; }
+
+    .sidebar-nav { padding: 0 12px; }
+    .nav-heading-custom { font-size: 0.75rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; padding: 15px 15px 5px; margin: 0; letter-spacing: 0.5px; }
+
+    .custom-nav-link {
+      display: flex; align-items: center; padding: 12px 15px; border-radius: 12px; color: #475569; font-size: 0.95rem; font-weight: 500; text-decoration: none; transition: all 0.2s; margin-bottom: 4px;
+    }
+    .custom-nav-link i { font-size: 1.1rem; margin-right: 12px; color: #64748B; }
+
+    .custom-nav-link:hover { background-color: #F1F5F9; color: #0F172A; }
+    .custom-nav-link:hover i { color: #0F172A; }
+
+    /* Trạng thái Active (Đang chọn) */
+    .custom-nav-link.active { background-color: #E6F4F1; color: #006B63; font-weight: 600; }
+    .custom-nav-link.active i { color: #006B63; }
+
+    /* Nút Đăng xuất */
+    .nav-logout { color: #DC2626 !important; margin-top: 10px; }
+    .nav-logout i { color: #DC2626 !important; }
+    .nav-logout:hover { background-color: #FEF2F2; }
+
+    /* Nút Khẩn cấp */
+    .emergency-btn { background-color: #DC2626; color: white; border: none; border-radius: 12px; padding: 12px; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+    .emergency-btn:hover { background-color: #B91C1C; color: white; }
+  </style>
+
+  <!-- Thông tin Phòng khám / Bác sĩ -->
+  <div class="sidebar-profile">
+    <!-- Thay URL ảnh bằng avatar thực tế của bác sĩ (ví dụ: currentUser.avatar) nếu có -->
+    <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Doctor Profile">
+    <h5>HealCare Family</h5>
+    <span>Manage family health</span>
+  </div>
+
+  <ul class="sidebar-nav flex-grow-1" id="sidebar-nav">
+    <li class="nav-heading-custom">Công việc</li>
 
     <li class="nav-item">
-      <a class="nav-link" th:href="@{/doctor/dashboard}"
-         th:classappend="${activePage == 'dashboard' ? '' : 'collapsed'}">
-        <i class="bi bi-grid"></i>
-        <span>Tổng quan (Dashboard)</span>
+      <a class="custom-nav-link" th:classappend="${activePage == 'dashboard' ? 'active' : ''}" th:href="@{/doctor/dashboard}">
+        <i class="bi bi-grid-1x2"></i>
+        <span>Tổng quan</span>
       </a>
     </li>
 
-    <li class="nav-heading">Công việc</li>
-
     <li class="nav-item">
-      <a class="nav-link collapsed" th:href="@{/doctor/examinations}"
-         th:classappend="${activePage == 'examinations' ? 'active' : ''}">
-        <i class="bi bi-clipboard2-pulse"></i>
+      <a class="custom-nav-link" th:classappend="${activePage == 'examinations' ? 'active' : ''}" th:href="@{/doctor/examinations}">
+        <i class="bi bi-journal-medical"></i>
         <span>Lịch khám bệnh</span>
       </a>
     </li>
 
     <li class="nav-item">
-      <a class="nav-link collapsed" th:href="@{/doctor/manage-bookings}"
-         th:classappend="${activePage == 'manage-bookings' ? 'active' : ''}">
-        <i class="bi bi-table"></i>
+      <a class="custom-nav-link" th:classappend="${activePage == 'manage-bookings' ? 'active' : ''}" th:href="@{/doctor/manage-bookings}">
+        <i class="bi bi-calendar3"></i>
         <span>Quản lý Tất cả Lịch</span>
       </a>
     </li>
 
     <li class="nav-item">
-      <a class="nav-link collapsed" th:href="@{/doctor/schedule-register}"
-         th:classappend="${activePage == 'schedule' ? 'active' : ''}">
-        <i class="bi bi-calendar-check"></i>
+      <a class="custom-nav-link" th:classappend="${activePage == 'schedule' ? 'active' : ''}" th:href="@{/doctor/schedule-register}">
+        <i class="bi bi-clipboard-check"></i>
         <span>Đăng ký Lịch trực</span>
       </a>
     </li>
 
-    <li class="nav-heading">Cá nhân</li>
+    <li class="nav-heading-custom mt-3">Cá nhân</li>
 
     <li class="nav-item">
-      <a class="nav-link collapsed" th:href="@{/profile}">
+      <a class="custom-nav-link" th:classappend="${activePage == 'profile' ? 'active' : ''}" th:href="@{/profile}">
         <i class="bi bi-person"></i>
         <span>Hồ sơ cá nhân</span>
       </a>
     </li>
 
     <li class="nav-item">
-      <a class="nav-link collapsed" th:href="@{/logout}">
+      <a class="custom-nav-link nav-logout" th:href="@{/logout}">
         <i class="bi bi-box-arrow-right"></i>
         <span>Đăng xuất</span>
       </a>
     </li>
-
   </ul>
+
+  <!-- Nút Emergency Call nằm dưới cùng -->
+  <div class="p-3 mt-auto border-top">
+    <button class="emergency-btn w-100">
+      <i class="bi bi-asterisk"></i> Emergency Call
+    </button>
+  </div>
 </aside>
 </body>
 </html>

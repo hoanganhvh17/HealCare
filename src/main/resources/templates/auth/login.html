@@ -2,34 +2,301 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Đăng nhập</title>
-    <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
-</head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="card p-4 shadow-lg col-md-5 mx-auto">
-        <h3 class="text-center mb-4">Đăng nhập</h3>
-        <div th:if="${param.error}" class="alert alert-danger text-center">
-            Tài khoản hoặc mật khẩu không chính xác!
-        </div>
-        <div th:if="${param.logout}" class="alert alert-success text-center">
-            Bạn đã đăng xuất thành công.
-        </div>
-        <form th:action="@{/login}" method="post">
-            <input type="text" name="username" class="form-control mb-3" placeholder="Tên đăng nhập hoặc Email" required>
-            <input type="password" name="password" class="form-control mb-3" placeholder="Mật khẩu" required>
-            <button class="btn btn-success w-100">Đăng nhập</button>
-            <!-- Trong form login, thêm đoạn này vào dưới nút Đăng nhập -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - HealCare</title>
 
-            <div class="text-center mt-3">
-                <p class="text-muted small">Hoặc đăng nhập bằng</p>
-                <a href="/oauth2/authorization/google" class="btn btn-outline-danger w-100">
-                    <i class="bi bi-google me-2"></i> Google
-                </a>
-            </div>
-        </form>
-        <p class="text-center mt-3">Chưa có tài khoản? <a th:href="@{/register}">Đăng ký</a></p>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-teal: #006B63;
+            --primary-hover: #00534D;
+            --bg-color: #F4F7FA;
+            --text-dark: #1F2937;
+            --text-muted: #6B7280;
+            --error-red: #D32F2F;
+            --error-bg: #FEF2F2;
+            --border-color: #E5E7EB;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-logo {
+            color: var(--primary-teal);
+            font-weight: 700;
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .login-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+            border: none;
+        }
+
+        .login-title {
+            font-weight: 700;
+            color: var(--text-dark);
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .login-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            border: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-teal);
+            box-shadow: 0 0 0 3px rgba(0, 107, 99, 0.1);
+        }
+
+        /* --- Validation Styles (Giống thiết kế) --- */
+        .form-control.is-invalid {
+            border-color: var(--error-red);
+            background-color: var(--error-bg);
+            background-image: none; /* Ẩn icon mặc định của Bootstrap */
+        }
+
+        .is-invalid + .error-icon {
+            display: block !important;
+        }
+
+        .label-error {
+            color: var(--error-red) !important;
+        }
+
+        .error-message {
+            color: var(--error-red);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 0.4rem;
+            display: none;
+        }
+
+        .is-invalid ~ .error-message {
+            display: block;
+        }
+
+        .forgot-link {
+            font-size: 0.85rem;
+            color: var(--primary-teal);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .forgot-link:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+
+        .btn-teal {
+            background-color: var(--primary-teal);
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 0.65rem;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-teal:hover {
+            background-color: var(--primary-hover);
+            color: white;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 1.5rem 0;
+            color: #9CA3AF;
+            font-size: 0.75rem;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .divider span {
+            padding: 0 10px;
+        }
+
+        .btn-google {
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-dark);
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-google:hover {
+            background-color: #F9FAFB;
+        }
+
+        .register-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 1.5rem;
+        }
+
+        .register-text a {
+            color: var(--primary-teal);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .register-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* Nút con mắt ẩn/hiện mật khẩu */
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9CA3AF;
+            z-index: 10;
+        }
+
+        .toggle-password:hover {
+            color: var(--text-dark);
+        }
+
+        /* Icon chấm than đỏ */
+        .error-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--error-red);
+            font-size: 1.1rem;
+            display: none;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* Chỉnh lại vị trí các icon nếu input password bị lỗi */
+        .password-group.has-error .error-icon {
+            right: 40px; /* Dịch icon lỗi sang trái nhường chỗ cho con mắt */
+        }
+    </style>
+</head>
+<body>
+
+<div class="brand-logo">HealCare</div>
+
+<div class="login-card">
+    <h3 class="login-title">Chào mừng trở lại</h3>
+    <p class="login-subtitle">Đăng nhập để quản lý sức khỏe của bạn</p>
+
+    <div th:if="${param.logout}" class="alert alert-success text-center small py-2 mb-4 rounded-3 border-0 bg-success bg-opacity-10 text-success fw-medium">
+        Bạn đã đăng xuất thành công.
     </div>
+
+    <form th:action="@{/login}" method="post">
+
+        <div class="mb-3">
+            <label class="form-label" th:classappend="${param.error} ? 'label-error' : ''">Tên đăng nhập hoặc Email</label>
+            <div class="position-relative">
+                <input type="text" name="username" class="form-control" th:classappend="${param.error} ? 'is-invalid' : ''" placeholder="Nhập tên đăng nhập hoặc email" required>
+                <i class="bi bi-exclamation-circle error-icon"></i>
+            </div>
+            <div class="error-message">Tài khoản không hợp lệ</div>
+        </div>
+
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0" th:classappend="${param.error} ? 'label-error' : ''">Mật khẩu</label>
+                <a href="#" class="forgot-link">Quên mật khẩu?</a>
+            </div>
+            <div class="position-relative password-group" th:classappend="${param.error} ? 'has-error' : ''">
+                <input type="password" name="password" id="password" class="form-control pe-5" th:classappend="${param.error} ? 'is-invalid' : ''" placeholder="••••••••" required>
+
+                <i class="bi bi-exclamation-circle error-icon"></i>
+
+                <i class="bi bi-eye-slash toggle-password" id="togglePasswordIcon"></i>
+            </div>
+            <div class="error-message">Mật khẩu không đúng</div>
+        </div>
+
+        <button type="submit" class="btn btn-teal w-100">Đăng nhập</button>
+
+        <div class="divider">
+            <span>HOẶC</span>
+        </div>
+
+        <a href="/oauth2/authorization/google" class="btn btn-google text-decoration-none w-100">
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width="20">
+            Đăng nhập bằng Google
+        </a>
+
+    </form>
+
+    <p class="register-text">Chưa có tài khoản? <a th:href="@{/register}">Đăng ký</a></p>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+        const passwordInput = document.getElementById('password');
+
+        togglePasswordIcon.addEventListener('click', function() {
+            // Đổi type của input
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+
+            // Đổi icon
+            this.classList.toggle('bi-eye');
+            this.classList.toggle('bi-eye-slash');
+        });
+    });
+</script>
 </body>
 </html>
