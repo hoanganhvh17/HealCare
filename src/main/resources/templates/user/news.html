@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Tin tức & Thông cáo Y khoa - HealCare</title>
+  <title th:text="${pageTitle != null ? pageTitle : 'Tin tức & Thông cáo Y khoa'} + ' - HealCare'">Tin tức & Thông cáo Y khoa - HealCare</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
@@ -16,33 +16,28 @@
       background-color: #f8fafc;
       color: #334155;
     }
-    /* Top Header Area */
     .news-header {
-      padding-top: 120px; /* Thêm dòng này để đẩy nội dung xuống */
+      padding-top: 20px;
       padding-bottom: 1.5rem;
       border-bottom: 1px solid #e2e8f0;
       margin-bottom: 2rem;
     }
-
     .news-header h1 {
       font-size: 2.25rem;
       font-weight: 700;
       color: #1e293b;
       margin-bottom: 0.5rem;
     }
-
     .news-header p {
       color: #64748b;
       margin: 0;
       font-size: 1rem;
     }
-
     .search-box {
       position: relative;
       max-width: 350px;
       width: 100%;
     }
-
     .search-box input {
       padding: 0.75rem 1rem 0.75rem 2.5rem;
       border-radius: 12px;
@@ -50,7 +45,6 @@
       background-color: #f1f5f9;
       font-size: 0.95rem;
     }
-
     .search-box i {
       position: absolute;
       left: 1rem;
@@ -58,15 +52,12 @@
       transform: translateY(-50%);
       color: #94a3b8;
     }
-
-    /* Filter Pills */
     .filter-container {
       display: flex;
       gap: 0.75rem;
       flex-wrap: wrap;
       margin-bottom: 3rem;
     }
-
     .filter-pill {
       padding: 0.5rem 1.25rem;
       border-radius: 50px;
@@ -77,18 +68,16 @@
       background-color: #e2e8f0;
       transition: all 0.2s;
     }
-
     .filter-pill.active {
       background-color: #0d7b6a;
       color: white;
     }
-
     .filter-pill:hover:not(.active) {
       background-color: #cbd5e1;
       color: #1e293b;
     }
 
-    /* Featured Post Card */
+    /* Featured Card */
     .featured-card {
       display: flex;
       background: white;
@@ -97,31 +86,28 @@
       overflow: hidden;
       margin-bottom: 3rem;
       transition: transform 0.3s;
+      max-height: 400px;
     }
-
     .featured-card:hover {
       box-shadow: 0 15px 30px rgba(0,0,0,0.05);
     }
-
     .featured-img-wrapper {
-      flex: 0 0 55%;
-      background-color: #a7d8d2; /* Màu nền fallback cho ảnh minh họa */
+      flex: 0 0 40%;
+      background-color: #a7d8d2;
     }
-
     .featured-img-wrapper img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-
     .featured-content {
       flex: 1;
-      padding: 3.5rem;
+      padding: 2.5rem;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      overflow: hidden;
     }
-
     .tag-green {
       background-color: #d1fae5;
       color: #059669;
@@ -134,28 +120,32 @@
       display: inline-block;
       margin-right: 1rem;
     }
-
     .read-time {
       color: #64748b;
       font-size: 0.85rem;
       font-weight: 500;
     }
-
     .featured-content h2 {
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: #1e293b;
-      margin: 1.5rem 0 1rem;
+      margin: 1rem 0 0.8rem;
       line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-
     .featured-content p {
       color: #64748b;
       line-height: 1.6;
-      margin-bottom: 2rem;
-      font-size: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-
     .link-teal {
       color: #0d7b6a;
       text-decoration: none;
@@ -164,8 +154,8 @@
       align-items: center;
       gap: 0.5rem;
       font-size: 0.95rem;
+      margin-top: auto;
     }
-
     .link-teal:hover {
       color: #0a5f52;
     }
@@ -181,23 +171,20 @@
       flex-direction: column;
       transition: all 0.3s;
     }
-
     .news-card:hover {
       box-shadow: 0 10px 25px rgba(0,0,0,0.05);
       transform: translateY(-5px);
     }
-
     .card-img-container {
       position: relative;
       height: 220px;
+      background-color: #cbd5e1;
     }
-
     .card-img-container img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-
     .floating-tag {
       position: absolute;
       top: 1rem;
@@ -210,24 +197,23 @@
       font-weight: 600;
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
-
-    .floating-tag.tag-red { color: #e11d48; }
-
     .news-card-body {
       padding: 1.5rem;
       display: flex;
       flex-direction: column;
       flex-grow: 1;
     }
-
     .news-card-body h3 {
       font-size: 1.15rem;
       font-weight: 700;
       color: #1e293b;
       margin-bottom: 0.75rem;
       line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-
     .news-card-body p {
       color: #64748b;
       font-size: 0.9rem;
@@ -238,7 +224,6 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-
     .news-card-footer {
       margin-top: auto;
       display: flex;
@@ -247,13 +232,11 @@
       border-top: 1px solid #f1f5f9;
       padding-top: 1rem;
     }
-
     .news-date {
       color: #64748b;
       font-size: 0.85rem;
       font-weight: 500;
     }
-
     .btn-bookmark {
       color: #0d7b6a;
       background: transparent;
@@ -273,28 +256,20 @@
       font-weight: 500;
       font-size: 0.95rem;
       transition: all 0.3s;
+      cursor: pointer;
     }
-
     .btn-load-more:hover {
       background: #f1f5f9;
     }
 
-    /* Responsive */
     @media (max-width: 991px) {
       .featured-card {
         flex-direction: column;
+        max-height: none;
       }
-      .featured-img-wrapper {
-        height: 300px;
-      }
-      .news-header {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 1.5rem;
-      }
-      .search-box {
-        max-width: 100%;
-      }
+      .featured-img-wrapper { height: 250px; flex: auto; }
+      .news-header { flex-direction: column; align-items: flex-start !important; gap: 1.5rem; }
+      .search-box { max-width: 100%; }
     }
   </style>
 </head>
@@ -303,10 +278,10 @@
 
 <div th:replace="~{user/include/header :: header-nav}"></div>
 
-<main class="main container" style="padding-top: 130px;">
+<main class="main container" style="padding-top: 130px; padding-bottom: 50px;">
   <div class="news-header d-flex justify-content-between align-items-center">
     <div>
-      <h1>Tin tức & Thông cáo Y khoa</h1>
+      <h1 th:text="${pageTitle != null ? pageTitle : 'Tin tức & Thông cáo Y khoa'}">Tin tức & Thông cáo Y khoa</h1>
       <p>Cập nhật những thông tin sức khỏe mới nhất, mẹo chăm sóc gia đình và những bước tiến trong công nghệ y khoa từ các chuyên gia HealCare.</p>
     </div>
     <div class="search-box">
@@ -316,93 +291,104 @@
   </div>
 
   <div class="filter-container">
-    <a href="#" class="filter-pill active">Tất cả</a>
-    <a href="#" class="filter-pill">Mẹo Nhi khoa</a>
-    <a href="#" class="filter-pill">Dinh dưỡng</a>
-    <a href="#" class="filter-pill">Cấp cứu</a>
-    <a href="#" class="filter-pill">Đột phá Y khoa</a>
+    <a th:href="@{/news}" class="filter-pill" th:classappend="${pageTitle == null} ? 'active'">Tất cả tin tức</a>
+    <a th:href="@{/knowledge}" class="filter-pill" th:classappend="${pageTitle != null} ? 'active'">Y học thường thức</a>
   </div>
 
-  <div class="featured-card">
-    <div class="featured-img-wrapper">
-      <img th:src="@{/assets/img/news/featured-doctor.webp}" alt="Featured News">
-    </div>
-    <div class="featured-content">
-      <div class="d-flex align-items-center mb-3">
-        <span class="tag-green">ĐỘT PHÁ Y KHOA</span>
-        <span class="read-time"><i class="bi bi-clock me-1"></i> 12 Phút đọc</span>
+  <div th:if="${#lists.isEmpty(posts)}" class="text-center my-5 text-muted">
+    <i class="bi bi-newspaper" style="font-size: 4rem;"></i>
+    <p class="mt-3">Hiện chưa có bài viết nào được xuất bản trong danh mục này.</p>
+  </div>
+
+  <th:block th:if="${not #lists.isEmpty(posts)}">
+    <div class="featured-card" th:with="featured=${posts[0]}">
+      <div class="featured-img-wrapper">
+        <img th:if="${featured.image != null}" th:src="@{'/uploads/' + ${featured.image}}" alt="Featured Image">
+        <img th:if="${featured.image == null}" th:src="@{/assets/img/news/featured-doctor.webp}" alt="Fallback Featured Image">
       </div>
-      <h2>Ứng dụng Công nghệ AI trong Chẩn đoán Hình ảnh tại HealCare</h2>
-      <p>HealCare chính thức triển khai hệ thống phân tích hình ảnh X-quang và MRI hỗ trợ bởi trí tuệ nhân tạo, giúp tăng tốc độ chẩn đoán lên 40% và cải thiện độ chính xác, mang lại hiệu quả điều trị vượt trội cho bệnh nhân.</p>
-      <a th:href="@{#}" class="link-teal">Đọc tiếp <i class="bi bi-arrow-right"></i></a>
-    </div>
-  </div>
-
-  <div class="row g-4">
-
-    <div class="col-lg-4 col-md-6">
-      <div class="news-card">
-        <div class="card-img-container">
-          <img th:src="@{/assets/img/news/food.webp}" alt="News 1">
-          <span class="floating-tag">Dinh dưỡng</span>
+      <div class="featured-content">
+        <div class="d-flex align-items-center mb-2">
+          <span class="tag-green" th:text="${featured.category == 'NEWS' ? 'TIN TỨC' : (featured.category == 'KNOWLEDGE' ? 'Y HỌC THƯỜNG THỨC' : 'TIN Y TẾ')}">DANH MỤC</span>
+          <span class="read-time"><i class="bi bi-calendar3 me-1"></i> <span th:text="${#temporals.format(featured.createdAt, 'dd/MM/yyyy')}"></span></span>
         </div>
-        <div class="news-card-body">
-          <h3>5 Siêu Thực Phẩm Giúp Tăng Cường Hệ Miễn Dịch Trong Mùa...</h3>
-          <p>Chế độ dinh dưỡng đóng vai trò cốt lõi trong việc phòng ngừa bệnh tật. Khám phá 5 loại thực phẩm dễ tìm nhưng mang lại hiệu quả tăng sức đề kháng vô cùng bất ngờ cho gia đình.</p>
-          <div class="news-card-footer">
-            <span class="news-date">24 Tháng 10, 2023</span>
-            <button class="btn-bookmark"><i class="bi bi-bookmark"></i></button>
+        <h2 th:text="${featured.title}">Tiêu đề bài viết nổi bật</h2>
+        <p th:if="${featured.summary != null}" th:text="${featured.summary}">Tóm tắt nội dung...</p>
+        <a th:href="@{/news/{id}(id=${featured.id})}" class="link-teal">Đọc tiếp <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+
+    <div class="row g-4" id="newsGrid">
+      <div class="col-lg-4 col-md-6 news-item-card"
+           th:each="post, iterStat : ${posts}"
+           th:if="${iterStat.index > 0}"
+           th:classappend="${iterStat.index > 3} ? 'd-none' : ''">
+        <div class="news-card">
+          <div class="card-img-container">
+            <img th:if="${post.image != null}" th:src="@{'/uploads/' + ${post.image}}" alt="News Image">
+            <img th:if="${post.image == null}" th:src="@{/assets/img/news/abstract.webp}" alt="Fallback Image">
+            <span class="floating-tag" th:text="${post.category == 'NEWS' ? 'Tin tức' : (post.category == 'KNOWLEDGE' ? 'Y học' : 'Y khoa')}">Danh mục</span>
+          </div>
+          <div class="news-card-body">
+            <h3 th:text="${post.title}">Tiêu đề bài viết</h3>
+            <p th:if="${post.summary != null}" th:text="${post.summary}">Mô tả ngắn...</p>
+            <div class="news-card-footer">
+              <span class="news-date" th:text="${#temporals.format(post.createdAt, 'dd/MM/yyyy')}">Ngày đăng</span>
+              <a th:href="@{/news/{id}(id=${post.id})}" class="btn-bookmark text-decoration-none"><i class="bi bi-eye"></i> Xem</a>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="col-lg-4 col-md-6">
-      <div class="news-card">
-        <div class="card-img-container">
-          <img th:src="@{/assets/img/news/abstract.webp}" alt="News 2" style="background-color: #a7d8d2;">
-          <span class="floating-tag">Mẹo Nhi khoa</span>
-        </div>
-        <div class="news-card-body">
-          <h3>Lịch Tiêm Chủng Mới Nhất Năm 2024 Dành Cho Trẻ Dưới 5 Tuổi</h3>
-          <p>Cập nhật ngay những thay đổi trong lịch tiêm chủng quốc gia để đảm bảo bé yêu của bạn được bảo vệ toàn diện trước các bệnh truyền nhiễm nguy hiểm. Hướng dẫn theo dõi sau tiêm.</p>
-          <div class="news-card-footer">
-            <span class="news-date">20 Tháng 10, 2023</span>
-            <button class="btn-bookmark"><i class="bi bi-bookmark"></i></button>
-          </div>
-        </div>
-      </div>
+    <div class="text-center mt-5 mb-4" id="loadMoreContainer">
+      <button class="btn-load-more" id="loadMoreBtn">
+        Tải thêm bài viết <i class="bi bi-chevron-down ms-1"></i>
+      </button>
     </div>
-
-    <div class="col-lg-4 col-md-6">
-      <div class="news-card">
-        <div class="card-img-container">
-          <img th:src="@{/assets/img/news/heart.webp}" alt="News 3">
-          <span class="floating-tag tag-red">Cấp cứu</span>
-        </div>
-        <div class="news-card-body">
-          <h3>Hướng Dẫn Sơ Cứu Nhanh Tại Nhà Khi Trẻ Bị Sốt Cao Co Giật</h3>
-          <p>Sốt cao co giật ở trẻ nhỏ thường khiến phụ huynh hoảng loạn. Bài viết cung cấp các bước xử lý bình tĩnh, khoa học và an toàn nhất trước khi đưa trẻ đến cơ sở y tế gần nhất.</p>
-          <div class="news-card-footer">
-            <span class="news-date">15 Tháng 10, 2023</span>
-            <button class="btn-bookmark"><i class="bi bi-bookmark"></i></button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="text-center mt-5 mb-4">
-    <button class="btn-load-more">
-      Tải thêm bài viết <i class="bi bi-chevron-down ms-1"></i>
-    </button>
-  </div>
+  </th:block>
 
 </main>
 
 <div th:replace="~{user/include/footer :: footer}"></div>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
 
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const loadMoreBtn = document.getElementById("loadMoreBtn");
+    const loadMoreContainer = document.getElementById("loadMoreContainer");
+
+    // Mỗi lần bấm sẽ hiển thị thêm 3 bài viết
+    const itemsPerLoad = 3;
+
+    if (loadMoreBtn) {
+      // Lấy danh sách tất cả các bài viết đang bị ẩn (chứa class d-none)
+      const hiddenCards = Array.from(document.querySelectorAll(".news-item-card.d-none"));
+
+      // Nếu ban đầu không có bài viết nào bị ẩn, tự động xóa vùng chứa nút bấm luôn
+      if (hiddenCards.length === 0) {
+        loadMoreContainer.remove();
+        return;
+      }
+
+      loadMoreBtn.addEventListener("click", function () {
+        // Lấy ra tối đa 3 bài viết tiếp theo đang ẩn
+        const currentHiddenCards = Array.from(document.querySelectorAll(".news-item-card.d-none"));
+        const cardsToDisplay = currentHiddenCards.slice(0, itemsPerLoad);
+
+        // Gỡ bỏ class d-none để hiển thị lên giao diện
+        cardsToDisplay.forEach(card => {
+          card.classList.remove("d-none");
+        });
+
+        // Kiểm tra lại xem còn bài viết nào ẩn không, nếu đã hết sạch thì ẩn nút đi
+        if (document.querySelectorAll(".news-item-card.d-none").length === 0) {
+          loadMoreContainer.remove();
+        }
+      });
+    }
+  });
+</script>
 </body>
 </html>

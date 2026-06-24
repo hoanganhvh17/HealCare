@@ -1,17 +1,41 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 
 <head>
   <meta charset="utf-8">
-  <title th:text="${post.title} + ' - MediTrust'">Chi tiết tin tức</title>
+  <title th:text="${post.title} + ' - HealCare'">Chi tiết tin tức</title>
   <link th:href="@{/assets/img/favicon.png}" rel="icon">
   <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
   <link th:href="@{/assets/css/main.css}" rel="stylesheet">
   <style>
-    .news-content img { max-width: 100%; height: auto; border-radius: 5px; margin: 15px 0; }
-    .news-header { margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-    .meta-item { margin-right: 20px; color: #777; font-size: 0.9rem; }
+    body {
+      background-color: #f8fafc;
+    }
+    .news-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; }
+    .news-header { margin-bottom: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px; }
+    .meta-item { margin-right: 20px; color: #64748b; font-size: 0.95rem; font-weight: 500;}
+    .news-article {
+      background: white;
+      padding: 3rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      margin-bottom: 4rem;
+    }
+    .news-title-text {
+      color: #1e293b;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .news-content {
+      color: #334155;
+      line-height: 1.8;
+      font-size: 1.05rem;
+    }
+    /* Đảm bảo nội dung sinh từ CKEditor không bị tràn */
+    .news-content * {
+      max-width: 100%;
+    }
   </style>
 </head>
 
@@ -21,13 +45,13 @@
 
 <main class="main">
 
-  <div class="page-title" style="padding: 40px 0;">
+  <div class="page-title" style="padding: 120px 0 30px 0;">
     <div class="container">
       <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
-          <li class="breadcrumb-item"><a th:href="@{/news}">Tin tức</a></li>
-          <li class="breadcrumb-item active" aria-current="page" th:text="${post.title}"></li>
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a th:href="@{/}" class="text-decoration-none text-muted">Trang chủ</a></li>
+          <li class="breadcrumb-item"><a th:href="@{/news}" class="text-decoration-none text-muted">Tin tức</a></li>
+          <li class="breadcrumb-item active" aria-current="page" th:text="${post.title}" style="color: #0d7b6a; font-weight: 500;"></li>
         </ol>
       </nav>
     </div>
@@ -40,23 +64,30 @@
 
           <article class="news-article">
             <div class="news-header">
-              <h1 class="mb-3" th:text="${post.title}">Tiêu đề bài viết</h1>
+              <span class="badge bg-light text-success border border-success mb-3" style="font-size: 0.85rem;" th:text="${post.category == 'NEWS' ? 'TIN TỨC' : (post.category == 'KNOWLEDGE' ? 'Y HỌC THƯỜNG THỨC' : 'TIN Y TẾ')}">Danh mục</span>
+
+              <h1 class="mb-4 news-title-text" th:text="${post.title}">Tiêu đề bài viết</h1>
+
               <div class="d-flex align-items-center">
-                <span class="meta-item"><i class="bi bi-calendar3 me-1"></i> <span th:text="${#temporals.format(post.createdAt, 'dd/MM/yyyy HH:mm')}"></span></span>
-                <span class="meta-item"><i class="bi bi-person me-1"></i> <span th:text="${post.author != null ? post.author.fullName : 'Admin'}"></span></span>
+                <span class="meta-item"><i class="bi bi-calendar3 me-1 text-success"></i> <span th:text="${#temporals.format(post.createdAt, 'dd/MM/yyyy HH:mm')}"></span></span>
+                <span class="meta-item"><i class="bi bi-person me-1 text-success"></i> <span th:text="${post.author != null ? post.author.fullName : 'Ban biên tập HealCare'}"></span></span>
               </div>
             </div>
 
-            <div class="mb-4" th:if="${post.image != null}">
-              <img th:src="@{'/uploads/' + ${post.image}}" class="img-fluid w-100 rounded" alt="Cover Image" style="max-height: 500px; object-fit: cover;">
+            <p class="lead fw-medium mb-4" style="color: #475569;" th:if="${post.summary != null}" th:text="${post.summary}"></p>
+
+            <div class="mb-5 text-center" th:if="${post.image != null}">
+              <img th:src="@{'/uploads/' + ${post.image}}" class="img-fluid rounded" alt="Cover Image" style="max-height: 600px; object-fit: contain;">
             </div>
 
             <div class="news-content" th:utext="${post.content}">
               <p>Nội dung đang cập nhật...</p>
             </div>
 
-            <div class="mt-5 pt-4 border-top">
-              <a th:href="@{/news}" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
+            <div class="mt-5 pt-4 border-top text-center">
+              <a th:href="@{/news}" class="btn" style="background-color: #f1f5f9; color: #0d7b6a; font-weight: 500; border-radius: 8px; padding: 10px 20px;">
+                <i class="bi bi-arrow-left me-1"></i> Trở về trang tin tức
+              </a>
             </div>
           </article>
 
@@ -67,7 +98,7 @@
 
 </main>
 
-<footer th:replace="~{user/index :: footer}"></footer>
+<div th:replace="~{user/include/footer :: footer}"></div>
 <div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 <script th:src="@{/assets/js/main.js}"></script>

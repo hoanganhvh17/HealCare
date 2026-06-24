@@ -11,279 +11,183 @@
   <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
   <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+
   <style>
     body {
       font-family: 'Roboto', sans-serif;
       background-color: #ffffff;
       color: #334155;
     }
-    .page-title-section {
-      padding-top: 120px !important;
-    }
-    .text-primary-teal {
-      color: #0d7b6a !important;
-    }
 
-    .bg-primary-teal {
-      background-color: #0d7b6a !important;
-    }
-
-    .section-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 2rem;
-      color: #1e293b;
-    }
-
-    /* Hero Title */
+    /* Page Title */
     .page-title-section {
       text-align: center;
-      padding: 4rem 0 3rem;
+      padding: 120px 0 3rem;
     }
-
     .page-title-section h1 {
       font-size: 2.5rem;
       font-weight: 700;
+      color: #0d7b6a;
       margin-bottom: 1rem;
     }
-
     .page-title-section p {
-      color: #64748b;
+      color: #475569;
       max-width: 600px;
       margin: 0 auto;
       line-height: 1.6;
     }
 
-    /* Family Health Cards */
-    .feature-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 2rem;
-      height: 100%;
-      transition: all 0.3s ease;
+    /* Category Section */
+    .category-section {
+      margin-bottom: 3.5rem;
+    }
+    .category-title {
+      color: #0d7b6a;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 0.75rem;
     }
 
-    .feature-card:hover {
+    /* Service Card */
+    .service-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+      background-color: #fff;
+    }
+    .service-card:hover {
       box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      border-color: #cbd5e1;
     }
 
     .icon-circle {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background-color: #f0f9ff;
-      color: #0284c7;
+      background-color: #ccfbf1;
+      color: #0d7b6a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .service-card h5 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #1e293b;
+    }
+
+    .service-card p {
+      color: #64748b;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      flex-grow: 1;
+    }
+
+    .service-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+    }
+
+    .service-price {
+      color: #0d7b6a;
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
+
+    .btn-book {
+      background-color: #0d7b6a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .btn-book:hover {
+      background-color: #0a5f52;
+      color: white;
+    }
+
+    /* Process Section */
+    .process-section {
+      background-color: #f0fdf4;
+      border-radius: 24px;
+      padding: 4rem 2rem;
+      text-align: center;
+      margin: 2rem 0 5rem;
+    }
+    .process-section h2 {
+      color: #0d7b6a;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      font-size: 1.8rem;
+    }
+    .process-section > p {
+      color: #475569;
+      margin-bottom: 3rem;
+    }
+
+    .process-step {
+      position: relative;
+      padding: 0 1rem;
+    }
+    .process-icon {
+      width: 64px;
+      height: 64px;
+      background-color: white;
+      border: 1px solid #e2e8f0;
+      color: #0d7b6a;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .feature-card h5 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    .feature-card p {
-      color: #64748b;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin: 0;
-    }
-
-    /* Home Care Section */
-    .home-care-section {
-      background-color: #eff6ff;
-      border-radius: 24px;
-      padding: 3rem;
-      margin: 4rem 0;
-    }
-
-    .home-care-content h2 {
-      color: #0d7b6a;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-    }
-
-    .home-care-content p {
-      color: #475569;
-      margin-bottom: 2rem;
-      line-height: 1.6;
-    }
-
-    .check-list li {
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      color: #334155;
-      font-weight: 500;
-    }
-
-    .check-list i {
-      color: #2563eb;
-      font-size: 1.2rem;
-    }
-
-    .home-care-img {
-      width: 100%;
-      border-radius: 16px;
-      object-fit: cover;
-    }
-
-    /* Pricing Section */
-    .pricing-section {
-      text-align: center;
-      margin-bottom: 4rem;
-    }
-
-    .pricing-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 2.5rem 2rem;
-      height: 100%;
-      background: #fff;
-      text-align: left;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .pricing-card.highlight {
-      background-color: #0d7b6a;
-      color: #fff;
-      border: none;
+      margin: 0 auto 1.5rem;
       position: relative;
-      transform: scale(1.05);
       z-index: 2;
-      box-shadow: 0 20px 40px rgba(13, 123, 106, 0.2);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     }
-
-    .popular-badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      background-color: #38bdf8;
-      color: #fff;
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 0.4rem 1rem;
-      border-bottom-left-radius: 12px;
-      border-top-right-radius: 16px;
-    }
-
-    .pricing-tier {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: #64748b;
-    }
-
-    .highlight .pricing-tier {
-      color: #ccfbf1;
-    }
-
-    .pricing-price {
-      font-size: 2rem;
+    .process-step h6 {
       font-weight: 700;
-      margin-bottom: 2rem;
-    }
-
-    .pricing-price span {
-      font-size: 1rem;
-      font-weight: 400;
-    }
-
-    .highlight .pricing-price {
-      color: #fff;
-    }
-
-    .pricing-features {
-      padding: 0;
-      margin: 0 0 2rem 0;
-      flex-grow: 1;
-    }
-
-    .pricing-features li {
-      list-style: none;
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .highlight .pricing-features li {
-      color: #fff;
-    }
-
-    .highlight .pricing-features i {
-      color: #fff;
-    }
-
-    .btn-pricing {
-      width: 100%;
-      padding: 0.8rem;
-      border-radius: 8px;
-      font-weight: 500;
-      transition: all 0.3s;
-    }
-
-    .btn-outline-pricing {
-      background: transparent;
-      border: 1px solid #cbd5e1;
-      color: #475569;
-    }
-
-    .btn-outline-pricing:hover {
-      border-color: #94a3b8;
-      background: #f8fafc;
-    }
-
-    .btn-white-pricing {
-      background: #fff;
-      color: #0d7b6a;
-      border: none;
-    }
-
-    .btn-white-pricing:hover {
-      background: #f1f5f9;
-    }
-
-    /* FAQ Section */
-    .faq-section {
-      max-width: 800px;
-      margin: 0 auto 5rem;
-    }
-
-    .accordion-item {
-      border: none;
-      border-bottom: 1px solid #e2e8f0;
-      border-radius: 0 !important;
-    }
-
-    .accordion-button {
-      padding: 1.5rem 0;
-      font-weight: 500;
       color: #1e293b;
-      background-color: transparent !important;
-      box-shadow: none !important;
+      margin-bottom: 0.5rem;
     }
-
-    .accordion-button:not(.collapsed) {
-      color: #0d7b6a;
-    }
-
-    .accordion-body {
-      padding: 0 0 1.5rem 0;
+    .process-step p {
       color: #64748b;
-      line-height: 1.6;
+      font-size: 0.85rem;
+      line-height: 1.5;
     }
 
+    @media (min-width: 992px) {
+      .process-row {
+        position: relative;
+      }
+      .process-row::before {
+        content: '';
+        position: absolute;
+        top: 32px;
+        left: 12%;
+        right: 12%;
+        height: 1px;
+        background-color: #cbd5e1;
+        z-index: 1;
+      }
+    }
   </style>
 </head>
 
@@ -294,146 +198,68 @@
 <main class="main container py-4">
 
   <div class="page-title-section">
-    <h1 class="text-primary-teal">Dịch Vụ Chăm Sóc Sức Khỏe</h1>
-    <p>Giải pháp y tế toàn diện, kết hợp công nghệ hiện đại và sự tận tâm, mang lại sự an tâm tuyệt đối cho bạn và gia đình.</p>
+    <h1>Dịch Vụ Y Tế Của Chúng Tôi</h1>
+    <p>Cung cấp các dịch vụ chăm sóc sức khỏe toàn diện, chất lượng cao với đội ngũ chuyên gia giàu kinh nghiệm và trang thiết bị hiện đại.</p>
   </div>
 
-  <div class="mb-5">
-    <h3 class="section-title">Gói Theo Dõi Sức Khỏe Gia Đình</h3>
-    <div class="row g-4">
-      <div class="col-md-4">
-        <div class="feature-card">
-          <div class="icon-circle">
-            <i class="bi bi-heart-pulse"></i>
+  <th:block th:each="entry : ${servicesByCategory}">
+    <div class="category-section">
+      <h3 class="category-title" th:text="${entry.key}">Tên Danh Mục</h3>
+
+      <div class="row g-4">
+        <div class="col-md-6 col-lg-4" th:each="service : ${entry.value}">
+          <div class="service-card">
+
+            <div class="icon-circle">
+              <i th:class="${entry.key == 'Xét nghiệm'} ? 'bi bi-droplet' :
+                           (${entry.key == 'Chẩn đoán hình ảnh'} ? 'bi bi-capsule-ortho' :
+                           (${entry.key == 'Nha khoa'} ? 'bi bi-activity' : 'bi bi-heart-pulse'))"></i>
+            </div>
+
+            <h5 th:text="${service.name}">Tên Dịch Vụ</h5>
+            <p th:text="${service.description}">Mô tả chi tiết dịch vụ.</p>
+
+            <div class="service-footer">
+              <span class="service-price" th:text="${#numbers.formatDecimal(service.price, 0, 'COMMA', 0, 'POINT')} + 'đ'">Giá</span>
+              <a th:href="@{/appointment(serviceId=${service.id})}" class="btn-book">Đặt lịch ngay</a>
+            </div>
           </div>
-          <h5>Theo dõi Tim mạch</h5>
-          <p>Giám sát chỉ số sinh tồn liên tục với thiết bị đeo thông minh, cảnh báo sớm bất thường.</p>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="feature-card">
-          <div class="icon-circle">
-            <i class="bi bi-apple"></i>
-          </div>
-          <h5>Dinh dưỡng Cấu trúc</h5>
-          <p>Chế độ ăn uống cá nhân hóa được thiết kế bởi chuyên gia dinh dưỡng hàng đầu.</p>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="feature-card">
-          <div class="icon-circle">
-            <i class="bi bi-person-walking"></i>
-          </div>
-          <h5>Chăm sóc Người cao tuổi</h5>
-          <p>Gói tầm soát chuyên sâu và hỗ trợ di chuyển an toàn cho người lớn tuổi trong gia đình.</p>
         </div>
       </div>
     </div>
-  </div>
+  </th:block>
 
-  <div class="home-care-section">
-    <div class="row align-items-center g-5">
-      <div class="col-lg-6 home-care-content">
-        <h2>Dịch Vụ Chăm Sóc Tại Nhà</h2>
-        <p>Đội ngũ bác sĩ và điều dưỡng tận tâm của HealCare sẵn sàng đến tận nơi, mang không gian phòng khám chuẩn mực vào chính ngôi nhà của bạn. Giảm thiểu rủi ro lây nhiễm chéo và tiết kiệm thời gian di chuyển.</p>
-        <ul class="check-list p-0">
-          <li><i class="bi bi-check-circle"></i> Khám bệnh tổng quát & Kê đơn</li>
-          <li><i class="bi bi-check-circle"></i> Lấy mẫu xét nghiệm tại nhà</li>
-          <li><i class="bi bi-check-circle"></i> Vật lý trị liệu phục hồi chức năng</li>
-        </ul>
-      </div>
-      <div class="col-lg-6">
-        <img th:src="@{/assets/img/services/home-care-mockup.webp}" alt="Home Care App" class="home-care-img img-fluid shadow-sm">
-      </div>
-    </div>
-  </div>
+  <div class="process-section">
+    <h2>Quy Trình Khám Chữa Bệnh</h2>
+    <p>Nhanh chóng, tiện lợi và chuyên nghiệp</p>
 
-  <div class="pricing-section">
-    <h3 class="section-title mb-2">Bảng Giá Dịch Vụ</h3>
-    <p class="text-muted mb-5">Minh bạch, rõ ràng, phù hợp với mọi nhu cầu.</p>
-
-    <div class="row g-4 align-items-center justify-content-center">
-      <div class="col-lg-4">
-        <div class="pricing-card">
-          <div class="pricing-tier">CƠ BẢN</div>
-          <div class="pricing-price">500.000₫ <span>/tháng</span></div>
-          <ul class="pricing-features">
-            <li>Tư vấn trực tuyến 24/7</li>
-            <li>Cập nhật hồ sơ bệnh án</li>
-          </ul>
-          <button class="btn btn-outline-pricing mt-auto">Chọn gói</button>
+    <div class="row g-4 process-row">
+      <div class="col-md-6 col-lg-3">
+        <div class="process-step">
+          <div class="process-icon"><i class="bi bi-calendar2-check"></i></div>
+          <h6>1. Đặt lịch</h6>
+          <p>Chọn dịch vụ và thời gian phù hợp qua website hoặc hotline.</p>
         </div>
       </div>
-
-      <div class="col-lg-4">
-        <div class="pricing-card highlight">
-          <div class="popular-badge">Phổ biến nhất</div>
-          <div class="pricing-tier">GIA ĐÌNH TOÀN DIỆN</div>
-          <div class="pricing-price">1.500.000₫ <span>/tháng</span></div>
-          <ul class="pricing-features">
-            <li><i class="bi bi-check2"></i> Tư vấn trực tuyến 24/7</li>
-            <li><i class="bi bi-check2"></i> 1 lần bác sĩ đến nhà/tháng</li>
-            <li><i class="bi bi-check2"></i> Gói xét nghiệm máu cơ bản</li>
-          </ul>
-          <button class="btn btn-white-pricing mt-auto">Chọn gói</button>
+      <div class="col-md-6 col-lg-3">
+        <div class="process-step">
+          <div class="process-icon"><i class="bi bi-person-check"></i></div>
+          <h6>2. Xác nhận</h6>
+          <p>Nhân viên y tế sẽ liên hệ để xác nhận lịch hẹn và thông tin.</p>
         </div>
       </div>
-
-      <div class="col-lg-4">
-        <div class="pricing-card">
-          <div class="pricing-tier">CAO CẤP</div>
-          <div class="pricing-price">3.000.000₫ <span>/tháng</span></div>
-          <ul class="pricing-features">
-            <li>Mọi quyền lợi gói Gia đình</li>
-            <li>Bác sĩ riêng theo dõi cá nhân</li>
-            <li>Dịch vụ điều dưỡng hàng tuần</li>
-          </ul>
-          <button class="btn btn-outline-pricing mt-auto">Liên hệ tư vấn</button>
+      <div class="col-md-6 col-lg-3">
+        <div class="process-step">
+          <div class="process-icon"><i class="bi bi-briefcase-medical"></i></div>
+          <h6>3. Thăm khám</h6>
+          <p>Tiến hành khám bệnh/xét nghiệm bởi đội ngũ y bác sĩ chuyên môn cao.</p>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="faq-section">
-    <h3 class="section-title text-center mb-4">Câu Hỏi Thường Gặp</h3>
-
-    <div class="accordion" id="faqAccordion">
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
-            Làm thế nào để đặt lịch bác sĩ khám tại nhà?
-          </button>
-        </h2>
-        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
-          <div class="accordion-body">
-            Bạn có thể sử dụng ứng dụng HealCare, chọn mục "Chăm sóc tại nhà" và điền thông tin triệu chứng. Bác sĩ sẽ liên hệ xác nhận trong vòng 15 phút.
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
-            Gói dịch vụ gia đình áp dụng cho bao nhiêu người?
-          </button>
-        </h2>
-        <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-          <div class="accordion-body">
-            Gói tiêu chuẩn áp dụng cho tối đa 4 thành viên. Bạn có thể thêm thành viên với chi phí ưu đãi chỉ 200.000đ/người/tháng.
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
-            Dữ liệu y tế của tôi có được bảo mật không?
-          </button>
-        </h2>
-        <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-          <div class="accordion-body">
-            Tuyệt đối bảo mật. HealCare sử dụng chuẩn mã hóa y tế quốc tế HIPAA để đảm bảo dữ liệu cá nhân của bạn luôn an toàn.
-          </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="process-step">
+          <div class="process-icon"><i class="bi bi-file-earmark-medical"></i></div>
+          <h6>4. Nhận kết quả</h6>
+          <p>Nhận kết quả, tư vấn điều trị và đơn thuốc nhanh chóng.</p>
         </div>
       </div>
     </div>
