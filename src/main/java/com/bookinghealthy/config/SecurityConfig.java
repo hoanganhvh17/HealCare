@@ -61,10 +61,11 @@ public class SecurityConfig {
                                 "/api/payment/**", // Mở API Webhook cho Casso/SePay
                                 "/checkout-qr",    // Mở trang hiển thị mã QR
                                 // === MỞ CỬA CHO CÁC TRANG CHI TIẾT ===
-                              //  "/doctors", "/doctors/**",               // Cho phép /doctors VÀ /doctors/1, /doctors/search...
                                 "/services", "/service-details/**",      // Cho phép /services VÀ /service-details/1...
                                 "/departments", "/department-details/**",// Cho phép /departments VÀ /department-details/1...
-                                "/api/doctors"            // API cho AJAX (Mới)
+                                "/api/doctors",                 // Lấy danh sách bác sĩ
+                                "/api/doctor/**",               // Lấy chi tiết 1 bác sĩ
+                                "/api/bookings/booked-slots"
                         ).permitAll()
 
                         // --- 2. TÀI NGUYÊN TĨNH (CSS, JS, ẢNH) ---

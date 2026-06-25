@@ -692,7 +692,7 @@
 
           allTimeSlots.forEach(input => {
             const label = document.querySelector('label[for="' + input.id + '"]');
-            if (bookedTimes.includes(input.value)) {
+            if (bookedTimes.some(booked => booked.startsWith(input.value.split(' - ')[0]))) {
               input.disabled = true;
               input.checked = false;
               label.classList.remove('btn-outline-secondary');
@@ -725,8 +725,7 @@
     if (finalDoctorId) {
       preselectDoctor(finalDoctorId).then(() => {
         if(preTime) {
-          const targetRadio = Array.from(document.querySelectorAll('.time-slot')).find(r => r.value.includes(preTime));
-          if(targetRadio && !targetRadio.disabled) {
+          const targetRadio = Array.from(document.querySelectorAll('.time-slot')).find(r => r.value.startsWith(preTime));          if(targetRadio && !targetRadio.disabled) {
             targetRadio.checked = true;
           }
         }

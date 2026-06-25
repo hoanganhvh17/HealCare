@@ -1,464 +1,578 @@
-<!--<!DOCTYPE html>-->
-<!--<html lang="en" xmlns:th="http://www.thymeleaf.org">-->
-
-<!--<head>-->
-<!--  <meta charset="utf-8">-->
-<!--  <meta content="width=device-width, initial-scale=1.0" name="viewport">-->
-<!--  <title>Chi tiết Bác sĩ - MediTrust</title>-->
-
-<!--  <link th:href="@{/assets/img/favicon.png}" rel="icon">-->
-<!--  <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">-->
-<!--  <link href="https://fonts.googleapis.com" rel="preconnect">-->
-<!--  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>-->
-<!--  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,00;1,300;1,400;1,500;1,700;1,900&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,00;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,00;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/aos/aos.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/swiper/swiper-bundle.min.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/vendor/glightbox/css/glightbox.min.css}" rel="stylesheet">-->
-<!--  <link th:href="@{/assets/css/main.css}" rel="stylesheet">-->
-
-<!--</head>-->
-
-<!--<body class="doctor-details-page">-->
-
-<!--<header id="header" class="header d-flex align-items-center fixed-top">-->
-<!--  <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">-->
-
-<!--    <a th:href="@{/}" class="logo d-flex align-items-center me-auto me-xl-0">-->
-<!--      <h1 class="sitename">MediTrust</h1>-->
-<!--    </a>-->
-
-<!--    <nav id="navmenu" class="navmenu">-->
-<!--      <ul>-->
-<!--        <li><a th:href="@{/}">Trang chủ</a></li>-->
-<!--        <li><a th:href="@{/about}">Giới thiệu</a></li>-->
-<!--        <li><a th:href="@{/departments}">Chuyên khoa</a></li>-->
-<!--        <li><a th:href="@{/services}">Dịch vụ</a></li>-->
-<!--        <li><a th:href="@{/doctors}" class="active">Đội ngũ bác sĩ</a></li> <li class="dropdown"><a href="#"><span>More Pages</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>-->
-<!--        <ul>-->
-<!--          <li><a th:href="@{/appointment}">Đặt lịch hẹn</a></li>-->
-<!--        </ul>-->
-<!--      </li>-->
-<!--        <li><a th:href="@{/contact}">Liên hệ</a></li>-->
-<!--      </ul>-->
-<!--      <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>-->
-<!--    </nav>-->
-
-<!--    <a class="btn-getstarted" th:href="@{/appointment}">Đặt lịch hẹn</a>-->
-
-<!--  </div>-->
-<!--</header>-->
-<!--<main class="main">-->
-
-<!--  <div class="page-title">-->
-<!--    <div class="breadcrumbs">-->
-<!--      <nav aria-label="breadcrumb">-->
-<!--        <ol class="breadcrumb">-->
-<!--          <li class="breadcrumb-item"><a th:href="@{/}"><i class="bi bi-house"></i> Trang chủ</a></li>-->
-<!--          <li class="breadcrumb-item"><a th:href="@{/doctors}">Đội ngũ Bác sĩ</a></li>-->
-<!--          <li class="breadcrumb-item active current" th:text="'Dr. ' + ${doctor.user.fullName}">Tên Bác sĩ</li>-->
-<!--        </ol>-->
-<!--      </nav>-->
-<!--    </div>-->
-
-<!--    <div class="title-wrapper">-->
-<!--      <h1>Chi tiết Bác sĩ</h1>-->
-<!--      <p th:text="${doctor.department.name}">Chuyên khoa</p>-->
-<!--    </div>-->
-<!--  </div><section id="doctor-details" class="service-details-2 section">-->
-
-<!--  <div class="container" data-aos="fade_up" data-aos-delay="100">-->
-<!--    <div class="row gy-5">-->
-
-<!--      <div class="col-lg-6" data-aos="zoom-in" data-aos-delay="200">-->
-<!--        <div class="service-image">-->
-<!--          <img th:if="${doctor.user.avatar != null}"-->
-<!--               th:src="@{'/uploads/' + ${doctor.user.avatar}}"-->
-<!--               th:alt="${doctor.user.fullName}" class="img-fluid">-->
-<!--          <img th:if="${doctor.user.avatar == null}"-->
-<!--               th:src="@{/assets/img/default-doctor.png}"-->
-<!--               alt="Default Doctor" class="img-fluid">-->
-<!--          <div class="service-tag">-->
-<!--            <span th:text="${doctor.department.name}">Chuyên khoa</span>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--      <div class="col-lg-6" data-aos="fade-left" data-aos-delay="300">-->
-<!--        <div class="service-content">-->
-<!--          <h2 th:text="'Dr. ' + ${doctor.user.fullName}">Tên Bác sĩ</h2>-->
-<!--          <p class="service-tagline" th:text="${doctor.experienceYears} + ' năm kinh nghiệm'">Năm kinh nghiệm</p>-->
-<!--          <p th:text="${doctor.bio}">Tiểu sử Bác sĩ...</p>-->
-
-<!--          <div class="service-features">-->
-<!--            <h4>Thông tin Bác sĩ:</h4>-->
-<!--            <ul>-->
-<!--              <li><i class="bi bi-check-circle"></i> <strong class="me-2">Chuyên khoa:</strong> <span th:text="${doctor.department.name}"></span></li>-->
-<!--              <li><i class="bi bi-check-circle"></i> <strong class="me-2">Kinh nghiệm:</strong> <span th:text="${doctor.experienceYears} + ' năm'"></span></li>-->
-<!--              <li><i class="bi bi-check-circle"></i> <strong class="me-2">Email:</strong> <span th:text="${doctor.user.email}"></span></li>-->
-<!--              <li><i class="bi bi-check-circle"></i> <strong class="me-2">Phone:</strong> <span th:text="${doctor.user.phone}"></span></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-
-<!--          <div class="service-actions">-->
-<!--            <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn-primary">Đặt lịch hẹn</a>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--    </div>-->
-
-<!--    <div class="row mt-5">-->
-
-<!--      <div class="col-lg-8" data-aos="fade-right" data-aos-delay="100">-->
-<!--        <div class="booking-section">-->
-<!--          <h3>Sẵn sàng Đặt lịch hẹn?</h3>-->
-<!--          <p>Các chuyên gia của chúng tôi sẵn sàng tư vấn từ Thứ Hai đến Thứ Sáu. Có thể đặt lịch trong ngày cho các trường hợp khẩn cấp.</p>-->
-<!--          <div class="availability-info">-->
-<!--            <div class="info-item">-->
-<!--              <i class="bi bi-clock"></i>-->
-<!--              <div>-->
-<!--                <strong>Giờ làm việc</strong>-->
-<!--                <span>Thứ 2 - Thứ 6: 8:00 AM - 6:00 PM</span>-->
-<!--              </div>-->
-<!--            </div>-->
-<!--            <div class="info-item">-->
-<!--              <i class="bi bi-telephone"></i>-->
-<!--              <div>-->
-<!--                <strong>Đường dây nóng</strong>-->
-<!--                <span>+1 (555) 123-4567</span>-->
-<!--              </div>-->
-<!--            </div>-->
-<!--            <div class="info-item">-->
-<!--              <i class="bi bi-geo-alt"></i>-->
-<!--              <div>-->
-<!--                <strong>Địa chỉ</strong>-->
-<!--                <span>Số 888 Tây Mỗ, Nam Từ Liêm, Hà Nội</span>-->
-<!--              </div>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--      <div class="col-lg-4" data-aos="fade-left" data-aos-delay="200">-->
-<!--        <div class="appointment-card">-->
-<!--          <h4>Đặt lịch ngay</h4>-->
-<!--          <p>Đặt lịch trực tuyến nhanh chóng và dễ dàng</p>-->
-<!--          <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn-appointment">Đặt lịch hẹn</a>-->
-<!--          <div class="contact-alternative">-->
-<!--            <span>Hoặc gọi cho chúng tôi</span>-->
-<!--            <a href="tel:+15551234567">+1 (555) 123-4567</a>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--    </div>-->
-
-<!--  </div>-->
-<!--</section></main>-->
-
-<!--<footer id="footer" class="footer position-relative light-background">-->
-<!--  <div class="container footer-top">-->
-<!--    <div class="row gy-4">-->
-<!--      <div class="col-lg-4 col-md-6 footer-about">-->
-<!--        <a th:href="@{/}" class="logo d-flex align-items-center">-->
-<!--          <span class="sitename">MediTrust</span>-->
-<!--        </a>-->
-<!--        <div class="footer-contact pt-3">-->
-<!--          <p>Số 888</p>-->
-<!--          <p>Tây Mỗ, Nam Từ Liêm, Hà Nội</p>-->
-<!--          <p class="mt-3"><strong>Phone:</strong> <span>+1 5589 55488 55</span></p>-->
-<!--          <p><strong>Email:</strong> <span>info@example.com</span></p>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--      <div class="col-lg-2 col-md-3 footer-links">-->
-<!--        <h4>Liên kết Hữu ích</h4>-->
-<!--        <ul>-->
-<!--          <li><a th:href="@{/}">Trang chủ</a></li>-->
-<!--          <li><a th:href="@{/about}">Giới thiệu</a></li>-->
-<!--          <li><a th:href="@{/services}">Dịch vụ</a></li>-->
-<!--          <li><a th:href="@{/terms}">Điều khoản dịch vụ</a></li>-->
-<!--          <li><a th:href="@{/privacy}">Chính sách bảo mật</a></li>-->
-<!--        </ul>-->
-<!--      </div>-->
-<!--    </div>-->
-<!--  </div>-->
-<!--  <div class="container copyright text-center mt-4">-->
-<!--    <p>© <span>Copyright</span> <strong class="px-1 sitename">MyWebsite</strong> <span>All Rights Reserved</span></p>-->
-<!--    <div class="credits">-->
-<!--      Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>-->
-<!--    </div>-->
-<!--  </div>-->
-<!--</footer>-->
-<!--<a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>-->
-<!--<div id="preloader"></div>-->
-
-<!--<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/php-email-form/validate.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/aos/aos.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/purecounter/purecounter_vanilla.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/swiper/swiper-bundle.min.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/isotope-layout/isotope.pkgd.min.js}"></script>-->
-<!--<script th:src="@{/assets/vendor/glightbox/js/glightbox.min.js}"></script>-->
-<!--<script th:src="@{/assets/js/main.js}"></script>-->
-
-<!--</body>-->
-<!--</html>-->
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Chi tiết Bác sĩ - MediTrust</title>
+  <title th:text="${doctor.degree != null ? doctor.degree : 'BS.'} + ' ' + ${doctor.user.fullName} + ' - HealCare'">Chi tiết Bác sĩ</title>
 
-  <link th:href="@{/assets/img/favicon.png}" rel="icon">
-  <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,00;1,300;1,400;1,500;1,700;1,900&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,00;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,00;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/aos/aos.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/swiper/swiper-bundle.min.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/glightbox/css/glightbox.min.css}" rel="stylesheet">
   <link th:href="@{/assets/css/main.css}" rel="stylesheet">
 
   <style>
-    .rating-badge {
-        position: absolute; top: 20px; right: 20px;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 10px 15px; border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center; z-index: 10;
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f8fafc;
+      color: #334155;
     }
-    .rating-score { color: #ffc107; font-weight: 800; font-size: 1.5rem; display: block; line-height: 1; margin-bottom: 5px; }
-    .rating-count { font-size: 0.75rem; color: #666; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Review Card */
-    .review-item { border-bottom: 1px solid #f0f0f0; padding: 20px 0; }
-    .review-item:last-child { border-bottom: none; }
-    .review-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; margin-right: 15px; border: 2px solid #eef0f2; }
-    .review-name { font-weight: 700; color: #2c4964; margin-bottom: 2px; font-size: 0.95rem; }
-    .review-date { font-size: 0.75rem; color: #999; }
-    .review-stars { color: #ffc107; font-size: 0.85rem; margin-bottom: 8px; }
-    .review-comment { font-size: 0.95rem; line-height: 1.6; color: #555; background: #f8f9fa; padding: 12px; border-radius: 8px; position: relative; }
-    .review-comment::before { content: ""; position: absolute; top: -6px; left: 20px; width: 12px; height: 12px; background: #f8f9fa; transform: rotate(45deg); }
+    .text-teal { color: #0d7b6a !important; }
+    .bg-teal { background-color: #0d7b6a !important; }
 
-    /* Custom Tabs */
-    .nav-tabs-custom { border-bottom: 2px solid #eef0f2; margin-bottom: 25px; }
-    .nav-tabs-custom .nav-link { border: none; color: #666; font-weight: 600; padding: 10px 20px; position: relative; }
-    .nav-tabs-custom .nav-link.active { color: #1977cc; background: none; }
-    .nav-tabs-custom .nav-link.active::after { content: ""; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px; background: #1977cc; }
+    .btn-teal {
+      background-color: #0d7b6a;
+      color: white;
+      border-radius: 8px;
+      font-weight: 500;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      transition: all 0.3s;
+    }
+    .btn-teal:hover { background-color: #0a5f52; color: white; }
+
+    /* Top Profile Card Container */
+    .profile-card-top {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+    }
+    .profile-avatar-big {
+      width: 240px;
+      height: 240px;
+      border-radius: 16px;
+      object-fit: cover;
+      background-color: #f1f5f9;
+    }
+    .certified-badge {
+      background-color: #e0f2fe;
+      color: #0369a1;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .doctor-title-name {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0.75rem 0;
+    }
+    .meta-info-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      color: #475569;
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+    .meta-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Tabs Custom Giao Diện */
+    .nav-tabs-healcare {
+      border-bottom: 1px solid #e2e8f0;
+      gap: 1.5rem;
+    }
+    .nav-tabs-healcare .nav-link {
+      border: none;
+      color: #64748b;
+      font-weight: 500;
+      padding: 0.75rem 0.5rem;
+      position: relative;
+      background: none;
+    }
+    .nav-tabs-healcare .nav-link.active {
+      color: #0d7b6a;
+    }
+    .nav-tabs-healcare .nav-link.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #0d7b6a;
+    }
+
+    /* 4 Ô Thống Kê Số Liệu */
+    .stats-summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .stat-mini-box {
+      background-color: #f8fafc;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .stat-mini-box h3 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0d7b6a;
+      margin-bottom: 0.25rem;
+    }
+    .stat-mini-box p {
+      font-size: 0.8rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    /* Widget Lịch Trực Cột Phải */
+    .sidebar-widget-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .widget-section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Giao diện bộ chọn ngày */
+    .date-selector-wrapper {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+    .date-btn-item {
+      flex: 1;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0.6rem 0.4rem;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .date-btn-item.active {
+      background-color: #0d7b6a;
+      border-color: #0d7b6a;
+      color: white;
+    }
+    .date-btn-item .day-name { font-size: 0.75rem; text-transform: uppercase; display: block; opacity: 0.8; }
+    .date-btn-item.active .day-name { opacity: 1; }
+    .date-btn-item .day-num { font-size: 1.2rem; font-weight: 700; display: block; }
+
+    /* CSS Giao diện phân buổi (Sáng/Chiều/Tối) */
+    .slots-group-header {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .text-morning { color: #f59e0b; }
+    .text-afternoon { color: #f97316; }
+    .text-evening { color: #3b82f6; }
+
+    .slots-flex-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .slot-interactive-btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+      font-weight: 500;
+      background: #ffffff;
+      color: #334155;
+      cursor: pointer;
+      width: calc(33.333% - 0.35rem); /* Chia 3 cột đều nhau */
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .slot-interactive-btn:hover {
+      background-color: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .slot-interactive-btn.disabled {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+      border-color: #e2e8f0;
+      cursor: not-allowed;
+      text-decoration: line-through;
+      box-shadow: none;
+    }
+
+    /* Review */
+    .review-row-item { border-bottom: 1px solid #e2e8f0; padding: 1.5rem 0; }
+    .review-row-item:last-child { border-bottom: none; }
+    .reviewer-avatar-circle {
+      width: 44px; height: 44px; border-radius: 50%; background-color: #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.95rem;
+    }
+    .stars-indicator-gold { color: #f59e0b; font-size: 0.9rem; }
+
+    /* Bản đồ */
+    .map-static-img {
+      width: 100%; height: 140px; object-fit: cover; border-top-left-radius: 16px; border-top-right-radius: 16px;
+    }
   </style>
 </head>
 
-<body class="doctor-details-page">
+<body>
 
 <div th:replace="~{user/include/header :: header-nav}"></div>
 
-<main class="main">
+<main class="main container" style="padding-top: 130px; padding-bottom: 4rem;">
 
-  <div class="page-title">
-    <div class="breadcrumbs">
-      <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a th:href="@{/}"><i class="bi bi-house"></i> Trang chủ</a></li>
-          <li class="breadcrumb-item"><a th:href="@{/doctors}">Đội ngũ Bác sĩ</a></li>
-          <li class="breadcrumb-item active current" th:text="'Dr. ' + ${doctor.user.fullName}">Tên Bác sĩ</li>
-        </ol>
-      </nav>
-    </div>
+  <div class="profile-card-top">
+    <div class="row align-items-center g-4">
+      <div class="col-md-auto text-center">
+        <img th:if="${doctor.user.avatar != null}" th:src="@{'/uploads/' + ${doctor.user.avatar}}" th:alt="${doctor.user.fullName}" class="profile-avatar-big">
+        <img th:if="${doctor.user.avatar == null}" th:src="@{/assets/img/default-doctor.png}" alt="Default Avatar" class="profile-avatar-big">
+      </div>
+      <div class="col-md">
+        <div class="certified-badge">
+          <i class="bi bi-patch-check-fill"></i> Bác sĩ Chứng nhận HealCare
+        </div>
+        <h1 class="doctor-title-name" th:text="(${doctor.degree != null ? doctor.degree : 'BS.'}) + ' ' + ${doctor.user.fullName}">Tên Bác sĩ</h1>
 
-    <div class="title-wrapper">
-      <h1>Chi tiết Bác sĩ</h1>
-      <p th:text="${doctor.department.name}">Chuyên khoa</p>
-    </div>
-  </div>
-
-  <section id="doctor-details" class="service-details-2 section">
-    <div class="container" data-aos="fade_up" data-aos-delay="100">
-      <div class="row gy-5">
-
-        <div class="col-lg-5" data-aos="zoom-in" data-aos-delay="200">
-          <div class="service-image position-relative">
-            <img th:if="${doctor.user.avatar != null}"
-                 th:src="@{'/uploads/' + ${doctor.user.avatar}}"
-                 th:alt="${doctor.user.fullName}" class="img-fluid rounded-3 shadow-sm w-100">
-            <img th:if="${doctor.user.avatar == null}"
-                 th:src="@{/assets/img/default-doctor.png}"
-                 alt="Default Doctor" class="img-fluid rounded-3 shadow-sm w-100">
-
-            <div class="service-tag">
-              <span th:text="${doctor.department.name}">Chuyên khoa</span>
-            </div>
-
-            <div class="rating-badge">
-                <span class="rating-score">
-                    <i class="bi bi-star-fill"></i> <span th:text="${averageRating}">0.0</span>
-                </span>
-              <span class="rating-count" th:text="${reviewCount} + ' Đánh giá'">0 Đánh giá</span>
-            </div>
+        <div class="meta-info-grid">
+          <div class="meta-info-item text-teal fw-medium">
+            <i class="bi bi-building"></i> <span th:text="${doctor.department.name}">Chuyên khoa</span>
+          </div>
+          <div class="meta-info-item">
+            <i class="bi bi-briefcase"></i> <span th:text="${doctor.experienceYears} + '+ năm kinh nghiệm'">15+ năm</span>
+          </div>
+          <div class="meta-info-item">
+            <i class="bi bi-star-fill text-warning"></i>
+            <span class="fw-bold" th:text="${averageRating}">4.9</span>
+            <span class="text-muted" th:text="'(' + ${reviewCount} + ' Đánh giá)'">(120)</span>
+          </div>
+          <div class="meta-info-item">
+            <i class="bi bi-geo-alt"></i> HealCare Central Clinic
           </div>
         </div>
 
-        <div class="col-lg-7" data-aos="fade-left" data-aos-delay="300">
-          <div class="service-content ps-lg-4">
-            <h2 th:text="'Dr. ' + ${doctor.user.fullName}">Tên Bác sĩ</h2>
-            <p class="service-tagline text-primary mb-4" th:text="${doctor.experienceYears} + ' năm kinh nghiệm'">Năm kinh nghiệm</p>
+        <button class="btn btn-teal" id="scrollToBookingBtn"><i class="bi bi-calendar-event me-2"></i> Đặt Lịch Khám</button>
+      </div>
+    </div>
+  </div>
 
-            <ul class="nav nav-tabs nav-tabs-custom" id="doctorTab" role="tablist">
-              <li class="nav-item">
-                <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button">Thông tin chung</button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button">
-                  Đánh giá & Phản hồi (<span th:text="${reviewCount}"></span>)
-                </button>
-              </li>
-            </ul>
+  <div class="row g-4">
 
-            <div class="tab-content" id="doctorTabContent">
-              <div class="tab-pane fade show active" id="info" role="tabpanel">
-                <p th:text="${doctor.bio}">Tiểu sử Bác sĩ...</p>
+    <div class="col-lg-8">
+      <div class="bg-white rounded-4 p-4 border border-slate" style="height: 100%;">
 
-                <div class="service-features mt-4">
-                  <h4>Thông tin liên hệ:</h4>
-                  <ul class="list-unstyled mt-3">
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="me-2">Chuyên khoa:</strong> <span th:text="${doctor.department.name}"></span></li>
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="me-2">Học vị:</strong> <span th:text="${doctor.degree}"></span></li>
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="me-2">Email:</strong> <span th:text="${doctor.user.email}"></span></li>
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="me-2">Giá khám:</strong> <span class="text-danger fw-bold" th:text="${#numbers.formatDecimal(doctor.price, 0, 'COMMA', 0, 'POINT')} + ' đ'"></span></li>
-                  </ul>
-                </div>
+        <ul class="nav nav-tabs nav-tabs-healcare" id="detailTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" id="bio-tab" data-bs-toggle="tab" data-bs-target="#bio-content" type="button">Giới thiệu</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="exp-tab" data-bs-toggle="tab" data-bs-target="#exp-content" type="button">Kinh nghiệm làm việc</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="edu-tab" data-bs-toggle="tab" data-bs-target="#edu-content" type="button">Quá trình đào tạo</button>
+          </li>
+        </ul>
 
-                <div class="service-actions mt-4">
-                  <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn btn-primary px-4 py-2 shadow-sm">
-                    <i class="bi bi-calendar-check me-2"></i> Đặt lịch hẹn ngay
-                  </a>
-                </div>
+        <div class="tab-content pt-4" id="detailTabsContent">
+          <div class="tab-pane fade show active" id="bio-content" role="tabpanel">
+            <h4 class="fw-bold mb-3 text-dark" style="font-size: 1.25rem;">Giới thiệu về Bác sĩ</h4>
+            <p style="line-height: 1.7; color: #475569;" th:text="${doctor.bio}">Nội dung tiểu sử bác sĩ...</p>
+
+            <div class="stats-summary-row">
+              <div class="stat-mini-box">
+                <h3 th:text="${treatedCount != null ? treatedCount : '5k+'}">5k+</h3>
+                <p>Bệnh Nhân</p>
               </div>
+              <div class="stat-mini-box">
+                <h3 th:text="${doctor.experienceYears}">15+</h3>
+                <p>Năm Kinh Nghiệm</p>
+              </div>
+              <div class="stat-mini-box">
+                <h3>20+</h3>
+                <p>Bài Báo Khoa Học</p>
+              </div>
+              <div class="stat-mini-box">
+                <h3 th:text="${averageRating}">4.9</h3>
+                <p>Điểm Trung Bình</p>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="exp-content" role="tabpanel">
+            <p style="line-height: 1.7; color: #475569;">Hơn <span th:text="${doctor.experienceYears}"></span> năm làm việc và nghiên cứu lâm sàng tại các bệnh viện trung ương lớn tuyến đầu.</p>
+          </div>
+          <div class="tab-pane fade" id="edu-content" role="tabpanel">
+            <p style="line-height: 1.7; color: #475569;">Tốt nghiệp Bác sĩ Chuyên khoa sâu, liên tục cập nhật các phương pháp chẩn đoán tiên tiến chuẩn quốc tế.</p>
+          </div>
+        </div>
 
-              <div class="tab-pane fade" id="reviews" role="tabpanel">
+        <hr class="my-5" style="border-color: #e2e8f0;">
 
-                <div th:if="${reviews.isEmpty()}" class="text-center py-5 text-muted bg-light rounded-3">
-                  <i class="bi bi-chat-square-text display-4 opacity-25"></i>
-                  <p class="mt-3 mb-0">Chưa có đánh giá nào cho bác sĩ này.</p>
-                </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h4 class="fw-bold m-0" style="font-size: 1.25rem;">Đánh giá từ Bệnh nhân</h4>
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-star-fill text-warning fs-5"></i>
+            <span class="fw-bold fs-5" th:text="${averageRating}">4.9</span>
+            <span class="text-muted small" th:text="'(' + ${reviewCount} + ')'">(120)</span>
+          </div>
+        </div>
 
-                <div th:each="rv : ${reviews}" class="review-item">
-                  <div class="d-flex align-items-start">
-                    <img th:src="@{/assets/img/default-avatar.png}" class="review-avatar">
-                    <div class="flex-grow-1">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h6 class="review-name" th:text="${rv.booking.user.fullName}">User Name</h6>
-                        <span class="review-date" th:text="${#temporals.format(rv.createdAt, 'dd/MM/yyyy')}">12/12/2023</span>
-                      </div>
-                      <div class="review-stars">
-                        <span th:each="i : ${#numbers.sequence(1, rv.rating)}"><i class="bi bi-star-fill"></i></span>
-                        <span th:each="i : ${#numbers.sequence(rv.rating + 1, 5)}" th:if="${rv.rating < 5}"><i class="bi bi-star text-muted opacity-25"></i></span>
-                      </div>
-                      <div class="review-comment" th:text="${rv.comment}">Nội dung...</div>
-                    </div>
+        <div th:if="${reviews.isEmpty()}" class="text-center py-4 text-muted">
+          <p><i class="bi bi-chat-left-text me-1"></i> Chưa có lượt phản hồi nào cho bác sĩ.</p>
+        </div>
+
+        <div class="reviews-list-container" th:if="${not reviews.isEmpty()}">
+          <div class="review-row-item" th:each="rv : ${reviews}">
+            <div class="d-flex gap-3">
+              <div class="reviewer-avatar-circle">
+                <span th:text="${#strings.substring(rv.booking.user.fullName, 0, 1)}">T</span>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <div>
+                    <h6 class="fw-bold m-0 text-dark" style="font-size: 0.95rem;" th:text="${rv.booking.user.fullName}">Tên KH</h6>
+                    <span class="text-muted small" style="font-size: 0.8rem;" th:text="${#temporals.format(rv.createdAt, 'dd/MM/yyyy')}">Date</span>
+                  </div>
+                  <div class="stars-indicator-gold">
+                    <span th:each="i : ${#numbers.sequence(1, rv.rating)}"><i class="bi bi-star-fill"></i></span>
                   </div>
                 </div>
-
+                <p class="m-0 mt-2" style="font-size: 0.95rem; color: #475569; line-height: 1.6;" th:text="${rv.comment}">Nội dung...</p>
               </div>
             </div>
-
           </div>
         </div>
 
       </div>
+    </div>
 
-      <div class="row mt-5">
-        <div class="col-lg-8" data-aos="fade-right" data-aos-delay="100">
-          <div class="booking-section p-4 bg-light rounded-3">
-            <h3>Sẵn sàng Đặt lịch hẹn?</h3>
-            <p>Các chuyên gia của chúng tôi sẵn sàng tư vấn từ Thứ Hai đến Thứ Sáu. Có thể đặt lịch trong ngày cho các trường hợp khẩn cấp.</p>
-            <div class="availability-info mt-3 d-flex flex-wrap gap-4">
-              <div class="info-item d-flex align-items-center">
-                <i class="bi bi-clock fs-4 text-primary me-3"></i>
-                <div>
-                  <strong>Giờ làm việc</strong><br>
-                  <span class="text-muted small">Thứ 2 - Thứ 6: 7:30 - 17:30</span>
-                </div>
-              </div>
-              <div class="info-item d-flex align-items-center">
-                <i class="bi bi-telephone fs-4 text-primary me-3"></i>
-                <div>
-                  <strong>Hotline</strong><br>
-                  <span class="text-muted small">+84 (555) 123-4567</span>
-                </div>
-              </div>
-            </div>
+    <div class="col-lg-4" id="bookingWidgetArea">
+
+      <div class="sidebar-widget-card">
+        <div class="widget-section-title">
+          <i class="bi bi-calendar-check text-teal"></i> Lịch Khám Bệnh
+        </div>
+
+        <label class="slots-grid-title mt-2">Chọn Ngày</label>
+        <div class="date-selector-wrapper" id="dateSelectorGroup">
+          <div class="date-btn-item active" data-offset="0">
+            <span class="day-name" id="dayLabel0">T2</span>
+            <span class="day-num" id="dateLabel0">24</span>
+          </div>
+          <div class="date-btn-item" data-offset="1">
+            <span class="day-name" id="dayLabel1">T3</span>
+            <span class="day-num" id="dateLabel1">25</span>
+          </div>
+          <div class="date-btn-item" data-offset="2">
+            <span class="day-name" id="dayLabel2">T4</span>
+            <span class="day-num" id="dateLabel2">26</span>
           </div>
         </div>
 
-        <div class="col-lg-4" data-aos="fade-left" data-aos-delay="200">
-          <div class="appointment-card p-4 bg-primary text-white rounded-3 shadow text-center">
-            <h4>Đặt lịch ngay</h4>
-            <p class="small opacity-75 mb-4">Đặt lịch trực tuyến nhanh chóng và dễ dàng</p>
-            <a th:href="@{/appointment(doctorId=${doctor.id})}" class="btn btn-light text-primary w-100 fw-bold">Đặt lịch hẹn</a>
-            <div class="contact-alternative mt-3 small">
-              <span>Hoặc gọi: </span> <a href="tel:+15551234567" class="text-white fw-bold text-decoration-none">+1 (555) 123-4567</a>
+        <div class="slot-group-wrapper">
+          <div class="slots-group-header text-morning"><i class="bi bi-brightness-alt-high"></i> Buổi Sáng</div>
+          <div class="slots-flex-group" id="morningSlotsContainer"></div>
+        </div>
+
+        <div class="slot-group-wrapper">
+          <div class="slots-group-header text-afternoon"><i class="bi bi-sun"></i> Buổi Chiều</div>
+          <div class="slots-flex-group" id="afternoonSlotsContainer"></div>
+        </div>
+
+        <div class="slot-group-wrapper">
+          <div class="slots-group-header text-evening"><i class="bi bi-moon-stars"></i> Buổi Tối</div>
+          <div class="slots-flex-group" id="eveningSlotsContainer"></div>
+        </div>
+
+        <small class="text-muted d-block mt-3 fst-italic">* Bấm vào khung giờ còn trống để đặt lịch ngay.</small>
+      </div>
+
+      <div class="sidebar-widget-card p-0 overflow-hidden">
+        <img th:src="@{/assets/img/health/static-map.png}" onerror="this.src='https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80'" class="map-static-img" alt="Clinic Map">
+        <div class="p-4">
+          <h5 class="fw-bold text-dark mb-3" style="font-size: 1rem;">Cơ sở Y tế</h5>
+          <div class="d-flex gap-3 mb-3">
+            <i class="bi bi-geo-alt text-teal fs-5"></i>
+            <div>
+              <strong class="text-dark small d-block mb-1">HealCare Central Clinic</strong>
+              <span class="text-muted small">123 Health Avenue, Quận 1, TP. HCM</span>
             </div>
           </div>
+          <div class="d-flex gap-3 mb-4">
+            <i class="bi bi-telephone text-teal fs-5"></i>
+            <div>
+              <strong class="text-dark small d-block mb-1">Tổng đài hỗ trợ</strong>
+              <span class="text-muted small">1900 1234</span>
+            </div>
+          </div>
+          <a href="tel:19001080" class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 fw-bold" style="border-radius: 8px; padding: 0.6rem;">
+            <i class="bi bi-telephone-fill animate-pulse"></i> Gọi Cấp cứu
+          </a>
         </div>
       </div>
 
     </div>
-  </section>
+
+  </div>
+
 </main>
 
-<footer id="footer" class="footer position-relative light-background">
-  <div class="container footer-top">
-    <div class="row gy-4">
-      <div class="col-lg-4 col-md-6 footer-about">
-        <a th:href="@{/}" class="logo d-flex align-items-center">
-          <span class="sitename">MediTrust</span>
-        </a>
-        <div class="footer-contact pt-3">
-          <p>Số 888</p>
-          <p>Tây Mỗ, Nam Từ Liêm, Hà Nội</p>
-          <p class="mt-3"><strong>Phone:</strong> <span>+1 5589 55488 55</span></p>
-          <p><strong>Email:</strong> <span>info@example.com</span></p>
-        </div>
-      </div>
-      <div class="col-lg-2 col-md-3 footer-links">
-        <h4>Liên kết Hữu ích</h4>
-        <ul>
-          <li><a th:href="@{/}">Trang chủ</a></li>
-          <li><a th:href="@{/about}">Giới thiệu</a></li>
-          <li><a th:href="@{/services}">Dịch vụ</a></li>
-          <li><a th:href="@{/terms}">Điều khoản dịch vụ</a></li>
-          <li><a th:href="@{/privacy}">Chính sách bảo mật</a></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="container copyright text-center mt-4">
-    <p>© <span>Copyright</span> <strong class="px-1 sitename">MediTrust</strong> <span>All Rights Reserved</span></p>
-    <div class="credits">
-      Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
-    </div>
-  </div>
-</footer>
-<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
-<a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
-<div id="preloader"></div>
+<div th:replace="~{user/include/footer :: footer}"></div>
 
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
-<script th:src="@{/assets/vendor/php-email-form/validate.js}"></script>
-<script th:src="@{/assets/vendor/aos/aos.js}"></script>
-<script th:src="@{/assets/vendor/purecounter/purecounter_vanilla.js}"></script>
-<script th:src="@{/assets/vendor/swiper/swiper-bundle.min.js}"></script>
-<script th:src="@{/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js}"></script>
-<script th:src="@{/assets/vendor/isotope-layout/isotope.pkgd.min.js}"></script>
-<script th:src="@{/assets/vendor/glightbox/js/glightbox.min.js}"></script>
-<script th:src="@{/assets/js/main.js}"></script>
 
+<script th:inline="javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    const doctorId = [[${doctor.id}]];
+    const dateButtons = document.querySelectorAll(".date-btn-item");
+
+    document.getElementById("scrollToBookingBtn").addEventListener("click", function() {
+      document.getElementById("bookingWidgetArea").scrollIntoView({ behavior: 'smooth' });
+    });
+
+    const dayNamesShort = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+    let selectedDateStr = "";
+
+    function setupDateLabels() {
+      for (let i = 0; i < 3; i++) {
+        let d = new Date();
+        d.setDate(d.getDate() + i);
+
+        document.getElementById(`dayLabel${i}`).textContent = dayNamesShort[d.getDay()];
+        document.getElementById(`dateLabel${i}`).textContent = d.getDate();
+
+        if (i === 0) {
+          selectedDateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+      }
+    }
+    setupDateLabels();
+
+    // Giới hạn giờ đến 19:00 theo đúng yêu cầu
+    const allTimeSlots = [
+      "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
+      "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
+      "17:30", "18:00", "18:30", "19:00"
+    ];
+
+    async function fetchAndRenderSlots() {
+      const morningContainer = document.getElementById("morningSlotsContainer");
+      const afternoonContainer = document.getElementById("afternoonSlotsContainer");
+      const eveningContainer = document.getElementById("eveningSlotsContainer");
+
+      morningContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
+      afternoonContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
+      eveningContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
+
+      try {
+        const checkDate = new Date(selectedDateStr);
+
+        const res = await fetch(`/api/bookings/booked-slots?doctorId=${doctorId}&date=${selectedDateStr}`);
+        let bookedTimes = [];
+        if (res.ok) bookedTimes = await res.json();
+
+        const today = new Date();
+        const isToday = today.toDateString() === checkDate.toDateString();
+        const currentHour = today.getHours();
+        const currentMinute = today.getMinutes();
+
+        let availableMorning = [];
+        let availableAfternoon = [];
+        let availableEvening = [];
+
+        allTimeSlots.forEach(slot => {
+          const [h, m] = slot.split(':').map(Number);
+          let isPast = false;
+
+          if (isToday && (h < currentHour || (h === currentHour && m <= currentMinute))) {
+            isPast = true;
+          }
+
+          const isBooked = bookedTimes.some(b => b.startsWith(slot));
+
+          if (!isPast && !isBooked) {
+            // Phân nhóm thành Sáng, Chiều, Tối
+            if (h < 12) {
+              availableMorning.push(slot);
+            } else if (h < 17 || (h === 17 && m === 0)) {
+              // Chiều: 13:30 đến 17:00
+              availableAfternoon.push(slot);
+            } else {
+              // Tối: 17:30 trở đi
+              availableEvening.push(slot);
+            }
+          }
+        });
+
+        renderSlotGroup(availableMorning, morningContainer);
+        renderSlotGroup(availableAfternoon, afternoonContainer);
+        renderSlotGroup(availableEvening, eveningContainer);
+
+      } catch (err) {
+        morningContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
+        afternoonContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
+        eveningContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
+      }
+    }
+
+    function renderSlotGroup(slots, container) {
+      container.innerHTML = "";
+
+      if(slots.length === 0) {
+        container.innerHTML = '<span class="text-muted small w-100 text-center fst-italic py-2" style="background: #f8fafc; border-radius: 8px;">Đã kín lịch</span>';
+        return;
+      }
+
+      slots.forEach(time => {
+        const btn = document.createElement("div");
+        btn.className = "slot-interactive-btn";
+        btn.textContent = time;
+
+        btn.addEventListener("click", function() {
+          window.location.href = `/appointment?doctorId=${doctorId}&date=${selectedDateStr}&time=${time}`;
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    dateButtons.forEach(btn => {
+      btn.addEventListener("click", function() {
+        dateButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const offset = parseInt(btn.getAttribute("data-offset"));
+        let targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + offset);
+
+        selectedDateStr = targetDate.getFullYear() + '-' + String(targetDate.getMonth() + 1).padStart(2, '0') + '-' + String(targetDate.getDate()).padStart(2, '0');
+
+        fetchAndRenderSlots();
+      });
+    });
+
+    fetchAndRenderSlots();
+  });
+</script>
 </body>
 </html>

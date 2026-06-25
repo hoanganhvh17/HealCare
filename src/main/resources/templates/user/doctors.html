@@ -300,19 +300,26 @@
         const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doctor.price);
         const ratingDisplay = doctor.rating ? doctor.rating.toFixed(1) : '5.0';
 
-        const cardHtml = `
+          const cardHtml = `
           <div class="col-md-6 doctor-card-wrapper" id="doc-wrapper-${doctor.id}">
             <div class="doctor-card">
               <div class="doctor-header">
                 <div class="doctor-info-wrap">
-                  <img src="${doctor.avatar}" alt="${doctor.fullName}" class="doctor-avatar">
+
+                  <a href="/doctors/${doctor.id}">
+                    <img src="${doctor.avatar}" alt="${doctor.fullName}" class="doctor-avatar">
+                  </a>
+
                   <div>
                     <h3 class="doctor-name">
-                      ${doctor.degree ? doctor.degree : 'BS.'} ${doctor.fullName}
+                      <a href="/doctors/${doctor.id}" style="color: #1e293b; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#0d7b6a'" onmouseout="this.style.color='#1e293b'">
+                        ${doctor.degree ? doctor.degree : 'BS.'} ${doctor.fullName}
+                      </a>
                       <i class="bi bi-patch-check verified-icon"></i>
                     </h3>
                     <p class="doctor-spec">${doctor.departmentName}</p>
                   </div>
+
                 </div>
                 <div class="rating-badge">
                   <i class="bi bi-star-fill"></i> ${ratingDisplay}
