@@ -149,6 +149,14 @@
         </div>
 
         <div class="filter-group">
+          <label class="filter-label">Tìm kiếm theo tên</label>
+          <div style="position: relative;">
+            <input type="text" id="searchDoctorName" class="form-control" placeholder="Nhập tên bác sĩ..." style="border-radius: 8px; border: 1px solid #cbd5e1; padding: 0.6rem 1rem; font-size: 0.95rem;">
+            <i class="bi bi-search" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;"></i>
+          </div>
+        </div>
+
+        <div class="filter-group">
           <label class="filter-label">Chuyên khoa</label>
           <select class="form-select" id="departmentFilter">
             <option value="" th:selected="${currentDepartmentId == null}">Tất cả chuyên khoa</option>
@@ -203,9 +211,11 @@
     const clearFilterBtn = document.getElementById("clearFilterBtn");
     const starFilterIcons = document.querySelectorAll("#starFilter i");
     const starFilterText = document.getElementById("starFilterText");
+    const searchInput = document.getElementById("searchDoctorName");
 
     let allFetchedDoctors = []; // Lưu trữ danh sách bác sĩ lấy từ API
     let currentMinRating = 0;   // 0 nghĩa là không lọc theo sao
+    let currentSearchQuery = ""; // Lưu giá trị tìm kiếm
 
     // --- LOGIC XỬ LÝ CHỌN SAO ---
     starFilterIcons.forEach(star => {
@@ -277,15 +287,26 @@
               });
     }
 
-    // --- HÀM RENDER & LỌC SAO ---
+    // --- HÀM RENDER & LỌC SAO & TÌM KIẾM ---
     function renderDoctorCards() {
       doctorListContainer.innerHTML = "";
 
       // 1. Lọc danh sách bác sĩ theo Rating
-      const filteredDoctors = allFetchedDoctors.filter(doc => {
+      let filteredDoctors = allFetchedDoctors.filter(doc => {
         const docRating = doc.rating || 5.0; // Nếu null mặc định là 5
         return docRating >= currentMinRating;
       });
+
+      // 2. Lọc theo tên bác sĩ (không phân biệt hoa/thường)
+      if (currentSearchQuery.trim().length > 0) {
+        const query = currentSearchQuery.toLowerCase();
+        filteredDoctors = filteredDoctors.filter(doc => {
+          const fullName = (doc.fullName || "").toLowerCase();
+          
+          // Chỉ tìm kiếm trong tên bác sĩ
+          return fullName.includes(query);
+        });
+      }
 
       if (filteredDoctors.length === 0) {
         doctorListContainer.innerHTML = `
@@ -295,7 +316,7 @@
         return;
       }
 
-      // 2. In thẻ HTML
+      // 3. In thẻ HTML
       filteredDoctors.forEach(doctor => {
         const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doctor.price);
         const ratingDisplay = doctor.rating ? doctor.rating.toFixed(1) : '5.0';
@@ -345,7 +366,7 @@
         doctorListContainer.insertAdjacentHTML('beforeend', cardHtml);
       });
 
-      // 3. Chạy hàm kiểm tra lịch trống cho các bác sĩ vừa render
+      // 4. Chạy hàm kiểm tra lịch trống cho các bác sĩ vừa render
       loadAllSchedules();
     }
 
@@ -447,11 +468,19 @@
       renderDoctorCards();
     });
 
+    // --- LẮNG NGHE SỰ KIỆN TÌM KIẾM (REAL-TIME) ---
+    searchInput.addEventListener("input", function () {
+      currentSearchQuery = this.value;
+      renderDoctorCards(); // Render lại danh sách ngay khi người dùng gõ
+    });
+
     clearFilterBtn.addEventListener("click", function () {
       departmentFilter.value = "";
       timeFilter.value = "today";
+      searchInput.value = "";
 
       currentMinRating = 0;
+      currentSearchQuery = "";
       starFilterText.textContent = "Hiển thị tất cả";
       updateStarUI();
 
