@@ -23,10 +23,10 @@ public class BookingCleanupTask {
     @Scheduled(fixedRate = 60000)
     public void cleanupExpiredBookings() {
         try {
-            // 1. Xác định mốc thời gian: Lấy thời gian hiện tại LÙI LẠI 15 phút
-            LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(5);
+            // 1. Xác định mốc thời gian: Lấy thời gian hiện tại LÙI LẠI 3 phút
+            LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(3);
 
-            // 2. Gọi Database: "Tìm cho tôi tất cả các ông nào PENDING, chưa trả tiền, và tạo trước mốc 15 phút kia"
+            // 2. Gọi Database: "Tìm cho tôi tất cả các ông nào PENDING, chưa trả tiền, và tạo trước mốc 3 phút kia"
             List<Booking> expiredBookings = bookingRepository.findByStatusAndPaymentStatusAndCreatedAtBefore(
                     BookingStatus.PENDING, "UNPAID", cutoffTime
             );
@@ -42,7 +42,7 @@ public class BookingCleanupTask {
                 bookingRepository.saveAll(expiredBookings);
 
                 // In ra console để mày dễ theo dõi lúc test
-                System.out.println("[CRON JOB] Đã tự động HỦY và dọn dẹp " + expiredBookings.size() + " lịch hẹn chưa thanh toán quá 15 phút.");
+                System.out.println("[CRON JOB] Đã tự động HỦY và dọn dẹp " + expiredBookings.size() + " lịch hẹn chưa thanh toán quá 3 phút.");
             }
         } catch (Exception e) {
             // Lọc lỗi để dù Cron Job có sập thì trang web đặt lịch của mày vẫn chạy bình thường

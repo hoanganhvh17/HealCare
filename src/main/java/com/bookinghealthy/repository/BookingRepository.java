@@ -87,6 +87,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // (Nghĩa là lấy các lịch PENDING, CONFIRMED, COMPLETED để chặn giờ đó lại)
     List<Booking> findByDoctorIdAndAppointmentDateAndStatusNot(Long doctorId, LocalDate appointmentDate, BookingStatus status);
 
+    boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(Long doctorId, LocalDate appointmentDate, String appointmentTime, BookingStatus status);
+
     // === MODULE 11: LẤY DANH SÁCH KHÁM BỆNH ===
     // Tìm lịch hẹn của Bác sĩ + Ngày cụ thể + Trạng thái cụ thể
     // Dùng để lấy danh sách "Bệnh nhân cần khám hôm nay" (Status = CONFIRMED)

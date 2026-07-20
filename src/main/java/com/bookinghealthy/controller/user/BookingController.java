@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -58,6 +59,7 @@ public class BookingController {
     }
 
     @PostMapping("/appointment")
+    @Transactional
     public String processAppointment(
             @RequestParam("appointmentType") String appointmentType,
             @RequestParam("doctorId") Long doctorId,
@@ -92,44 +94,45 @@ public class BookingController {
             booking.setPatientPhone(finalPhone);
 
             // === XỬ LÝ THANH TOÁN ===
+            booking.setStatus(BookingStatus.PENDING);
+            booking.setPaymentStatus("UNPAID");
 
             // CASE 1: THANH TOÁN BẰNG VÍ (WALLET)
             if ("WALLET".equals(paymentMethod)) {
-                // Gọi Service trừ tiền
+                booking.setPaymentMethod("WALLET");
+                Booking reservedBooking = bookingService.reserve(booking);
+
+                // Gọi Service trừ tiền sau khi slot đã được giữ
                 boolean success = walletService.payWithWallet(currentUser, doctor.getPrice(), "Thanh toán đặt lịch khám bác sĩ " + doctor.getUser().getFullName());
 
                 if (success) {
-                    // Tiền đã trừ -> Xác nhận luôn
-                    booking.setStatus(BookingStatus.CONFIRMED);
-                    booking.setPaymentStatus("PAID");
-                    booking.setPaymentMethod("WALLET");
-
-                    Booking savedBooking = bookingService.save(booking);
+                    reservedBooking.setStatus(BookingStatus.CONFIRMED);
+                    reservedBooking.setPaymentStatus("PAID");
+                    Booking savedBooking = bookingService.save(reservedBooking);
                     emailService.sendBookingConfirmation(savedBooking);
 
                     redirectAttributes.addFlashAttribute("successMessage", "Đặt lịch và thanh toán bằng Ví thành công!");
                     return "redirect:/user/profile"; // Về trang lịch sử
                 } else {
+                    reservedBooking.setStatus(BookingStatus.CANCELED);
+                    reservedBooking.setPaymentStatus("FAILED");
+                    bookingService.save(reservedBooking);
                     redirectAttributes.addFlashAttribute("errorMessage", "Số dư ví không đủ để thanh toán!");
                     return "redirect:/appointment";
                 }
             }
             // === [THÊM MỚI] CASE 3: CHUYỂN KHOẢN NGÂN HÀNG (VietQR) ===
             else if ("BANK_TRANSFER".equals(paymentMethod)) {
-                booking.setStatus(BookingStatus.PENDING);
-                booking.setPaymentStatus("UNPAID");
                 booking.setPaymentMethod("BANK_TRANSFER");
-                Booking savedBooking = bookingService.save(booking);
+                Booking savedBooking = bookingService.reserve(booking);
 
                 // Chuyển hướng sang trang quét mã QR, truyền theo ID lịch hẹn
                 return "redirect:/checkout-qr?id=" + savedBooking.getId();
             }
             // CASE 2: THANH TOÁN VNPAY (Mặc định)
             else {
-                booking.setStatus(BookingStatus.PENDING);
-                booking.setPaymentStatus("UNPAID");
                 booking.setPaymentMethod("VNPAY");
-                Booking savedBooking = bookingService.save(booking);
+                Booking savedBooking = bookingService.reserve(booking);
 
                 long amount = doctor.getPrice().longValue();
                 String orderInfo = "Thanh toan lich kham #" + savedBooking.getId();
@@ -139,6 +142,9 @@ public class BookingController {
                 return "redirect:" + vnpayUrl;
             }
 
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/appointment";
         } catch (Exception e) {
             e.printStackTrace();
             redirectAttributes.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());

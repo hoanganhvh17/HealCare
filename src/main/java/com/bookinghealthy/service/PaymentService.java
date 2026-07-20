@@ -38,7 +38,7 @@ public class PaymentService {
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
-        cld.add(Calendar.MINUTE, 15); // Hết hạn sau 15 phút
+        cld.add(Calendar.MINUTE, 3); // Hết hạn sau 3 phút để khớp cơ chế giữ lịch
         String vnp_ExpireDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
 

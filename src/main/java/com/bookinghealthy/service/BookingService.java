@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface BookingService {
     Booking save(Booking booking);
+    Booking reserve(Booking booking);
     // (Chúng ta sẽ thêm các hàm find... sau)
 
     // === THÊM 3 HÀM MỚI NÀY ===
