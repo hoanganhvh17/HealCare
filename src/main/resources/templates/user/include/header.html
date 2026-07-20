@@ -72,7 +72,7 @@
 
                         <!-- Hiển thị Avatar (Local) -->
                         <img th:if="${#authentication.principal.avatar != null and !#strings.isEmpty(#authentication.principal.avatar) and !#strings.startsWith(#authentication.principal.avatar, 'http')}"
-                             th:src="@{'/uploads/' + ${#authentication.principal.avatar}}"
+                             th:src="@{'/uploads/' + ${#authentication.principal.avatar} + '?v=' + ${#dates.createNow().time}}"
                              alt="Avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover; border: 2px solid #00796b;">
                     </a>
 

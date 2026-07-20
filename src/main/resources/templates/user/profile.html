@@ -1,321 +1,589 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Hồ sơ cá nhân - MediTrust</title>
+  <title>Hồ sơ cá nhân - HealCare</title>
 
   <link th:href="@{/assets/img/favicon.png}" rel="icon">
   <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/aos/aos.css}" rel="stylesheet">
   <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/glightbox/css/glightbox.min.css}" rel="stylesheet">
-  <link th:href="@{/assets/vendor/swiper/swiper-bundle.min.css}" rel="stylesheet">
   <link th:href="@{/assets/css/main.css}" rel="stylesheet">
 
   <style>
-    /* Style cho chọn sao đánh giá */
-    .rating {
-        display: flex;
-        flex-direction: row-reverse;
-        justify-content: center;
-        gap: 10px;
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f4f7fb;
+      color: #334155;
     }
+    .main.container {
+      padding-top: 50px;
+    }
+    /* Tiện ích màu sắc */
+    .text-teal { color: #006666 !important; }
+    .bg-teal { background-color: #006666 !important; }
+
+    .btn-teal {
+      background-color: #006666;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.5rem;
+      transition: all 0.3s;
+    }
+    .btn-teal:hover { background-color: #004d4d; color: white; }
+
+    /* Breadcrumb Left-aligned */
+    .profile-header-left {
+      text-align: left;
+      padding: 40px 0 20px;
+    }
+    .profile-breadcrumb {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+    }
+    .profile-breadcrumb a { color: #334155; text-decoration: none; }
+    .profile-breadcrumb i { font-size: 0.75rem; margin: 0 0.5rem; }
+
+    /* Cards */
+    .card-custom {
+      background: white;
+      border-radius: 12px;
+      border: none;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Avatar & Verification */
+    .avatar-wrapper img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .badge-verified {
+      background-color: #d1fae5;
+      color: #065f46;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    /* Wallet Card */
+    .wallet-card {
+      background: linear-gradient(135deg, #006666, #004d4d);
+      border-radius: 12px;
+      padding: 24px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      margin-top: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 102, 102, 0.2);
+    }
+    .wallet-card::after {
+      content: '\f555';
+      font-family: 'Font Awesome 5 Free';
+      font-weight: 900;
+      position: absolute;
+      right: -20px;
+      bottom: -10px;
+      font-size: 110px;
+      opacity: 0.1;
+      line-height: 1;
+    }
+    .wallet-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+    .wallet-balance {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 12px 0 20px;
+      line-height: 1;
+    }
+    .btn-wallet-add {
+      background-color: white;
+      color: #006666;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      position: relative;
+      z-index: 2;
+    }
+    .btn-wallet-add:hover { background-color: #f8fafc; }
+
+    /* Custom Tabs - Loại bỏ hoàn toàn trượt (scroll) bằng flex-wrap */
+    .nav-tabs-custom {
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap; /* Tự động xuống dòng mượt mà nếu màn hình nhỏ, không sinh thanh cuộn */
+    }
+    .nav-tabs-custom .nav-link {
+      color: #64748b;
+      font-weight: 500;
+      border: none;
+      padding: 1rem 1.2rem;
+      background: transparent;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-tabs-custom .nav-link i { font-size: 1.1rem; }
+    .nav-tabs-custom .nav-link:hover { color: #006666; }
+    .nav-tabs-custom .nav-link.active { color: #006666; }
+    .nav-tabs-custom .nav-link.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #006666;
+    }
+
+    /* Custom Form */
+    .form-label-top {
+      font-size: 0.9rem;
+      color: #475569;
+      margin-bottom: 0.5rem;
+      font-weight: 400;
+    }
+    .form-control-custom {
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      padding: 0.7rem 1rem;
+      color: #334155;
+    }
+    .form-control-custom:focus {
+      border-color: #006666;
+      box-shadow: 0 0 0 0.2rem rgba(0, 102, 102, 0.1);
+    }
+    .form-control-readonly {
+      background-color: #f8fafc;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+    .form-help-text {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.4rem;
+    }
+
+    /* Ẩn hiện mật khẩu */
+    .password-group {
+      position: relative;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #64748b;
+    }
+    .password-toggle:hover {
+      color: #006666;
+    }
+
+    /* Rating */
+    .rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 10px; }
     .rating input { display: none; }
     .rating label {
-        cursor: pointer;
-        width: 30px;
-        height: 30px;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: contain;
-        transition: 0.3s;
+      cursor: pointer; width: 30px; height: 30px;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
+      background-repeat: no-repeat; background-position: center; background-size: contain; transition: 0.3s;
     }
-    .rating input:checked ~ label,
-    .rating label:hover,
-    .rating label:hover ~ label {
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffc107' stroke='%23ffc107' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
+    .rating input:checked ~ label, .rating label:hover, .rating label:hover ~ label {
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffc107' stroke='%23ffc107' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3e%3c/svg%3e");
     }
   </style>
 </head>
 
-<body class="profile-page">
+<body>
 
 <div th:replace="~{user/include/header :: header-nav}"></div>
 
-<main class="main">
+<main class="main container">
 
-  <div class="page-title">
-    <div class="breadcrumbs">
-      <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
-          <li class="breadcrumb-item active">Hồ sơ cá nhân</li>
-        </ol>
-      </nav>
+  <div class="profile-header-left">
+    <div class="profile-breadcrumb">
+      <a th:href="@{/}">Trang chủ</a> <i class="bi bi-chevron-right"></i> <span class="text-teal">Hồ sơ cá nhân</span>
     </div>
-    <div class="title-wrapper">
-      <h1>Hồ sơ của bạn</h1>
-    </div>
+    <h4 class="fw-normal mt-2 text-dark">Hồ sơ của bạn</h4>
   </div>
 
-  <section class="section profile">
-    <div class="container" data-aos="fade-up">
-      <div class="row">
+  <section class="section profile pb-5">
+    <div class="row g-4">
 
-        <div class="col-xl-4">
-          <div class="card mb-4">
-            <div class="card-body profile-card pt-4 d-flex flex-column align-items-center">
-
-              <img th:if="${user.avatar != null && #strings.startsWith(user.avatar, 'http')}"
-                   th:src="${user.avatar}"
-                   alt="Profile"
-                   class="rounded-circle img-fluid"
-                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-
-              <img th:if="${user.avatar != null && !#strings.isEmpty(user.avatar) && !#strings.startsWith(user.avatar, 'http')}"
-                   th:src="@{'/uploads/' + ${user.avatar} + '?v=' + ${#dates.createNow().time}}"
-                   alt="Profile"
-                   class="rounded-circle img-fluid"
-                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-
-              <img th:if="${user.avatar == null || #strings.isEmpty(user.avatar)}"
-                   th:src="@{/assets/img/default-avatar.png}"
-                   alt="Profile"
-                   class="rounded-circle img-fluid"
-                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-              <h2 class="mt-3" th:text="${user.fullName}">Tên User</h2>
-              <h3 class="text-muted" th:text="${user.username}">@username</h3>
-
-              <div class="mt-3">
-                <form th:action="@{/user/upload-avatar}" method="post" enctype="multipart/form-data">
-                  <label class="btn btn-outline-primary btn-sm" style="cursor: pointer;">
-                    <i class="bi bi-upload"></i> Tải ảnh mới
-                    <input type="file" name="avatar" accept="image/*" hidden onchange="this.form.submit()">
-                  </label>
-                </form>
-              </div>
+      <div class="col-lg-4">
+        <div class="card-custom p-4 text-center">
+          <div class="avatar-wrapper mb-3">
+            <img th:if="${user.avatar != null && #strings.startsWith(user.avatar, 'http')}"
+                 th:src="${user.avatar}" alt="Profile">
+            <img th:if="${user.avatar != null && !#strings.isEmpty(user.avatar) && !#strings.startsWith(user.avatar, 'http')}"
+                 th:src="@{'/uploads/' + ${user.avatar} + '?v=' + ${#dates.createNow().time}}" alt="Profile">
+            <div th:if="${user.avatar == null || #strings.isEmpty(user.avatar)}"
+                 class="rounded-circle d-flex align-items-center justify-content-center"
+                 style="width: 120px; height: 120px; background-color: #e2e8f0; margin: 0 auto;">
+              <i class="bi bi-person text-secondary" style="font-size: 4rem;"></i>
             </div>
+          </div>
+
+          <button type="button" class="btn btn-sm btn-teal mb-3" data-bs-toggle="modal" data-bs-target="#uploadAvatarModal">
+            <i class="bi bi-camera"></i> Thay đổi ảnh đại diện
+          </button>
+
+          <h5 class="fw-bold text-dark mb-1" th:text="${user.fullName}">Vũ Hữu Hoàng Anh</h5>
+          <p class="text-muted mb-2 fs-6">ID: HC-849201</p>
+          <div class="badge-verified">
+            <i class="bi bi-check-circle"></i> Tài khoản đã xác thực
           </div>
         </div>
 
-        <div class="col-xl-8">
+        <div class="wallet-card">
+          <div class="wallet-label">HEALCARE WALLET</div>
+          <div class="wallet-balance" th:text="${@globalHelper.getUserBalance(#authentication)}">49.999.400.000 đ</div>
+          <button class="btn-wallet-add">
+            <i class="bi bi-plus-circle"></i> Nạp thêm tiền
+          </button>
+        </div>
+      </div>
 
-          <div class="card mb-4 bg-light border-0 shadow-sm">
-            <div class="card-body d-flex align-items-center justify-content-between p-4">
-              <div>
-                <h5 class="text-muted mb-1 small text-uppercase fw-bold">Số dư ví hiện tại</h5>
-                <h2 class="text-success fw-bold mb-0">
-                  <i class="bi bi-wallet2 me-2"></i>
-                  <span th:text="${@globalHelper.getUserBalance(#authentication)}">0 đ</span>
-                </h2>
-              </div>
-              <button class="btn btn-success disabled" title="Tính năng đang phát triển">
-                <i class="bi bi-plus-circle"></i> Nạp thêm
-              </button>
-            </div>
+      <div class="col-lg-8">
+        <div class="card-custom p-0" style="height: 100%;">
+
+          <div class="px-4 pt-3">
+            <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
+              <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-overview">
+                  <i class="bi bi-person"></i> Thông tin cá nhân
+                </button>
+              </li>
+<!--              <li class="nav-item">-->
+<!--                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#family-management">-->
+<!--                  <i class="bi bi-people"></i> Quản lý gia đình-->
+<!--                </button>-->
+<!--              </li>-->
+              <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#booking-history">
+                  <i class="bi bi-calendar-check"></i> Lịch sử khám
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#medical-records">
+                  <i class="bi bi-file-earmark-medical"></i> Hồ sơ y tế
+                </button>
+              </li>
+<!--              <li class="nav-item">-->
+<!--                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#security-pane">-->
+<!--                  <i class="bi bi-shield-check"></i> Bảo mật-->
+<!--                </button>-->
+<!--              </li>-->
+              <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#change-password-pane">
+                  <i class="bi bi-key"></i> Đổi mật khẩu
+                </button>
+              </li>
+            </ul>
           </div>
-          <div class="card">
-            <div class="card-body pt-3">
 
-              <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
-              <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
+          <div class="tab-content px-4 pb-4">
 
-              <ul class="nav nav-tabs nav-tabs-bordered">
-                <li class="nav-item">
-                  <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-overview">Thông tin cá nhân</button>
-                </li>
-                <li class="nav-item">
-                  <button class="nav-link" data-bs-toggle="tab" data-bs-target="#booking-history">Lịch sử khám bệnh</button>
-                </li>
-                <li class="nav-item">
-                  <button class="nav-link" data-bs-toggle="tab" data-bs-target="#profile-change-password">Đổi mật khẩu</button>
-                </li>
-              </ul>
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+              <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+              <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
 
-              <div class="tab-content pt-2">
+            <div class="tab-pane fade show active" id="profile-overview">
+              <h6 class="fw-normal text-dark mb-4">Chi tiết thông tin cá nhân</h6>
 
-                <div class="tab-pane fade show active profile-overview" id="profile-overview">
-                  <h5 class="card-title mt-3">Chỉnh sửa thông tin</h5>
-                  <form th:action="@{/user/update-profile}" th:object="${updateProfile}" method="post">
-                    <div class="row mb-3">
-                      <label for="fullName" class="col-md-4 col-lg-3 col-form-label">Họ và tên</label>
-                      <div class="col-md-8 col-lg-9"><input name="fullName" type="text" class="form-control" id="fullName" th:field="*{fullName}"></div>
-                    </div>
-                    <div class="row mb-3">
-                      <label for="email" class="col-md-4 col-lg-3 col-form-label">Email</label>
-                      <div class="col-md-8 col-lg-9">
-                        <input name="email" type="email" class="form-control" id="email" th:field="*{email}" readonly style="background-color: #e9ecef;">
-                        <small class="text-muted">Email không thể thay đổi</small>
+              <form th:action="@{/user/update-profile}" th:object="${updateProfile}" method="post">
+                <div class="row g-4 mb-4">
+                  <div class="col-md-6">
+                    <label class="form-label-top">Họ và tên</label>
+                    <input name="fullName" type="text" class="form-control form-control-custom" th:field="*{fullName}">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label-top">Số điện thoại</label>
+                    <input name="phone" type="text" class="form-control form-control-custom" th:field="*{phone}">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label-top">Email</label>
+                    <input name="email" type="email" class="form-control form-control-custom form-control-readonly" th:field="*{email}" readonly>
+                    <div class="form-help-text">Vui lòng liên hệ CSKH để đổi email.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label-top">Ngày sinh</label>
+                    <input type="date" class="form-control form-control-custom">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label-top">Giới tính</label>
+                    <select class="form-select form-control-custom">
+                      <option value="NAM">Nam</option>
+                      <option value="NU">Nữ</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label-top">Địa chỉ liên hệ</label>
+                  <textarea class="form-control form-control-custom" rows="3"></textarea>
+                </div>
+
+                <hr class="text-muted mt-5 mb-4">
+                <div class="text-end">
+                  <button type="submit" class="btn btn-teal">Lưu thay đổi</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="tab-pane fade" id="booking-history">
+              <h6 class="fw-normal text-dark mb-4">Lịch sử đặt hẹn của bạn</h6>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                  <thead class="table-light">
+                  <tr>
+                    <th class="text-muted fw-medium border-0">Ngày</th>
+                    <th class="text-muted fw-medium border-0">Bác sĩ</th>
+                    <th class="text-muted fw-medium border-0">Khoa</th>
+                    <th class="text-muted fw-medium border-0">Giá</th>
+                    <th class="text-muted fw-medium border-0">Trạng thái</th>
+                    <th class="text-muted fw-medium border-0 text-center">Hành động</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="booking : ${myBookings}">
+                    <td>
+                      <span class="fw-medium text-dark" th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}"></span><br>
+                      <small class="text-muted" th:text="${booking.appointmentTime}"></small>
+                    </td>
+                    <td th:text="'BS. ' + ${booking.doctor.user.fullName}"></td>
+                    <td th:text="${booking.doctor.department.name}"></td>
+                    <td class="text-teal fw-medium" th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+                    <td>
+                      <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
+                      <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
+                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus != 'REFUNDED'}" class="badge bg-danger">Đã hủy</span>
+                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">
+                          <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
+                      </span>
+                      <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
+                    </td>
+                    <td class="text-center">
+                      <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                         th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
+                         class="btn btn-sm btn-outline-danger"
+                         onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
+                        <i class="bi bi-x-circle"></i> Hủy
+                      </a>
+
+                      <div th:if="${booking.status.name() == 'COMPLETED'}" class="d-flex gap-2 justify-content-center">
+                        <a th:href="@{/user/medical-record/view/{bookingId}(bookingId=${booking.id})}"
+                           class="btn btn-sm btn-outline-primary" title="Xem bệnh án">
+                          <i class="bi bi-file-earmark-medical"></i> KQ
+                        </a>
+                        <button type="button" class="btn btn-sm btn-warning text-dark"
+                                data-bs-toggle="modal"
+                                data-bs-target="#reviewModal"
+                                th:data-booking-id="${booking.id}"
+                                th:data-doctor-name="${booking.doctor.user.fullName}"
+                                onclick="openReviewModal(this)">
+                          <i class="bi bi-star-fill"></i> ĐG
+                        </button>
                       </div>
-                    </div>
-                    <div class="row mb-3">
-                      <label for="phone" class="col-md-4 col-lg-3 col-form-label">Số điện thoại</label>
-                      <div class="col-md-8 col-lg-9"><input name="phone" type="text" class="form-control" id="phone" th:field="*{phone}"></div>
-                    </div>
-                    <div class="text-center"><button type="submit" class="btn btn-primary">Lưu thay đổi</button></div>
-                  </form>
-                </div>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(myBookings)}">
+                    <td colspan="6" class="text-center py-5 text-muted">Bạn chưa có lịch hẹn nào.</td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                <div class="tab-pane fade pt-3" id="booking-history">
-                  <h5 class="card-title">Lịch sử đặt hẹn của bạn</h5>
-                  <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                      <thead>
-                      <tr>
-                        <th>Ngày</th>
-                        <th>Bác sĩ</th>
-                        <th>Khoa</th>
-                        <th>Giá</th>
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
-                      </tr>
-                      </thead>
-                      <tbody>
-                      <tr th:each="booking : ${myBookings}">
-                        <td>
-                          <span th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}"></span><br>
-                          <small class="text-muted" th:text="${booking.appointmentTime}"></small>
-                        </td>
-                        <td th:text="'Dr. ' + ${booking.doctor.user.fullName}"></td>
-                        <td th:text="${booking.doctor.department.name}"></td>
-                        <td th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+            <div class="tab-pane fade" id="change-password-pane">
+              <h6 class="fw-normal text-dark mb-4">Đổi mật khẩu</h6>
 
-                        <td>
-                          <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
-                          <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
+              <form th:action="@{/user/change-password}" method="post" style="max-width: 650px;">
 
-                          <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus != 'REFUNDED'}" class="badge bg-danger">Đã hủy</span>
-
-                          <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">
-                              <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
-                          </span>
-
-                          <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
-                        </td>
-                        <td>
-                          <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
-                             th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
-                             class="btn btn-sm btn-outline-danger"
-                             onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
-                            <i class="bi bi-x-circle"></i> Hủy
-                          </a>
-
-                          <div th:if="${booking.status.name() == 'COMPLETED'}" class="d-flex gap-1">
-                            <a th:href="@{/user/medical-record/view/{bookingId}(bookingId=${booking.id})}"
-                               class="btn btn-sm btn-outline-primary" title="Xem bệnh án">
-                              <i class="bi bi-file-earmark-medical"></i> KQ
-                            </a>
-
-                            <button type="button" class="btn btn-sm btn-warning text-dark"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#reviewModal"
-                                    th:data-booking-id="${booking.id}"
-                                    th:data-doctor-name="${booking.doctor.user.fullName}"
-                                    onclick="openReviewModal(this)">
-                              <i class="bi bi-star-fill"></i> ĐG
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr th:if="${#lists.isEmpty(myBookings)}">
-                        <td colspan="6" class="text-center py-4">Bạn chưa có lịch hẹn nào.</td>
-                      </tr>
-                      </tbody>
-                    </table>
+                <div class="mb-4">
+                  <label class="form-label-top">Mật khẩu hiện tại</label>
+                  <div class="password-group">
+                    <input type="password" name="currentPassword" class="form-control form-control-custom w-100" required>
+                    <i class="bi bi-eye password-toggle" onclick="togglePassword(this)"></i>
                   </div>
                 </div>
 
-                <div class="tab-pane fade pt-3" id="profile-change-password">
-                  <div class="text-center py-5">
-                    <p class="mb-3">Để bảo mật tài khoản, bạn sẽ được chuyển đến trang đổi mật khẩu riêng.</p>
-                    <a th:href="@{/user/change-password}" class="btn btn-outline-primary">
-                      <i class="bi bi-key"></i> Đi đến trang Đổi mật khẩu
-                    </a>
+                <div class="mb-4">
+                  <label class="form-label-top">Mật khẩu mới</label>
+                  <div class="password-group">
+                    <input type="password" name="newPassword" class="form-control form-control-custom w-100" required>
+                    <i class="bi bi-eye password-toggle" onclick="togglePassword(this)"></i>
+                  </div>
+                  <div class="form-help-text">Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ số và ký tự đặc biệt.</div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label-top">Xác nhận mật khẩu mới</label>
+                  <div class="password-group">
+                    <input type="password" name="confirmPassword" class="form-control form-control-custom w-100" required>
+                    <i class="bi bi-eye password-toggle" onclick="togglePassword(this)"></i>
                   </div>
                 </div>
 
-              </div></div>
+                <div class="mt-4 pt-2">
+                  <button type="submit" class="btn btn-teal">Cập nhật mật khẩu</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="tab-pane fade" id="family-management">
+              <p class="text-muted mt-3">Tính năng quản lý gia đình đang được phát triển.</p>
+            </div>
+            <div class="tab-pane fade" id="medical-records">
+              <p class="text-muted mt-3">Tài liệu hồ sơ y tế sẽ hiển thị ở đây.</p>
+            </div>
+            <div class="tab-pane fade" id="security-pane">
+              <p class="text-muted mt-3">Cài đặt bảo mật hai lớp và khóa tài khoản.</p>
+            </div>
+
           </div>
         </div>
       </div>
+
     </div>
   </section>
-
 </main>
 
-<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+<!-- Modal Upload Avatar -->
+<div class="modal fade" id="uploadAvatarModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="bi bi-star-fill me-2"></i>Đánh giá Bác sĩ</h5>
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-teal text-white border-0">
+        <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Thay đổi ảnh đại diện</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form th:action="@{/user/review/submit}" method="post">
-        <div class="modal-body text-center">
-          <input type="hidden" name="bookingId" id="modalBookingId">
-
-          <p class="mb-2">Bạn cảm thấy dịch vụ của <br><strong>Dr. <span id="modalDoctorName"></span></strong> như thế nào?</p>
-
-          <div class="rating mb-3">
-            <input type="radio" name="rating" value="5" id="5" required checked><label for="5">☆</label>
-            <input type="radio" name="rating" value="4" id="4"><label for="4">☆</label>
-            <input type="radio" name="rating" value="3" id="3"><label for="3">☆</label>
-            <input type="radio" name="rating" value="2" id="2"><label for="2">☆</label>
-            <input type="radio" name="rating" value="1" id="1"><label for="1">☆</label>
+      <form th:action="@{/user/upload-avatar}" method="post" enctype="multipart/form-data">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label">Chọn ảnh từ máy tính</label>
+            <input type="file" name="avatar" class="form-control" accept="image/*" required>
+            <small class="form-text text-muted">Định dạng: JPG, PNG. Kích thước tối đa: 5MB</small>
           </div>
-
-          <div class="form-floating">
-            <textarea class="form-control" name="comment" placeholder="Viết đánh giá của bạn" id="floatingTextarea2" style="height: 100px"></textarea>
-            <label for="floatingTextarea2">Viết cảm nhận của bạn (Tùy chọn)...</label>
+          <div id="previewContainer" class="text-center d-none mb-3">
+            <img id="imagePreview" src="" alt="Preview" style="max-width: 100%; max-height: 300px; border-radius: 8px;">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="submit" class="btn btn-primary">Gửi Đánh giá</button>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Hủy</button>
+          <button type="submit" class="btn btn-teal" style="border-radius: 8px;">Tải lên</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<footer id="footer" class="footer position-relative light-background">
-  <div class="container copyright text-center mt-4">
-    <p>© <span>Copyright</span> <strong class="px-1 sitename">MediTrust</strong> <span>All Rights Reserved</span></p>
-  </div>
-</footer>
-<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
-<a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
-<div id="preloader"></div>
+<script>
+  // Preview ảnh trước khi upload
+  document.querySelector('#uploadAvatarModal input[type="file"]').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        document.getElementById('imagePreview').src = event.target.result;
+        document.getElementById('previewContainer').classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+</script>
 
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-teal text-white border-0">
+        <h5 class="modal-title"><i class="bi bi-star-fill me-2 text-warning"></i>Đánh giá Bác sĩ</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form th:action="@{/user/review/submit}" method="post">
+        <div class="modal-body text-center p-4">
+          <input type="hidden" name="bookingId" id="modalBookingId">
+          <p class="mb-3 text-dark">Bạn cảm thấy dịch vụ của <br><strong class="fs-5">BS. <span id="modalDoctorName"></span></strong> như thế nào?</p>
+          <div class="rating mb-4">
+            <input type="radio" name="rating" value="5" id="5" required checked><label for="5">☆</label>
+            <input type="radio" name="rating" value="4" id="4"><label for="4">☆</label>
+            <input type="radio" name="rating" value="3" id="3"><label for="3">☆</label>
+            <input type="radio" name="rating" value="2" id="2"><label for="2">☆</label>
+            <input type="radio" name="rating" value="1" id="1"><label for="1">☆</label>
+          </div>
+          <div class="form-floating text-start">
+            <textarea class="form-control" name="comment" placeholder="Viết đánh giá của bạn" id="floatingTextarea2" style="height: 100px; border-radius: 8px;"></textarea>
+            <label for="floatingTextarea2" class="text-muted">Viết cảm nhận của bạn (Tùy chọn)...</label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Đóng</button>
+          <button type="submit" class="btn btn-teal" style="border-radius: 8px;">Gửi Đánh giá</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{user/include/footer :: footer}"></div>
+<div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
-<script th:src="@{/assets/vendor/php-email-form/validate.js}"></script>
-<script th:src="@{/assets/vendor/aos/aos.js}"></script>
-<script th:src="@{/assets/vendor/purecounter/purecounter_vanilla.js}"></script>
-<script th:src="@{/assets/vendor/swiper/swiper-bundle.min.js}"></script>
-<script th:src="@{/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js}"></script>
-<script th:src="@{/assets/vendor/isotope-layout/isotope.pkgd.min.js}"></script>
-<script th:src="@{/assets/vendor/glightbox/js/glightbox.min.js}"></script>
 <script th:src="@{/assets/js/main.js}"></script>
 
 <script>
   function openReviewModal(button) {
-      var bookingId = button.getAttribute('data-booking-id');
-      var doctorName = button.getAttribute('data-doctor-name');
+    var bookingId = button.getAttribute('data-booking-id');
+    var doctorName = button.getAttribute('data-doctor-name');
+    document.getElementById('modalBookingId').value = bookingId;
+    document.getElementById('modalDoctorName').innerText = doctorName;
+  }
 
-      document.getElementById('modalBookingId').value = bookingId;
-      document.getElementById('modalDoctorName').innerText = doctorName;
+  function togglePassword(element) {
+    const input = element.previousElementSibling;
+    if (input.type === "password") {
+      input.type = "text";
+      element.classList.remove("bi-eye");
+      element.classList.add("bi-eye-slash");
+    } else {
+      input.type = "password";
+      element.classList.remove("bi-eye-slash");
+      element.classList.add("bi-eye");
+    }
   }
 </script>
 

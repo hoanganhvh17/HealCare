@@ -4,9 +4,11 @@ import com.bookinghealthy.dto.UpdateProfileDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.User;
+import com.bookinghealthy.security.CustomUserDetails;
 import com.bookinghealthy.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
@@ -88,7 +90,7 @@ public class ProfileController {
         if (!file.isEmpty()) {
             try {
                 User currentUser = getCurrentUser(authentication);
-                String folderPath = "src/main/resources/static/uploads/";
+                String folderPath = "uploads/";
                 File dir = new File(folderPath);
                 if (!dir.exists()) dir.mkdirs();
 
@@ -97,6 +99,16 @@ public class ProfileController {
                 Files.write(path, file.getBytes());
 
                 profileService.updateAvatar(currentUser.getUsername(), fileName);
+                
+                // Reload User từ database
+                User updatedUser = userService.findByUsername(currentUser.getUsername()).orElse(currentUser);
+                
+                // Cập nhật lại Authentication context với CustomUserDetails mới
+                CustomUserDetails newUserDetails = new CustomUserDetails(updatedUser);
+                Authentication newAuth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        newUserDetails, authentication.getCredentials(), newUserDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(newAuth);
+                
                 ra.addFlashAttribute("successMessage", "Cập nhật ảnh thành công!");
             } catch (IOException e) {
                 ra.addFlashAttribute("errorMessage", "Lỗi tải ảnh: " + e.getMessage());
