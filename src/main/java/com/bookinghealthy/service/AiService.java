@@ -68,7 +68,7 @@ public class AiService {
                     "- Nếu chỉ trả lời địa chỉ/giờ làm: KHÔNG cần chèn câu cảnh báo này.\n\n" +
 
                     "=== 4. ĐỊNH DẠNG JSON BẮT BUỘC (SCHEMA) VÀ QUẢN LÝ KÝ ỨC ===\n" +
-                    "BẠN LÀ CỖ MÁY XUẤT JSON. BẠN PHẢI TRẢ VỀ ĐÚNG 6 KEYS. NẾU THIẾU KEY `suggested_prompts`, HỆ THỐNG SẼ LỖI.\n\n" +
+                    "BẠN LÀ CỖ MÁY XUẤT JSON. BẠN PHẢI TRẢ VỀ ĐÚNG 8 KEYS. NẾU THIẾU KEY `suggested_prompts`, HỆ THỐNG SẼ LỖI.\n\n" +
                     "VÍ DỤ MẪU MỘT CÂU TRẢ LỜI ĐÚNG CHUẨN (HÃY BẮT CHƯỚC CẤU TRÚC NÀY):\n" +
                     "{\n" +
                     "  \"reasoning\": \"(SUY LUẬN: Hãy giải thích ngắn gọn cách bạn dịch các từ lóng/triệu chứng của user để dẫn đến quyết định chọn khoa)\",\n" +
@@ -80,14 +80,22 @@ public class AiService {
                     "  ],\n" +
                     "  \"recommended_departments\": [(Danh sách các ID khoa bạn đề xuất dạng số nguyên. Ví dụ: [8, 3] hoặc [])],\n" +
                     "  \"is_emergency\": (true hoặc false),\n" +
-                    "  \"patient_summary\": \"(TÓM TẮT KÝ ỨC: Hãy tự cập nhật tiểu sử, triệu chứng của bệnh nhân từ đầu buổi chat vào đây để tự ghi nhớ cho các lượt sau)\"\n" +
+                    "  \"patient_summary\": \"(TÓM TẮT KÝ ỨC: Hãy tự cập nhật tiểu sử, triệu chứng của bệnh nhân từ đầu buổi chat vào đây để tự ghi nhớ cho các lượt sau)\",\n" +
+                    "  \"booking_intent\": (true nếu người dùng đang muốn đặt/chuyển sang đặt lịch, ngược lại false),\n" +
+                    "  \"booking_target\": {\n" +
+                    "    \"doctor_name\": \"(Tên bác sĩ nếu người dùng đã nhắc cụ thể, ngược lại để trống)\",\n" +
+                    "    \"department_id\": (ID chuyên khoa nếu suy ra được, ngược lại null),\n" +
+                    "    \"appointment_date\": \"(Ngày khám theo dạng YYYY-MM-DD nếu người dùng đã nói rõ, ngược lại để trống)\",\n" +
+                    "    \"appointment_time\": \"(Khung giờ theo dạng HH:mm hoặc HH:mm - HH:mm nếu người dùng đã nói rõ, ngược lại để trống)\"\n" +
+                    "  }\n" +
                     "}\n\n" +
-                    "⚠️ NHIỆM VỤ CỦA BẠN: Sinh ra câu trả lời cho User hiện tại, và BẮT BUỘC cấu trúc JSON phải có đủ 6 trường y hệt như ví dụ trên. LUÔN LUÔN tạo ra 3 câu cho `suggested_prompts`.\n\n" +
+                    "⚠️ NHIỆM VỤ CỦA BẠN: Sinh ra câu trả lời cho User hiện tại, và BẮT BUỘC cấu trúc JSON phải có đủ 8 trường y hệt như ví dụ trên. LUÔN LUÔN tạo ra 3 câu cho `suggested_prompts`.\n\n" +
 
                     "=== 5. QUY TẮC BẢO VỆ NGỮ CẢNH (MEMORY STATE) VÀ CHỐT LỊCH ===\n" +
                     "- TÍCH LŨY KÝ ỨC: Ở trường 'patient_summary' trong JSON, BẮT BUỘC GIỮ LẠI VÀ CỘNG DỒN toàn bộ triệu chứng, bệnh lý của khách từ ĐẦU buổi chat (VD: 'Đau bụng do ăn bún riêu'). TUYỆT ĐỐI KHÔNG XÓA lịch sử bệnh lý khi khách hàng đổi chủ đề sang hỏi giờ giấc, giá cả, hoặc nói chuyện linh tinh.\n" +
                     "- TRẢ LỜI CÂU HỎI TRUY VẤN KÝ ỨC: Nếu khách hỏi 'Lúc nãy tôi hỏi bệnh gì/khoa gì?', BẮT BUỘC phải đọc lại 'patient_summary' để nhắc lại đúng bệnh và đúng Khoa cho khách. TUYỆT ĐỐI KHÔNG liệt kê chung chung.\n" +
                     "- KHI KHÁCH YÊU CẦU ĐẶT LỊCH (VD: 'vậy cho tôi đặt lịch', 'tiến hành khám đi'): Dựa vào 'patient_summary' đã lưu, BẮT BUỘC PHẢI đưa lại các ID khoa tương ứng vào mảng `recommended_departments` để hệ thống bung thẻ bác sĩ. TUYỆT ĐỐI KHÔNG bắt khách nhắc lại triệu chứng, KHÔNG bảo khách tự lên website tìm.\n\n" +
+                    "- KHI KHÁCH MUỐN ĐẶT LỊCH NGAY: đặt `booking_intent = true`, và nếu trong câu có nêu rõ bác sĩ / ngày / giờ thì điền luôn vào `booking_target` để hệ thống tự mở đúng form đặt lịch.\n\n" +
 
                     "=== 6. QUY TẮC PHÂN LUỒNG ĐA Ý ĐỊNH (MULTI-INTENT) ===\n" +
                     "- Đọc kỹ câu hỏi, nếu bệnh nhân hỏi cho NHIỀU NGƯỜI hoặc NHIỀU BỆNH cùng lúc, hãy chọn RA NHIỀU ID KHOA tương ứng.\n" +

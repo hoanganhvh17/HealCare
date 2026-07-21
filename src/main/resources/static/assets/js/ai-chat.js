@@ -154,6 +154,260 @@
                     }
                 };
 
+                function normalizeText(input) {
+                    return (input || '')
+                        .toLowerCase()
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                }
+
+                function normalizeTimeHint(text) {
+                    const normalized = normalizeText(text)
+                        .replace(/h/g, ':')
+                        .replace(/giờ/g, ':')
+                        .replace(/\s+/g, '');
+
+                    const match = normalized.match(/(\d{1,2})(?::?(\d{2}))?/);
+                    if (!match) return '';
+
+                    const hour = String(parseInt(match[1], 10)).padStart(2, '0');
+                    const minute = match[2] ? String(parseInt(match[2], 10)).padStart(2, '0') : '00';
+                    return hour + ':' + minute;
+                }
+
+                function addThirtyMinutes(timeText) {
+                    const parts = (timeText || '').split(':');
+                    if (parts.length !== 2) return '';
+
+                    const date = new Date();
+                    date.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+                    date.setMinutes(date.getMinutes() + 30);
+
+                    return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+                }
+
+                function normalizeSlotRange(text) {
+                    const normalized = normalizeText(text);
+                    const rangeMatch = normalized.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+                    if (rangeMatch) {
+                        return normalizeTimeHint(rangeMatch[1]) + ' - ' + normalizeTimeHint(rangeMatch[2]);
+                    }
+
+                    const start = normalizeTimeHint(text);
+                    if (!start) return '';
+                    const end = addThirtyMinutes(start);
+                    return end ? start + ' - ' + end : '';
+                }
+
+                function extractDoctorName(text) {
+                    const normalized = normalizeText(text);
+                    const match = normalized.match(/(?:bác sĩ|bs\.?)\s+(.+?)(?:\s+lúc|\s+vào|\s+ngày|\s+thứ|\s+để|\s+đặt|\s+khám|$)/i);
+                    return match ? match[1].trim() : '';
+                }
+
+                function extractDateHint(text) {
+                    const normalized = normalizeText(text);
+                    const today = new Date();
+
+                    if (normalized.includes('hôm nay')) {
+                        return today.toISOString().slice(0, 10);
+                    }
+                    if (normalized.includes('ngày mai')) {
+                        const tomorrow = new Date(today);
+                        tomorrow.setDate(today.getDate() + 1);
+                        return tomorrow.toISOString().slice(0, 10);
+                    }
+
+                    const slashMatch = normalized.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
+                    if (slashMatch) {
+                        const day = String(parseInt(slashMatch[1], 10)).padStart(2, '0');
+                        const month = String(parseInt(slashMatch[2], 10)).padStart(2, '0');
+                        const year = slashMatch[3] ? parseInt(slashMatch[3], 10) : today.getFullYear();
+                        const resolvedYear = year < 100 ? 2000 + year : year;
+                        return resolvedYear + '-' + month + '-' + day;
+                    }
+
+                    return '';
+                }
+
+                function parseSlotLabel(slotLabel) {
+                    const match = slotLabel.match(/\((\d{2}:\d{2}\s*-\s*\d{2}:\d{2})\)/);
+                    const dateMatch = slotLabel.match(/(\d{2})\/(\d{2})/);
+                    if (!match || !dateMatch) return null;
+
+                    const now = new Date();
+                    let year = now.getFullYear();
+                    const month = parseInt(dateMatch[2], 10);
+                    if (month < (now.getMonth() + 1)) {
+                        year += 1;
+                    }
+
+                    return {
+                        appointmentDate: year + '-' + String(month).padStart(2, '0') + '-' + String(parseInt(dateMatch[1], 10)).padStart(2, '0'),
+                        appointmentTime: match[1].replace(/\s+/g, ' ')
+                    };
+                }
+
+                function buildAppointmentUrl(doctorId, appointmentDate, appointmentTime) {
+                    const url = new URL('/appointment', window.location.origin);
+                    if (doctorId) url.searchParams.set('doctorId', doctorId);
+                    if (appointmentDate) url.searchParams.set('appointmentDate', appointmentDate);
+                    if (appointmentTime) url.searchParams.set('appointmentTime', appointmentTime);
+                    return url.toString();
+                }
+
+                async function resolveBookingHandoff(aiData, userText) {
+                    const bookingIntent = aiData && (aiData.booking_intent === true || normalizeText(userText).match(/đặt lịch|chuyển sang đặt lịch|tiến hành khám|book lịch|book khám|đặt khám/));
+                    if (!bookingIntent) return null;
+
+                    const bookingTarget = aiData.booking_target || {};
+                    const deptIds = Array.isArray(aiData.recommended_departments)
+                        ? aiData.recommended_departments.filter(function(id) { return id !== null && id !== undefined; })
+                        : [];
+
+                    const requestedDoctorName = (bookingTarget.doctor_name || extractDoctorName(userText) || '').trim();
+                    const requestedDate = bookingTarget.appointment_date || extractDateHint(userText);
+                    const requestedTime = normalizeTimeHint(bookingTarget.appointment_time || userText);
+                    const requestedDepartmentId = bookingTarget.department_id || deptIds[0] || null;
+
+                    let doctorSearchResult = null;
+                    if (requestedDoctorName) {
+                        try {
+                            const doctorSearchUrl = new URL('/api/doctors/search', window.location.origin);
+                            doctorSearchUrl.searchParams.set('keyword', requestedDoctorName);
+                            if (requestedDepartmentId) {
+                                doctorSearchUrl.searchParams.set('departmentId', requestedDepartmentId);
+                            }
+                            const searchRes = await fetch(doctorSearchUrl.toString());
+                            if (searchRes.ok) {
+                                const doctors = await searchRes.json();
+                                if (Array.isArray(doctors) && doctors.length > 0) {
+                                    doctorSearchResult = doctors.find(function(doc) {
+                                        return normalizeText(doc.fullName) === normalizeText(requestedDoctorName);
+                                    }) || doctors[0];
+                                }
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+
+                        if (!doctorSearchResult) {
+                            try {
+                                const fallbackDoctorsUrl = new URL('/api/doctors', window.location.origin);
+                                if (requestedDepartmentId) {
+                                    fallbackDoctorsUrl.searchParams.set('departmentId', requestedDepartmentId);
+                                }
+                                const fallbackRes = await fetch(fallbackDoctorsUrl.toString());
+                                if (fallbackRes.ok) {
+                                    const fallbackDoctors = await fallbackRes.json();
+                                    if (Array.isArray(fallbackDoctors) && fallbackDoctors.length > 0) {
+                                        const normalizedRequestedName = normalizeText(requestedDoctorName);
+                                        doctorSearchResult = fallbackDoctors.find(function(doc) {
+                                            return normalizeText(doc.fullName).indexOf(normalizedRequestedName) !== -1;
+                                        }) || null;
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        }
+                    }
+
+                    let candidateDepartmentId = requestedDepartmentId;
+                    let candidateDoctorId = doctorSearchResult ? doctorSearchResult.id : (bookingTarget.doctor_id || null);
+                    let candidateDoctorName = doctorSearchResult ? doctorSearchResult.fullName : requestedDoctorName;
+                    let availableDoctors = [];
+
+                    if (candidateDoctorId && doctorSearchResult && doctorSearchResult.departmentId) {
+                        candidateDepartmentId = doctorSearchResult.departmentId;
+                    }
+
+                    if (candidateDepartmentId) {
+                        try {
+                            const deptRes = await fetch('/api/chat/doctors/department/' + candidateDepartmentId + '?sessionId=' + encodeURIComponent(sessionId));
+                            if (deptRes.ok) {
+                                availableDoctors = await deptRes.json();
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+
+                    if (!availableDoctors || availableDoctors.length === 0) {
+                        return null;
+                    }
+
+                    let selectedDoctor = null;
+                    if (candidateDoctorId) {
+                        selectedDoctor = availableDoctors.find(function(doc) {
+                            return String(doc.id) === String(candidateDoctorId);
+                        }) || null;
+                    }
+
+                    if (!selectedDoctor) {
+                        selectedDoctor = availableDoctors[0];
+                    }
+
+                    if (!selectedDoctor || !selectedDoctor.availableSlots || selectedDoctor.availableSlots.length === 0) {
+                        return null;
+                    }
+
+                    const explicitSlotRange = normalizeSlotRange(bookingTarget.appointment_time || userText);
+                    if (requestedDate && explicitSlotRange) {
+                        try {
+                            const bookedSlotsRes = await fetch('/api/bookings/booked-slots?doctorId=' + selectedDoctor.id + '&date=' + encodeURIComponent(requestedDate));
+                            if (bookedSlotsRes.ok) {
+                                const unavailableSlots = await bookedSlotsRes.json();
+                                const slotIsFree = !Array.isArray(unavailableSlots) || unavailableSlots.every(function(slot) {
+                                    return slot.indexOf(explicitSlotRange) === -1 && slot.indexOf(explicitSlotRange.split(' - ')[0]) === -1;
+                                });
+
+                                if (slotIsFree) {
+                                    return {
+                                        doctor: selectedDoctor,
+                                        doctorName: candidateDoctorName || selectedDoctor.fullName,
+                                        appointmentDate: requestedDate,
+                                        appointmentTime: explicitSlotRange,
+                                        appointmentUrl: buildAppointmentUrl(selectedDoctor.id, requestedDate, explicitSlotRange),
+                                        selectedSlotLabel: requestedDate + ' (' + explicitSlotRange + ')',
+                                        fallback: false
+                                    };
+                                }
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+
+                    let selectedSlotLabel = null;
+                    if (requestedTime) {
+                        selectedSlotLabel = selectedDoctor.availableSlots.find(function(slotLabel) {
+                            return slotLabel.indexOf(requestedTime) !== -1;
+                        }) || null;
+                    }
+
+                    if (!selectedSlotLabel) {
+                        selectedSlotLabel = selectedDoctor.availableSlots[0];
+                    }
+
+                    const slotInfo = parseSlotLabel(selectedSlotLabel);
+                    if (!slotInfo) return null;
+
+                    const appointmentDate = requestedDate || slotInfo.appointmentDate;
+                    const appointmentTime = selectedSlotLabel.match(/\((.*?)\)/) ? selectedSlotLabel.match(/\((.*?)\)/)[1] : slotInfo.appointmentTime;
+                    const appointmentUrl = buildAppointmentUrl(selectedDoctor.id, appointmentDate, appointmentTime);
+
+                    return {
+                        doctor: selectedDoctor,
+                        doctorName: candidateDoctorName || selectedDoctor.fullName,
+                        appointmentDate: appointmentDate,
+                        appointmentTime: appointmentTime,
+                        appointmentUrl: appointmentUrl,
+                        selectedSlotLabel: selectedSlotLabel,
+                        fallback: requestedTime && selectedSlotLabel.indexOf(requestedTime) === -1
+                    };
+                }
+
         // ==========================================
         // 1. SESSION MANAGEMENT
         // ==========================================
@@ -706,6 +960,27 @@ maximizeBtn.addEventListener('click', (e) => {
                                                                                             suggestHtml += `</div>`;
                                                                                             typingMsg.innerHTML += suggestHtml;
                                                                                         }
+
+                                            const bookingHandoff = await resolveBookingHandoff(aiData, text);
+                                            if (bookingHandoff) {
+                                                const fallbackText = bookingHandoff.fallback
+                                                    ? 'Khung giờ anh/chị yêu cầu chưa khớp hoàn toàn, em đã chọn khung giờ gần nhất còn trống.'
+                                                    : 'Em đã mở đúng bác sĩ và khung giờ anh/chị vừa yêu cầu.';
+                                                typingMsg.innerHTML += `
+                                                    <div class="mt-3 p-3" style="background: #eef6ff; border-left: 4px solid #0d6efd; border-radius: 8px;">
+                                                        <div class="fw-bold mb-1" style="color: #0d6efd;"><i class="bi bi-calendar-check"></i> ${fallbackText}</div>
+                                                        <div style="font-size: 13px; color: #334155;">
+                                                            <div><strong>Bác sĩ:</strong> ${bookingHandoff.doctorName || bookingHandoff.doctor.fullName}</div>
+                                                            <div><strong>Lịch hẹn:</strong> ${bookingHandoff.selectedSlotLabel}</div>
+                                                        </div>
+                                                        <a href="${bookingHandoff.appointmentUrl}" class="btn btn-sm btn-primary mt-2">Mở trang đặt lịch</a>
+                                                    </div>`;
+                                                sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
+                                                setTimeout(() => {
+                                                    window.location.href = bookingHandoff.appointmentUrl;
+                                                }, 900);
+                                                return;
+                                            }
 
                                             // Lưu lại khung HTML (Đã chạy ngầm memory JSON)
                                             sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);

@@ -48,6 +48,7 @@ public class BookingController {
 
     @GetMapping("/appointment")
     public String showAppointmentForm(@RequestParam(value = "doctorId", required = false) Long doctorId,
+                                      @RequestParam(value = "appointmentDate", required = false) LocalDate appointmentDate,
                                       Model model, Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
         List<Department> departments = departmentRepository.findAll();
@@ -55,6 +56,7 @@ public class BookingController {
         model.addAttribute("departments", departments);
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("selectedDoctorId", doctorId);
+        model.addAttribute("appointmentDate", appointmentDate);
         return "user/appointment";
     }
 

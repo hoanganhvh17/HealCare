@@ -39,6 +39,18 @@ public class DoctorApiController {
                 .collect(Collectors.toList());
     }
 
+    @GetMapping("/doctors/search")
+    public List<DoctorDTO> searchDoctors(
+            @RequestParam String keyword,
+            @RequestParam(required = false) Long departmentId) {
+        return doctorService.searchDoctors(keyword, departmentId).stream()
+                .map(doctor -> {
+                    Double avgRating = reviewService.getAverageRating(doctor.getId());
+                    return new DoctorDTO(doctor, avgRating);
+                })
+                .collect(Collectors.toList());
+    }
+
     @GetMapping("/doctor/{id}")
     public ResponseEntity<DoctorDTO> getDoctorById(@PathVariable Long id) {
         Optional<Doctor> doctorOpt = doctorService.findById(id);

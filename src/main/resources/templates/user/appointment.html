@@ -714,9 +714,12 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const preTime = urlParams.get('appointmentTime') || urlParams.get('time');
+    const preDate = urlParams.get('appointmentDate');
     const urlDoctorId = urlParams.get('doctorId');
 
-    if (!dateInput.value) {
+    if (preDate) {
+      dateInput.value = preDate;
+    } else if (!dateInput.value) {
       dateInput.value = today;
     }
 
