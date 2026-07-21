@@ -204,6 +204,13 @@
 <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}" defer></script>
 
 <script th:inline="javascript">
+  function removeVietnameseTones(str) {
+    if (!str) return "";
+    return str.normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     const departmentFilter = document.getElementById("departmentFilter");
     const timeFilter = document.getElementById("timeFilter");
@@ -299,9 +306,9 @@
 
       // 2. Lọc theo tên bác sĩ (không phân biệt hoa/thường)
       if (currentSearchQuery.trim().length > 0) {
-        const query = currentSearchQuery.toLowerCase();
+        const query = removeVietnameseTones(currentSearchQuery.toLowerCase());
         filteredDoctors = filteredDoctors.filter(doc => {
-          const fullName = (doc.fullName || "").toLowerCase();
+          const fullName = removeVietnameseTones((doc.fullName || "").toLowerCase());
           
           // Chỉ tìm kiếm trong tên bác sĩ
           return fullName.includes(query);

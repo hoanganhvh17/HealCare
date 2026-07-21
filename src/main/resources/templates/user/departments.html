@@ -209,7 +209,7 @@
     }
 
     .specialty-card:hover {
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
       transform: translateY(-5px);
     }
 
@@ -264,104 +264,133 @@
       padding: 3rem 0;
       margin-top: 4rem;
     }
-
   </style>
 </head>
 
 <body>
 
-<div th:replace="~{user/include/header :: header-nav}"></div>
+  <div th:replace="~{user/include/header :: header-nav}"></div>
 
-<main class="main container py-4">
+  <main class="main container py-4">
 
-  <div class="page-title-section">
-    <h1 class="text-primary-teal">Các Chuyên Khoa Y Tế</h1>
-    <p>Đội ngũ chuyên gia y tế hàng đầu tại HealCare luôn sẵn sàng mang đến dịch vụ chăm sóc sức khỏe toàn diện và chuyên sâu cho bạn và gia đình.</p>
-  </div>
+    <div class="page-title-section">
+      <h1 class="text-primary-teal">Các Chuyên Khoa Y Tế</h1>
+      <p>Đội ngũ chuyên gia y tế hàng đầu tại HealCare luôn sẵn sàng mang đến dịch vụ chăm sóc sức khỏe toàn diện và
+        chuyên sâu cho bạn và gia đình.</p>
+    </div>
 
-  <div class="row g-4">
-    <div class="col-lg-8">
-      <div class="feature-card-left">
-        <div class="icon-box-dark">
-          <i class="fas fa-stethoscope"></i>
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="feature-card-left">
+          <div class="icon-box-dark">
+            <i class="fas fa-stethoscope"></i>
+          </div>
+          <h2 class="fw-bold mb-3">Tìm Bác Sĩ Phù Hợp</h2>
+          <p class="text-muted mb-4">Hệ thống của chúng tôi cung cấp danh sách các bác sĩ chuyên khoa giàu kinh nghiệm,
+            sẵn sàng hỗ trợ tư vấn và điều trị các vấn đề sức khỏe của bạn.</p>
+
+          <div class="mb-5">
+            <span class="pill-tag">Khám định kỳ</span>
+            <span class="pill-tag">Tầm soát bệnh lý</span>
+            <span class="pill-tag">Tư vấn sức khỏe</span>
+          </div>
+
+          <div class="d-flex gap-3 mt-auto">
+            <a th:href="@{/doctors}" class="btn btn-primary-teal text-decoration-none">Xem Tất Cả Bác Sĩ</a>
+          </div>
         </div>
-        <h2 class="fw-bold mb-3">Tìm Bác Sĩ Phù Hợp</h2>
-        <p class="text-muted mb-4">Hệ thống của chúng tôi cung cấp danh sách các bác sĩ chuyên khoa giàu kinh nghiệm, sẵn sàng hỗ trợ tư vấn và điều trị các vấn đề sức khỏe của bạn.</p>
+      </div>
 
-        <div class="mb-5">
-          <span class="pill-tag">Khám định kỳ</span>
-          <span class="pill-tag">Tầm soát bệnh lý</span>
-          <span class="pill-tag">Tư vấn sức khỏe</span>
-        </div>
+      <div class="col-lg-4">
+        <div class="symptom-card-right">
+          <h3>Dấu hiệu cần khám</h3>
+          <p class="subtitle">Tra cứu triệu chứng để đặt lịch đúng chuyên khoa.</p>
 
-        <div class="d-flex gap-3 mt-auto">
-          <a th:href="@{/doctors}" class="btn btn-primary-teal text-decoration-none">Xem Tất Cả Bác Sĩ</a>
+          <div class="symptom-item">
+            <i class="fas fa-thermometer-half"></i>
+            <div>
+              <h6>Sốt, mệt mỏi kéo dài</h6>
+              <p>Cơ thể mệt mỏi suy nhược, sốt không rõ nguyên nhân.</p>
+            </div>
+          </div>
+
+          <div class="symptom-item">
+            <i class="bi bi-activity"></i>
+            <div>
+              <h6>Huyết áp bất thường</h6>
+              <p>Tăng hoặc giảm huyết áp, nhịp tim không đều.</p>
+            </div>
+          </div>
+
+          <div class="symptom-item">
+            <i class="fas fa-lungs"></i>
+            <div>
+              <h6>Rối loạn tiêu hóa</h6>
+              <p>Đau bụng, buồn nôn, thay đổi thói quen đại tiện.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-lg-4">
-      <div class="symptom-card-right">
-        <h3>Dấu hiệu cần khám</h3>
-        <p class="subtitle">Tra cứu triệu chứng để đặt lịch đúng chuyên khoa.</p>
+    <div class="specialty-search-wrapper">
+      <h2>Danh Sách Chuyên Khoa</h2>
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control" id="searchInput" placeholder="Tìm chuyên khoa...">
+      </div>
+    </div>
 
-        <div class="symptom-item">
-          <i class="fas fa-thermometer-half"></i>
-          <div>
-            <h6>Sốt, mệt mỏi kéo dài</h6>
-            <p>Cơ thể mệt mỏi suy nhược, sốt không rõ nguyên nhân.</p>
-          </div>
-        </div>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="departmentList">
+      <div class="col department-item" th:each="dept : ${departments}">
+        <div class="specialty-card">
 
-        <div class="symptom-item">
-          <i class="bi bi-activity"></i>
-          <div>
-            <h6>Huyết áp bất thường</h6>
-            <p>Tăng hoặc giảm huyết áp, nhịp tim không đều.</p>
+          <div class="icon-box-light">
+            <i class="fas fa-hospital-user"></i>
           </div>
-        </div>
 
-        <div class="symptom-item">
-          <i class="fas fa-lungs"></i>
-          <div>
-            <h6>Rối loạn tiêu hóa</h6>
-            <p>Đau bụng, buồn nôn, thay đổi thói quen đại tiện.</p>
-          </div>
+          <h4 th:text="${dept.name}">Tên Khoa</h4>
+          <p th:text="${dept.description}">Mô tả khoa...</p>
+
+          <a th:href="@{/doctors(departmentId=${dept.id})}" class="link-teal">
+            Xem Bác Sĩ <i class="bi bi-arrow-right"></i>
+          </a>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="specialty-search-wrapper">
-    <h2>Danh Sách Chuyên Khoa</h2>
-    <div class="search-box">
-      <i class="bi bi-search"></i>
-      <input type="text" class="form-control" placeholder="Tìm chuyên khoa...">
-    </div>
-  </div>
+  </main>
 
-  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    <div class="col" th:each="dept : ${departments}">
-      <div class="specialty-card">
+  <div th:replace="~{user/include/footer :: footer}"></div>
 
-        <div class="icon-box-light">
-          <i class="fas fa-hospital-user"></i>
-        </div>
+  <script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+  <script>
+    function removeVietnameseTones(str) {
+      if (!str) return "";
+      return str.normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    }
 
-        <h4 th:text="${dept.name}">Tên Khoa</h4>
-        <p th:text="${dept.description}">Mô tả khoa...</p>
+    document.addEventListener('DOMContentLoaded', function () {
+      const searchInput = document.getElementById('searchInput');
+      const departmentItems = document.querySelectorAll('.department-item');
 
-        <a th:href="@{/doctors(departmentId=${dept.id})}" class="link-teal">
-          Xem Bác Sĩ <i class="bi bi-arrow-right"></i>
-        </a>
-      </div>
-    </div>
-  </div>
+      searchInput.addEventListener('input', function () {
+        const searchTerm = removeVietnameseTones(this.value.toLowerCase().trim());
 
-</main>
+        departmentItems.forEach(function (item) {
+          const departmentName = removeVietnameseTones(item.querySelector('h4').textContent.toLowerCase());
 
-<div th:replace="~{user/include/footer :: footer}"></div>
-
-<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+          if (departmentName.includes(searchTerm)) {
+            item.style.display = '';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+    });
+  </script>
 </body>
+
 </html>
