@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head th:fragment="header(title)">
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title th:text="${title} ?: 'Quầy lễ tân - MediTrust'">Quầy lễ tân</title>
+    <link th:href="@{/assets-admin/img/favicon.png}" rel="icon">
+    <link th:href="@{/assets-admin/img/apple-touch-icon.png}" rel="apple-touch-icon">
+    <link href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/boxicons/css/boxicons.min.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/remixicon/remixicon.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/vendor/simple-datatables/style.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/css/style.css}" rel="stylesheet">
+</head>
+
+<body>
+
+<header th:fragment="header-nav" id="header" class="header fixed-top d-flex align-items-center">
+
+    <div class="d-flex align-items-center justify-content-between">
+        <a th:href="@{/receptionist/dashboard}" class="logo d-flex align-items-center">
+            <img th:src="@{/assets-admin/img/logo.png}" alt="">
+            <span class="d-none d-lg-block">MediTrust · Lễ tân</span>
+        </a>
+        <i class="bi bi-list toggle-sidebar-btn"></i>
+    </div>
+
+    <nav class="header-nav ms-auto">
+        <ul class="d-flex align-items-center">
+            <li class="nav-item dropdown pe-3">
+                <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
+                    <img th:src="${#authentication.principal.avatar != null && !#strings.isEmpty(#authentication.principal.avatar)}
+                                     ? @{'/uploads/' + ${#authentication.principal.avatar}}
+                                     : @{/assets-admin/img/profile-img.jpg}"
+                         alt="Profile" class="rounded-circle">
+                    <span class="d-none d-md-block dropdown-toggle ps-2"
+                          th:text="${#authentication.principal.fullName}">Lễ tân</span>
+                </a>
+
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+                    <li class="dropdown-header">
+                        <h6 th:text="${#authentication.principal.fullName}">Tên lễ tân</h6>
+                        <span>Nhân viên tiếp nhận hồ sơ</span>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item d-flex align-items-center" th:href="@{/user/profile}"><i class="bi bi-person"></i> <span>Hồ sơ</span></a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item d-flex align-items-center" th:href="@{/logout}"><i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span></a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+</header>
+
+</body>
+</html>

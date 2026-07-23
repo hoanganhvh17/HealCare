@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{receptionist/include/header :: header (title='Hủy / Dời lịch hàng loạt')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{receptionist/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{receptionist/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Hủy / Dời lịch hàng loạt</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/receptionist/dashboard}">Tổng quan</a></li>
+        <li class="breadcrumb-item active">Điều phối lịch</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${blockMessage}" class="alert alert-info alert-dismissible fade show">
+      <i class="bi bi-shield-lock me-1"></i> <span th:text="${blockMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${bulkErrors}" class="alert alert-warning alert-dismissible fade show">
+      <strong><i class="bi bi-exclamation-triangle me-1"></i> Một số lịch không xử lý được:</strong>
+      <ul class="mb-0 mt-2">
+        <li th:each="err : ${bulkErrors}" th:text="${err}"></li>
+      </ul>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- BỘ LỌC -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">1. Chọn bác sĩ nghỉ và khung giờ cần xử lý</h5>
+        <form method="get" th:action="@{/receptionist/schedule-change}" class="row g-3 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label" for="doctorId">Bác sĩ bận đột xuất</label>
+            <select class="form-select" id="doctorId" name="doctorId" required>
+              <option value="">-- Chọn bác sĩ --</option>
+              <option th:each="d : ${allDoctors}"
+                      th:value="${d.id}"
+                      th:selected="${selectedDoctorId != null && selectedDoctorId == d.id}"
+                      th:text="'BS. ' + ${d.user.fullName} + ' — ' + ${d.department != null ? d.department.name : 'Chưa có khoa'}"></option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="date">Ngày</label>
+            <input type="date" class="form-control" id="date" name="date"
+                   th:value="${selectedDate}" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label" for="session">Buổi</label>
+            <select class="form-select" id="session" name="session">
+              <option value="CA_NGAY" th:selected="${selectedSession == 'CA_NGAY'}">Cả ngày</option>
+              <option value="SANG" th:selected="${selectedSession == 'SANG'}">Sáng</option>
+              <option value="CHIEU" th:selected="${selectedSession == 'CHIEU'}">Chiều</option>
+              <option value="TOI" th:selected="${selectedSession == 'TOI'}">Tối</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-search"></i> Lọc bệnh nhân
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- KẾT QUẢ -->
+    <div class="card" th:if="${searched}">
+      <div class="card-body">
+        <h5 class="card-title">
+          2. Danh sách bệnh nhân bị ảnh hưởng
+          <span class="badge bg-secondary ms-2" th:text="${#lists.size(bookings)} + ' lịch'">0</span>
+        </h5>
+
+        <div th:if="${#lists.isEmpty(bookings)}" class="alert alert-light border">
+          <i class="bi bi-info-circle"></i> Không có lịch hẹn nào cần xử lý trong khung giờ này.
+        </div>
+
+        <form id="bulkForm" method="post">
+          <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
+          <input type="hidden" name="date" th:value="${selectedDate}">
+          <input type="hidden" name="session" th:value="${selectedSession}">
+
+          <div th:unless="${#lists.isEmpty(bookings)}">
+            <table class="table table-hover align-middle">
+              <thead>
+              <tr>
+                <th style="width: 44px;">
+                  <input type="checkbox" class="form-check-input" id="checkAll" checked>
+                </th>
+                <th>Mã</th>
+                <th>Giờ hẹn</th>
+                <th>Bệnh nhân</th>
+                <th>Điện thoại</th>
+                <th>Trạng thái</th>
+                <th>Thanh toán</th>
+                <th class="text-end">Tiền đã cọc</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="b : ${bookings}">
+                <td>
+                  <input type="checkbox" class="form-check-input row-check"
+                         name="bookingIds" th:value="${b.id}" checked>
+                </td>
+                <td th:text="'#' + ${b.id}">#1</td>
+                <td>
+                  <span class="badge bg-light text-dark border" th:text="${b.appointmentTime}">08:00</span>
+                </td>
+                <td>
+                  <span class="fw-bold"
+                        th:text="${b.patientName != null ? b.patientName : b.user.fullName}">Tên</span>
+                </td>
+                <td th:text="${b.patientPhone != null ? b.patientPhone : b.user.phone}">SĐT</td>
+                <td>
+                  <span th:if="${b.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ duyệt</span>
+                  <span th:if="${b.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
+                </td>
+                <td>
+                  <span th:if="${b.paymentStatus == 'PAID'}" class="badge bg-success">Đã thanh toán</span>
+                  <span th:if="${b.paymentStatus == 'UNPAID'}" class="badge bg-warning text-dark">Chưa thanh toán</span>
+                  <span th:if="${b.paymentStatus == 'FAILED'}" class="badge bg-danger">Thất bại</span>
+                  <span th:if="${b.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">Đã hoàn tiền</span>
+                </td>
+                <td class="text-end" th:text="${#numbers.formatDecimal(b.bookingPrice, 0, 'POINT', 0, 'COMMA')} + ' đ'">0 đ</td>
+              </tr>
+              </tbody>
+            </table>
+
+            <div class="row g-3 mt-2">
+              <div class="col-12">
+                <label class="form-label" for="reason">Lý do gửi cho bệnh nhân (đưa vào email)</label>
+                <textarea class="form-control" id="reason" name="reason" rows="2"
+                          placeholder="VD: Bác sĩ có ca cấp cứu đột xuất, phòng khám rất xin lỗi vì sự bất tiện này."></textarea>
+              </div>
+
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="blockDoctor" name="blockDoctor" value="true">
+                  <label class="form-check-label" for="blockDoctor">
+                    Chặn luôn khung giờ này của bác sĩ để không có bệnh nhân mới đặt vào
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- HÀNH ĐỘNG A: CHUYỂN BÁC SĨ -->
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label class="form-label" for="newDoctorId">
+                  Chuyển sang bác sĩ khác <strong>cùng chuyên khoa</strong>
+                  <span th:if="${selectedDoctor != null && selectedDoctor.department != null}"
+                        class="badge bg-info text-dark ms-1"
+                        th:text="${selectedDoctor.department.name}">Khoa</span>
+                </label>
+                <select class="form-select" id="newDoctorId" name="newDoctorId"
+                        th:disabled="${#lists.isEmpty(replacementDoctors)}">
+                  <option value="">-- Chọn bác sĩ tiếp nhận --</option>
+                  <option th:each="d : ${replacementDoctors}"
+                          th:value="${d.id}"
+                          th:attr="data-price=${d.price}"
+                          th:text="'BS. ' + ${d.user.fullName} + ' (' + ${#numbers.formatDecimal(d.price, 0, 'POINT', 0, 'COMMA')} + ' đ)'"></option>
+                </select>
+                <div class="form-text">
+                  Ngày, giờ và số tiền bệnh nhân đã cọc được giữ nguyên.
+                </div>
+              </div>
+              <div class="col-md-6">
+                <button type="submit" class="btn btn-success w-100"
+                        th:formaction="@{/receptionist/schedule-change/transfer-bulk}"
+                        th:disabled="${#lists.isEmpty(replacementDoctors)}"
+                        onclick="return confirmTransfer();">
+                  <i class="bi bi-arrow-left-right"></i> Chuyển các lịch đã chọn sang bác sĩ này
+                </button>
+              </div>
+
+              <div class="col-12" th:if="${#lists.isEmpty(replacementDoctors)}">
+                <div class="alert alert-warning mb-0">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  Chuyên khoa này hiện không có bác sĩ nào khác để tiếp nhận, nên không thể chuyển lịch.
+                  Hãy dùng phương án <strong>hủy lịch và hoàn tiền</strong> bên dưới, bệnh nhân sẽ nhận được
+                  email xin lỗi kèm lý do.
+                </div>
+              </div>
+            </div>
+
+            <div id="priceWarning" class="alert alert-warning mt-3 d-none">
+              <i class="bi bi-cash-coin"></i>
+              Giá khám của bác sĩ tiếp nhận là <strong><span id="newPrice"></span> đ</strong>,
+              khác với giá bệnh nhân đã cọc. Hệ thống <strong>giữ nguyên số tiền cũ</strong>, không thu thêm hay hoàn lại.
+            </div>
+
+            <hr class="my-4">
+
+            <!-- HÀNH ĐỘNG B: HỦY HÀNG LOẠT -->
+            <button type="submit" class="btn btn-danger"
+                    th:formaction="@{/receptionist/schedule-change/cancel-bulk}"
+                    onclick="return confirm('Hủy tất cả lịch đã chọn? Lịch đã thanh toán sẽ được tự động hoàn tiền vào ví bệnh nhân và gửi email xin lỗi.');">
+              <i class="bi bi-x-octagon"></i> Hủy các lịch đã chọn &amp; hoàn tiền
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{receptionist/include/footer :: footer}"></th:block>
+
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  // Giá bệnh nhân đã cọc — dùng để cảnh báo chênh lệch khi đổi bác sĩ
+  var bookedPrices = /*[[${bookings.![bookingPrice]}]]*/ [];
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var checkAll = document.getElementById('checkAll');
+    var rowChecks = document.querySelectorAll('.row-check');
+
+    if (checkAll) {
+      checkAll.addEventListener('change', function () {
+        rowChecks.forEach(function (cb) { cb.checked = checkAll.checked; });
+      });
+    }
+
+    var newDoctorSelect = document.getElementById('newDoctorId');
+    if (newDoctorSelect) {
+      newDoctorSelect.addEventListener('change', function () {
+        var warning = document.getElementById('priceWarning');
+        var option = newDoctorSelect.options[newDoctorSelect.selectedIndex];
+        var price = option ? parseFloat(option.getAttribute('data-price')) : NaN;
+
+        var differs = !isNaN(price) && bookedPrices.some(function (p) {
+          return parseFloat(p) !== price;
+        });
+
+        if (differs) {
+          document.getElementById('newPrice').textContent = price.toLocaleString('vi-VN');
+          warning.classList.remove('d-none');
+        } else {
+          warning.classList.add('d-none');
+        }
+      });
+    }
+  });
+
+  function confirmTransfer() {
+    var select = document.getElementById('newDoctorId');
+    if (!select.value) {
+      alert('Vui lòng chọn bác sĩ tiếp nhận.');
+      return false;
+    }
+    return confirm('Chuyển các lịch đã chọn sang bác sĩ này? Lịch nào trùng khung giờ của bác sĩ mới sẽ được báo lại để bạn xử lý riêng.');
+  }
+  /*]]>*/
+</script>
+
+</body>
+</html>

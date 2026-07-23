@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{receptionist/include/header :: header (title='Tất cả lịch hẹn')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{receptionist/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{receptionist/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Tất cả lịch hẹn</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/receptionist/dashboard}">Tổng quan</a></li>
+        <li class="breadcrumb-item active">Lịch hẹn</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <!-- Lỗi in phiếu được chuyển về qua query param (xem ReceptionistPrintController) -->
+    <div th:if="${param.printError}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-printer me-1"></i> <span th:text="${param.printError}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Danh sách lịch hẹn</h5>
+
+        <div class="mb-3 d-flex gap-2 flex-wrap">
+          <a th:href="@{/receptionist/bookings}"
+             class="btn btn-sm" th:classappend="${selectedStatus == null} ? 'btn-primary' : 'btn-outline-primary'">Tất cả</a>
+          <a th:href="@{/receptionist/bookings(status='PENDING')}"
+             class="btn btn-sm" th:classappend="${selectedStatus == 'PENDING'} ? 'btn-warning' : 'btn-outline-warning'">Chờ duyệt</a>
+          <a th:href="@{/receptionist/bookings(status='CONFIRMED')}"
+             class="btn btn-sm" th:classappend="${selectedStatus == 'CONFIRMED'} ? 'btn-primary' : 'btn-outline-primary'">Đã xác nhận</a>
+          <a th:href="@{/receptionist/bookings(status='COMPLETED')}"
+             class="btn btn-sm" th:classappend="${selectedStatus == 'COMPLETED'} ? 'btn-secondary' : 'btn-outline-secondary'">Đã khám</a>
+          <a th:href="@{/receptionist/bookings(status='CANCELED')}"
+             class="btn btn-sm" th:classappend="${selectedStatus == 'CANCELED'} ? 'btn-danger' : 'btn-outline-danger'">Đã hủy</a>
+        </div>
+
+        <table class="table datatable align-middle">
+          <thead>
+          <tr>
+            <th>Mã</th>
+            <th>Bệnh nhân</th>
+            <th>Bác sĩ</th>
+            <th>Lịch khám</th>
+            <th>Thanh toán</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="booking : ${listBookings}">
+            <td th:text="'#' + ${booking.id}">#1</td>
+            <td>
+              <span class="fw-bold"
+                    th:text="${booking.patientName != null ? booking.patientName : booking.user.fullName}">Tên</span>
+              <br>
+              <small class="text-muted"
+                     th:text="${booking.patientPhone != null ? booking.patientPhone : booking.user.phone}">SĐT</small>
+            </td>
+            <td th:text="'BS. ' + ${booking.doctor.user.fullName}">Bác sĩ</td>
+            <td>
+              <span th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}"></span>
+              <br>
+              <span class="badge bg-light text-dark border" th:text="${booking.appointmentTime}">08:00</span>
+            </td>
+            <td>
+              <span th:if="${booking.paymentStatus == 'PAID'}" class="badge bg-success">Đã thanh toán</span>
+              <span th:if="${booking.paymentStatus == 'UNPAID'}" class="badge bg-warning text-dark">Chưa thanh toán</span>
+              <span th:if="${booking.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">Đã hoàn tiền</span>
+              <span th:if="${booking.paymentStatus == 'FAILED'}" class="badge bg-danger">Lỗi/Hủy</span>
+            </td>
+            <td>
+              <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ duyệt</span>
+              <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
+              <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
+              <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Hoàn thành</span>
+            </td>
+            <td>
+              <div class="d-flex gap-1 flex-wrap">
+                <a th:if="${booking.status.name() == 'PENDING'}"
+                   th:href="@{/receptionist/bookings/confirm/{id}(id=${booking.id})}"
+                   class="btn btn-success btn-sm" title="Xác nhận">
+                  <i class="bi bi-check-lg"></i>
+                </a>
+
+                <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                   th:href="@{/receptionist/bookings/cancel/{id}(id=${booking.id})}"
+                   class="btn btn-outline-danger btn-sm" title="Hủy &amp; hoàn tiền"
+                   onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ tự động hoàn vào ví bệnh nhân.');">
+                  <i class="bi bi-x-lg"></i>
+                </a>
+
+                <a th:href="@{/receptionist/print/receipt/{id}(id=${booking.id})}" target="_blank"
+                   class="btn btn-outline-primary btn-sm" title="In phiếu thu">
+                  <i class="bi bi-receipt"></i>
+                </a>
+
+                <a th:if="${booking.status.name() == 'COMPLETED'}"
+                   th:href="@{/receptionist/print/prescription/{id}(id=${booking.id})}" target="_blank"
+                   class="btn btn-outline-success btn-sm" title="In đơn thuốc">
+                  <i class="bi bi-capsule"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{receptionist/include/footer :: footer}"></th:block>
+</body>
+</html>

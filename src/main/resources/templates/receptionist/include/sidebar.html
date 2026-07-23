@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside id="sidebar" class="sidebar" th:fragment="sidebar">
+    <ul class="sidebar-nav" id="sidebar-nav">
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'dashboard'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/dashboard}">
+                <i class="bi bi-grid"></i>
+                <span>Tổng quan</span>
+            </a>
+        </li>
+
+        <li class="nav-heading">Tiếp đón</li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'queue'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/queue}">
+                <i class="bi bi-person-lines-fill"></i>
+                <span>Hàng chờ khám</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'walk-in'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/walk-in}">
+                <i class="bi bi-person-plus"></i>
+                <span>Đặt lịch tại quầy</span>
+            </a>
+        </li>
+
+        <li class="nav-heading">Điều phối lịch</li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'schedule-change'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/schedule-change}">
+                <i class="bi bi-arrow-left-right"></i>
+                <span>Hủy / Dời lịch hàng loạt</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'bookings'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/bookings}">
+                <i class="bi bi-calendar-check"></i>
+                <span>Tất cả lịch hẹn</span>
+            </a>
+        </li>
+
+        <li class="nav-heading">Cá nhân</li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/user/profile}">
+                <i class="bi bi-person"></i>
+                <span>Hồ sơ cá nhân</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/logout}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Đăng xuất</span>
+            </a>
+        </li>
+    </ul>
+</aside>
+</body>
+</html>

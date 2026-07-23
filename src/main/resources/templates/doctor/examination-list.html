@@ -194,10 +194,15 @@
               </tr>
               </thead>
               <tbody>
-              <tr th:each="b, iter : ${confirmedBookings}">
+              <tr th:each="b, iter : ${confirmedBookings}"
+                  th:classappend="${b.lateMarkedAt != null} ? 'table-warning' : ''">
                 <td th:text="${iter.count}">1</td>
                 <td>
                   <span class="badge bg-info text-dark" th:text="${b.appointmentTime}">08:00</span>
+                  <!-- Lễ tân đã đẩy bệnh nhân đến trễ này xuống cuối hàng chờ -->
+                  <span th:if="${b.lateMarkedAt != null}" class="badge bg-warning text-dark d-block mt-1">
+                    <i class="bi bi-clock-history"></i> Đến trễ
+                  </span>
                 </td>
 
                 <td>

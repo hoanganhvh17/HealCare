@@ -96,6 +96,50 @@ public class EmailServiceImpl implements EmailService {
             System.err.println("Lỗi khi gửi mail HTML HỦY LỊCH: " + e.getMessage());
         }
     }
+    // === THƯ XIN LỖI + ĐỔI BÁC SĨ (LỄ TÂN DỜI LỊCH) ===
+    @Async
+    @Override
+    public void sendBookingDoctorChange(Booking booking, String oldDoctorName, String reason) {
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(booking.getUser().getEmail());
+            helper.setSubject("MediTrust - Xin lỗi quý khách: lịch khám #" + booking.getId() + " đã đổi bác sĩ");
+
+            org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+            context.setVariable("patientName",
+                    booking.getPatientName() != null && !booking.getPatientName().isBlank()
+                            ? booking.getPatientName()
+                            : booking.getUser().getFullName());
+            context.setVariable("reason", reason);
+            context.setVariable("oldDoctorName", oldDoctorName);
+            context.setVariable("newDoctorName", "Dr. " + booking.getDoctor().getUser().getFullName());
+            context.setVariable("bookingId", booking.getId());
+            context.setVariable("departmentName", booking.getDoctor().getDepartment().getName());
+
+            java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            context.setVariable("date", booking.getAppointmentDate().format(dateFormatter));
+            context.setVariable("time", booking.getAppointmentTime());
+            context.setVariable("type", booking.getAppointmentType());
+            context.setVariable("price", booking.getBookingPrice().toString());
+
+            String htmlContent = templateEngine.process("email/booking-doctor-change", context);
+            helper.setText(htmlContent, true);
+
+            // Giữ nguyên mã QR check-in vì lịch hẹn không đổi id
+            byte[] qrCode = com.bookinghealthy.util.QRCodeGenerator.getQRCodeImage("BOOKING_ID:" + booking.getId(), 250, 250);
+            if (qrCode != null) {
+                helper.addInline("qrCodeImage", new org.springframework.core.io.ByteArrayResource(qrCode), "image/png");
+            }
+
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            System.err.println("Lỗi khi gửi mail ĐỔI BÁC SĨ: " + e.getMessage());
+        }
+    }
+
     // === 1. GỬI XÁC NHẬN CHO ỨNG VIÊN ===
     @Async
     @Override

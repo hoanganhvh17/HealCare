@@ -87,9 +87,11 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         if(userFinal.isPresent()){
             boolean isAdmin = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
             boolean isDoctor = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_DOCTOR"));
+            boolean isReceptionist = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_RECEPTIONIST"));
 
             if(isAdmin) response.sendRedirect("/admin/dashboard");
             else if(isDoctor) response.sendRedirect("/doctor/dashboard");
+            else if(isReceptionist) response.sendRedirect("/receptionist/dashboard");
             else response.sendRedirect("/");
         } else {
             response.sendRedirect("/");

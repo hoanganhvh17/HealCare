@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{receptionist/include/header :: header (title='Tổng quan quầy lễ tân')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{receptionist/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{receptionist/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Tổng quan quầy lễ tân</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item active">
+          Hôm nay, <span th:text="${#temporals.format(today, 'dd/MM/yyyy')}"></span>
+        </li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section dashboard">
+    <div class="row">
+
+      <div class="col-xxl-3 col-md-6">
+        <div class="card info-card">
+          <div class="card-body">
+            <h5 class="card-title">Lịch khám hôm nay</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-calendar-check"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${todayTotal}">0</h6>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-3 col-md-6">
+        <div class="card info-card">
+          <div class="card-body">
+            <h5 class="card-title">Đang chờ khám</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-person-lines-fill"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${todayWaiting}">0</h6>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-3 col-md-6">
+        <div class="card info-card">
+          <div class="card-body">
+            <h5 class="card-title">Bệnh nhân đến trễ</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-clock-history"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${todayLate}">0</h6>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-3 col-md-6">
+        <div class="card info-card">
+          <div class="card-body">
+            <h5 class="card-title">Chờ xác nhận</h5>
+            <div class="d-flex align-items-center">
+              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                <i class="bi bi-hourglass-split"></i>
+              </div>
+              <div class="ps-3">
+                <h6 th:text="${pendingCount}">0</h6>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LỐI TẮT NGHIỆP VỤ -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Thao tác nhanh</h5>
+            <div class="d-flex gap-2 flex-wrap">
+              <a th:href="@{/receptionist/queue}" class="btn btn-primary">
+                <i class="bi bi-person-lines-fill"></i> Hàng chờ khám
+              </a>
+              <a th:href="@{/receptionist/schedule-change}" class="btn btn-warning">
+                <i class="bi bi-arrow-left-right"></i> Bác sĩ nghỉ đột xuất
+              </a>
+              <a th:href="@{/receptionist/walk-in}" class="btn btn-success">
+                <i class="bi bi-person-plus"></i> Đặt lịch tại quầy
+              </a>
+              <a th:href="@{/receptionist/bookings(status='PENDING')}" class="btn btn-outline-secondary">
+                <i class="bi bi-check2-square"></i> Duyệt lịch chờ
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LỊCH HẸN MỚI NHẤT -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Lịch hẹn mới nhất</h5>
+            <table class="table table-borderless align-middle">
+              <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Bệnh nhân</th>
+                <th>Bác sĩ</th>
+                <th>Lịch khám</th>
+                <th>Trạng thái</th>
+                <th class="text-end">Phiếu thu</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="b : ${recentBookings}">
+                <td th:text="'#' + ${b.id}">#1</td>
+                <td th:text="${b.patientName != null ? b.patientName : b.user.fullName}">Tên</td>
+                <td th:text="'BS. ' + ${b.doctor.user.fullName}">Bác sĩ</td>
+                <td>
+                  <span th:text="${#temporals.format(b.appointmentDate, 'dd/MM/yyyy')}"></span>
+                  <span class="badge bg-light text-dark border ms-1" th:text="${b.appointmentTime}">08:00</span>
+                </td>
+                <td>
+                  <span th:if="${b.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ duyệt</span>
+                  <span th:if="${b.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
+                  <span th:if="${b.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
+                  <span th:if="${b.status.name() == 'COMPLETED'}" class="badge bg-secondary">Hoàn thành</span>
+                </td>
+                <td class="text-end">
+                  <a th:href="@{/receptionist/print/receipt/{id}(id=${b.id})}" target="_blank"
+                     class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-receipt"></i> In
+                  </a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{receptionist/include/footer :: footer}"></th:block>
+</body>
+</html>

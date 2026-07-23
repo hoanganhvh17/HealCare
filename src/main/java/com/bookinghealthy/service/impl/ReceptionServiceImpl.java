@@ -1,0 +1,236 @@
+package com.bookinghealthy.service.impl;
+
+import com.bookinghealthy.dto.BulkResultDTO;
+import com.bookinghealthy.model.Booking;
+import com.bookinghealthy.model.BookingStatus;
+import com.bookinghealthy.model.Doctor;
+import com.bookinghealthy.repository.BookingRepository;
+import com.bookinghealthy.repository.DoctorRepository;
+import com.bookinghealthy.service.BookingService;
+import com.bookinghealthy.service.DoctorBlockTimeService;
+import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.ReceptionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+@Service
+public class ReceptionServiceImpl implements ReceptionService {
+
+    @Autowired private BookingRepository bookingRepository;
+    @Autowired private DoctorRepository doctorRepository;
+    @Autowired private BookingService bookingService;
+    @Autowired private EmailService emailService;
+    @Autowired private DoctorBlockTimeService doctorBlockTimeService;
+
+    private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+
+    // Biên các buổi, khớp với MORNING_SLOTS / AFTERNOON_SLOTS / EVENING_SLOTS của TimeSlotService
+    private static final LocalTime MORNING_START = LocalTime.of(7, 30);
+    private static final LocalTime MORNING_END = LocalTime.of(11, 30);
+    private static final LocalTime AFTERNOON_START = LocalTime.of(13, 30);
+    private static final LocalTime AFTERNOON_END = LocalTime.of(17, 30);
+    private static final LocalTime EVENING_START = LocalTime.of(17, 30);
+    private static final LocalTime EVENING_END = LocalTime.of(20, 30);
+
+    // ===================== 1. ĐỔI LỊCH HÀNG LOẠT =====================
+
+    @Override
+    public List<Booking> findBookingsForChange(Long doctorId, LocalDate date, String session) {
+        List<Booking> bookings = bookingRepository.findByDoctorIdAndAppointmentDateAndStatusNot(
+                doctorId, date, BookingStatus.CANCELED);
+
+        List<Booking> result = new ArrayList<>();
+        for (Booking booking : bookings) {
+            // Lịch đã khám xong thì không cần dời nữa
+            if (booking.getStatus() == BookingStatus.COMPLETED) {
+                continue;
+            }
+            if (matchesSession(booking.getAppointmentTime(), session)) {
+                result.add(booking);
+            }
+        }
+
+        result.sort(Comparator.comparing(Booking::getAppointmentTime,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        return result;
+    }
+
+    @Override
+    public BulkResultDTO bulkCancel(List<Long> bookingIds, String reason) {
+        BulkResultDTO result = new BulkResultDTO();
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            result.addError("Chưa chọn lịch hẹn nào.");
+            return result;
+        }
+
+        String finalReason = (reason == null || reason.isBlank())
+                ? "Bác sĩ bận đột xuất, phòng khám rất xin lỗi vì sự bất tiện này."
+                : reason;
+
+        // Xử lý từng lịch độc lập: một lịch lỗi không làm hỏng các lịch còn lại
+        for (Long id : bookingIds) {
+            try {
+                bookingService.cancelWithRefund(id, finalReason);
+                result.addSuccess();
+            } catch (Exception e) {
+                result.addError("Lịch #" + id + ": " + e.getMessage());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public BulkResultDTO bulkTransfer(List<Long> bookingIds, Long newDoctorId, String reason) {
+        BulkResultDTO result = new BulkResultDTO();
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            result.addError("Chưa chọn lịch hẹn nào.");
+            return result;
+        }
+        if (newDoctorId == null) {
+            result.addError("Chưa chọn bác sĩ tiếp nhận.");
+            return result;
+        }
+
+        String finalReason = (reason == null || reason.isBlank())
+                ? "Bác sĩ bận đột xuất, phòng khám rất xin lỗi vì sự bất tiện này."
+                : reason;
+
+        for (Long id : bookingIds) {
+            try {
+                // Phải đọc tên bác sĩ cũ TRƯỚC khi reassign() ghi đè
+                String oldDoctorName = bookingRepository.findById(id)
+                        .filter(b -> b.getDoctor() != null && b.getDoctor().getUser() != null)
+                        .map(b -> "Dr. " + b.getDoctor().getUser().getFullName())
+                        .orElse("Bác sĩ trước đó");
+
+                Booking transferred = bookingService.reassign(id, newDoctorId);
+
+                // Thư xin lỗi + thông báo đổi bác sĩ, kèm lý do và lịch hẹn giữ nguyên
+                emailService.sendBookingDoctorChange(transferred, oldDoctorName, finalReason);
+                result.addSuccess();
+            } catch (Exception e) {
+                result.addError("Lịch #" + id + ": " + e.getMessage());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public String blockSessionForDoctor(Long doctorId, LocalDate date, String session, String reason) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy bác sĩ."));
+
+        LocalTime start;
+        LocalTime end;
+        switch (normalizeSession(session)) {
+            case SESSION_MORNING -> { start = MORNING_START; end = MORNING_END; }
+            case SESSION_AFTERNOON -> { start = AFTERNOON_START; end = AFTERNOON_END; }
+            case SESSION_EVENING -> { start = EVENING_START; end = EVENING_END; }
+            default -> { start = MORNING_START; end = EVENING_END; }
+        }
+
+        String finalReason = (reason == null || reason.isBlank()) ? "Bác sĩ bận đột xuất" : reason;
+        return doctorBlockTimeService.blockTime(doctor, date, start, end, finalReason);
+    }
+
+    // ===================== 2. HÀNG CHỜ KHÁM =====================
+
+    @Override
+    public List<Booking> getQueue(Long doctorId, LocalDate date) {
+        List<Booking> bookings = bookingRepository.findByDoctorIdAndAppointmentDateAndStatus(
+                doctorId, date, BookingStatus.CONFIRMED);
+        return sortByQueue(new ArrayList<>(bookings));
+    }
+
+    @Override
+    public void pushToEndOfQueue(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new IllegalStateException("Chỉ đẩy được lịch đã xác nhận và chưa khám.");
+        }
+
+        // Thứ tự mới = lớn hơn mọi thứ tự đang có trong ngày của bác sĩ đó
+        int nextOrder = bookingRepository
+                .findByDoctorIdAndAppointmentDateAndStatusNot(
+                        booking.getDoctor().getId(), booking.getAppointmentDate(), BookingStatus.CANCELED)
+                .stream()
+                .map(Booking::getQueueOrder)
+                .filter(java.util.Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+
+        booking.setQueueOrder(nextOrder);
+        booking.setLateMarkedAt(LocalDateTime.now());
+        bookingRepository.save(booking);
+    }
+
+    @Override
+    public void resetQueuePosition(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        booking.setQueueOrder(null);
+        booking.setLateMarkedAt(null);
+        bookingRepository.save(booking);
+    }
+
+    @Override
+    public List<Booking> sortByQueue(List<Booking> bookings) {
+        List<Booking> sorted = new ArrayList<>(bookings);
+        sorted.sort(
+                // Người đúng giờ (queueOrder null) luôn đứng trước người bị đẩy xuống cuối
+                Comparator.<Booking, Integer>comparing(b -> b.getQueueOrder() == null ? 0 : 1)
+                        // Trong nhóm đúng giờ: theo giờ hẹn. Trong nhóm bị đẩy: theo thứ tự bị đẩy.
+                        .thenComparing(b -> b.getQueueOrder() == null ? 0 : b.getQueueOrder())
+                        .thenComparing(Booking::getAppointmentTime,
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+        );
+        return sorted;
+    }
+
+    // ===================== HELPERS =====================
+
+    /**
+     * Kiểm tra khung giờ "HH:mm - HH:mm" có thuộc buổi đang lọc không (so theo giờ bắt đầu).
+     */
+    private boolean matchesSession(String appointmentTime, String session) {
+        String normalized = normalizeSession(session);
+        if (SESSION_ALL_DAY.equals(normalized)) {
+            return true;
+        }
+        if (appointmentTime == null || !appointmentTime.contains(" - ")) {
+            return false;
+        }
+
+        LocalTime slotStart;
+        try {
+            slotStart = LocalTime.parse(appointmentTime.split(" - ")[0].trim(), SLOT_TIME_FORMATTER);
+        } catch (Exception e) {
+            return false;
+        }
+
+        return switch (normalized) {
+            case SESSION_MORNING -> !slotStart.isBefore(MORNING_START) && slotStart.isBefore(MORNING_END);
+            case SESSION_AFTERNOON -> !slotStart.isBefore(AFTERNOON_START) && slotStart.isBefore(AFTERNOON_END);
+            case SESSION_EVENING -> !slotStart.isBefore(EVENING_START) && !slotStart.isAfter(EVENING_END);
+            default -> true;
+        };
+    }
+
+    private String normalizeSession(String session) {
+        if (session == null || session.isBlank()) {
+            return SESSION_ALL_DAY;
+        }
+        return session.trim().toUpperCase();
+    }
+}

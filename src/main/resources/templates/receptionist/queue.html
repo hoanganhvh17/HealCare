@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{receptionist/include/header :: header (title='Hàng chờ khám')}"></th:block>
+</head>
+<body>
+
+<th:block th:replace="~{receptionist/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{receptionist/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+  <div class="pagetitle">
+    <h1>Hàng chờ khám</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/receptionist/dashboard}">Tổng quan</a></li>
+        <li class="breadcrumb-item active">Hàng chờ</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Chọn phòng khám</h5>
+        <form method="get" th:action="@{/receptionist/queue}" class="row g-3 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label" for="doctorId">Bác sĩ</label>
+            <select class="form-select" id="doctorId" name="doctorId" required>
+              <option value="">-- Chọn bác sĩ --</option>
+              <option th:each="d : ${allDoctors}"
+                      th:value="${d.id}"
+                      th:selected="${selectedDoctorId != null && selectedDoctorId == d.id}"
+                      th:text="'BS. ' + ${d.user.fullName} + ' — ' + ${d.department != null ? d.department.name : 'Chưa có khoa'}"></option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="date">Ngày khám</label>
+            <input type="date" class="form-control" id="date" name="date" th:value="${selectedDate}" required>
+          </div>
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-search"></i> Xem hàng chờ
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" th:if="${searched}">
+      <div class="card-body">
+        <h5 class="card-title">
+          Thứ tự khám
+          <span class="badge bg-secondary ms-2" th:text="${#lists.size(queue)} + ' bệnh nhân'">0</span>
+        </h5>
+
+        <p class="text-muted small">
+          <i class="bi bi-info-circle"></i>
+          Bệnh nhân đúng giờ được xếp theo giờ hẹn. Bệnh nhân đến trễ khi bị đẩy xuống cuối
+          sẽ nằm sau tất cả người đúng giờ. Bác sĩ nhìn thấy đúng thứ tự này ở trang khám bệnh.
+        </p>
+
+        <div th:if="${#lists.isEmpty(queue)}" class="alert alert-light border">
+          <i class="bi bi-info-circle"></i> Chưa có bệnh nhân nào đã xác nhận trong ngày này.
+        </div>
+
+        <table class="table table-hover align-middle" th:unless="${#lists.isEmpty(queue)}">
+          <thead>
+          <tr>
+            <th style="width: 60px;">STT</th>
+            <th>Mã</th>
+            <th>Giờ hẹn</th>
+            <th>Bệnh nhân</th>
+            <th>Điện thoại</th>
+            <th>Tình trạng</th>
+            <th class="text-end">Thao tác</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="b, stat : ${queue}" th:classappend="${b.lateMarkedAt != null} ? 'table-warning' : ''">
+            <td class="fw-bold fs-5" th:text="${stat.count}">1</td>
+            <td th:text="'#' + ${b.id}">#1</td>
+            <td>
+              <span class="badge bg-light text-dark border" th:text="${b.appointmentTime}">08:00</span>
+            </td>
+            <td>
+              <span class="fw-bold" th:text="${b.patientName != null ? b.patientName : b.user.fullName}">Tên</span>
+            </td>
+            <td th:text="${b.patientPhone != null ? b.patientPhone : b.user.phone}">SĐT</td>
+            <td>
+              <span th:if="${b.lateMarkedAt != null}" class="badge bg-warning text-dark">
+                <i class="bi bi-clock-history"></i> Đến trễ —
+                <span th:text="${#temporals.format(b.lateMarkedAt, 'HH:mm')}">14:30</span>
+              </span>
+              <span th:if="${b.lateMarkedAt == null}" class="badge bg-success-subtle text-success border border-success-subtle">
+                Đúng giờ
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="d-flex gap-1 justify-content-end">
+                <form th:if="${b.lateMarkedAt == null}" method="post"
+                      th:action="@{/receptionist/queue/push-last/{id}(id=${b.id})}">
+                  <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
+                  <input type="hidden" name="date" th:value="${selectedDate}">
+                  <button type="submit" class="btn btn-warning btn-sm"
+                          onclick="return confirm('Đẩy bệnh nhân này xuống cuối hàng chờ?');">
+                    <i class="bi bi-arrow-down-circle"></i> Đẩy xuống cuối
+                  </button>
+                </form>
+
+                <form th:if="${b.lateMarkedAt != null}" method="post"
+                      th:action="@{/receptionist/queue/reset/{id}(id=${b.id})}">
+                  <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
+                  <input type="hidden" name="date" th:value="${selectedDate}">
+                  <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i> Hoàn tác
+                  </button>
+                </form>
+
+                <a th:href="@{/receptionist/print/receipt/{id}(id=${b.id})}" target="_blank"
+                   class="btn btn-outline-primary btn-sm" title="In phiếu thu">
+                  <i class="bi bi-receipt"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{receptionist/include/footer :: footer}"></th:block>
+</body>
+</html>

@@ -37,7 +37,8 @@ public class DataInitializer implements CommandLineRunner {
             Role adminRole = new Role(); adminRole.setName("ROLE_ADMIN");
             Role doctorRole = new Role(); doctorRole.setName("ROLE_DOCTOR");
             Role userRole = new Role(); userRole.setName("ROLE_USER");
-            roleRepository.saveAll(List.of(adminRole, doctorRole, userRole));
+            Role receptionistRole = new Role(); receptionistRole.setName("ROLE_RECEPTIONIST");
+            roleRepository.saveAll(List.of(adminRole, doctorRole, userRole, receptionistRole));
 
             // 2. Mã hóa mật khẩu
             String pass123 = passwordEncoder.encode("123456");
@@ -164,6 +165,35 @@ public class DataInitializer implements CommandLineRunner {
             scheduleRepository.saveAll(List.of(s1, s2, s3, s4, s5));
 
             System.out.println(">>> KHỞI TẠO DỮ LIỆU JAVA HOÀN TẤT (ĐÃ THÊM BIGDECIMAL) <<<");
+        }
+
+        // === ĐẢM BẢO VAI TRÒ LỄ TÂN LUÔN TỒN TẠI ===
+        // Khối này chạy NGOÀI điều kiện "users rỗng" ở trên, vì DataInitializer chỉ seed
+        // trên DB trống. Với DB đã có sẵn dữ liệu cũ, không có khối này thì phải drop
+        // schema mới dùng được vai trò mới.
+        ensureReceptionistAccount();
+    }
+
+    /**
+     * Tạo ROLE_RECEPTIONIST và tài khoản lễ tân mặc định nếu chưa có (idempotent).
+     */
+    private void ensureReceptionistAccount() {
+        Role receptionistRole = roleRepository.findByName("ROLE_RECEPTIONIST")
+                .orElseGet(() -> {
+                    Role role = new Role();
+                    role.setName("ROLE_RECEPTIONIST");
+                    System.out.println(">>> Tạo mới vai trò ROLE_RECEPTIONIST");
+                    return roleRepository.save(role);
+                });
+
+        if (!userRepository.existsByUsername("receptionist")) {
+            // Thứ tự tham số theo @AllArgsConstructor của User:
+            // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
+            User receptionist = new User(null, "receptionist", "receptionist@gmail.com",
+                    passwordEncoder.encode("123456"), "Lễ tân MediTrust", "0900000009", null,
+                    "Nữ", AuthProvider.LOCAL, Set.of(receptionistRole), BigDecimal.ZERO);
+            userRepository.save(receptionist);
+            System.out.println(">>> Tạo mới tài khoản lễ tân: receptionist / 123456");
         }
     }
 }

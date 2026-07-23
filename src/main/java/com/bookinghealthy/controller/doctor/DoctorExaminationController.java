@@ -5,6 +5,7 @@ import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.DoctorService;
+import com.bookinghealthy.service.ReceptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,6 +28,9 @@ public class DoctorExaminationController {
     @Autowired
     private BookingRepository bookingRepository;
 
+    @Autowired
+    private ReceptionService receptionService;
+
     private Doctor getLoggedInDoctor(Authentication authentication) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         return doctorService.findByUsername(userDetails.getUsername())
@@ -47,12 +51,10 @@ public class DoctorExaminationController {
             date = LocalDate.now();
         }
 
-        // 1. Lấy danh sách bệnh nhân ĐÃ XÁC NHẬN (CONFIRMED) của ngày đó
-        List<Booking> confirmedBookings = bookingRepository.findByDoctorIdAndAppointmentDateAndStatus(
-                currentDoctor.getId(),
-                date,
-                BookingStatus.CONFIRMED
-        );
+        // 1. Lấy danh sách bệnh nhân ĐÃ XÁC NHẬN (CONFIRMED) của ngày đó,
+        //    theo đúng thứ tự hàng chờ mà lễ tân đang điều phối (bệnh nhân đến trễ
+        //    đã bị đẩy xuống cuối) — dùng chung service với trang /receptionist/queue.
+        List<Booking> confirmedBookings = receptionService.getQueue(currentDoctor.getId(), date);
 
         // 2. Lấy danh sách đã khám xong (COMPLETED) trong ngày đó (để xem lại nếu cần)
         List<Booking> completedBookings = bookingRepository.findByDoctorIdAndAppointmentDateAndStatus(

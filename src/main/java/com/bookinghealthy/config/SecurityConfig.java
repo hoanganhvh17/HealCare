@@ -82,6 +82,9 @@ public class SecurityConfig {
                         // --- 4. PHÂN QUYỀN BÁC SĨ (BẮT BUỘC ROLE_DOCTOR) ---
                         .requestMatchers("/doctor/**", "/api/doctor/chat/**").hasRole("DOCTOR")
 
+                        // --- 4b. PHÂN QUYỀN LỄ TÂN (BẮT BUỘC ROLE_RECEPTIONIST) ---
+                        .requestMatchers("/receptionist/**").hasRole("RECEPTIONIST")
+
                         // --- 5. CÁC TRANG CẦN ĐĂNG NHẬP (USER, DOCTOR, ADMIN đều được) ---
                         .requestMatchers(
                                 "/appointment",
@@ -106,6 +109,10 @@ public class SecurityConfig {
                             // Nếu là DOCTOR, về /doctor/dashboard
                             else if (authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"))) {
                                 response.sendRedirect("/doctor/dashboard");
+                            }
+                            // Nếu là LỄ TÂN, về /receptionist/dashboard
+                            else if (authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_RECEPTIONIST"))) {
+                                response.sendRedirect("/receptionist/dashboard");
                             }
                             // Nếu là USER (Bệnh nhân), về trang chủ
                             else {

@@ -5,7 +5,6 @@ import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
-import com.bookinghealthy.service.WalletService; // <-- Import WalletService
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,7 +22,6 @@ public class AdminBookingController {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
-    @Autowired private WalletService walletService; // <-- Inject WalletService
 
     // 1. HIỂN THỊ DANH SÁCH LỊCH HẸN
     @GetMapping("/manage-booking")
@@ -52,39 +50,17 @@ public class AdminBookingController {
         return "redirect:/admin/manage-booking";
     }
 
-    // 3. HỦY LỊCH & HOÀN TIỀN (NÂNG CẤP LOGIC VÍ)
+    // 3. HỦY LỊCH & HOÀN TIỀN (dùng chung logic với quầy lễ tân)
     @GetMapping("/manage-booking/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
-            Booking booking = bookingService.findById(id).orElseThrow(() -> new Exception("Booking not found"));
+            boolean refunded = bookingService.cancelWithRefund(id, "Admin hệ thống đã hủy lịch hẹn.");
 
-            // Cập nhật trạng thái Hủy
-            booking.setStatus(BookingStatus.CANCELED);
-
-            // === LOGIC HOÀN TIỀN VÀO VÍ ===
-            if ("PAID".equals(booking.getPaymentStatus())) {
-                // 1. Cộng tiền vào ví khách hàng
-                walletService.refundToWallet(
-                        booking.getUser(),
-                        booking.getBookingPrice(),
-                        "Admin hủy lịch khám #" + booking.getId()
-                );
-
-                // 2. Cập nhật trạng thái thanh toán
-                booking.setPaymentStatus("REFUNDED");
-
+            if (refunded) {
                 ra.addFlashAttribute("successMessage", "Đã hủy lịch #" + id + ". Hệ thống đã tự động hoàn tiền vào Ví khách hàng.");
             } else {
-                booking.setPaymentStatus("FAILED");
                 ra.addFlashAttribute("successMessage", "Đã hủy lịch hẹn #" + id);
             }
-            // ==============================
-
-            bookingService.save(booking);
-
-            // Gửi email thông báo
-            emailService.sendBookingCancellation(booking, "Admin hệ thống đã hủy lịch hẹn.");
-
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
         }

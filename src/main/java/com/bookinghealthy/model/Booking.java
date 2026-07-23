@@ -70,4 +70,14 @@ public class Booking {
 
     @Column(name = "patient_phone")
     private String patientPhone;
+
+    // === HÀNG CHỜ KHÁM (LỄ TÂN XỬ LÝ TRỄ GIỜ) ===
+    // null = bệnh nhân đúng giờ, xếp theo appointmentTime.
+    // Có giá trị = đã bị lễ tân đẩy xuống cuối, xếp sau tất cả người đúng giờ.
+    @Column(name = "queue_order")
+    private Integer queueOrder;
+
+    // Thời điểm lễ tân đánh dấu trễ (để hiển thị badge và tra cứu lại)
+    @Column(name = "late_marked_at")
+    private LocalDateTime lateMarkedAt;
 }

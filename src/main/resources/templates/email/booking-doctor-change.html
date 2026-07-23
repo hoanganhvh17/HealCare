@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #fd7e14; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .reason-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin: 20px 0; }
+        .change-box { background-color: #e7f1ff; border-left: 5px solid #0d6efd; padding: 15px; margin: 20px 0; }
+        .old-doctor { color: #888; text-decoration: line-through; }
+        .new-doctor { color: #0d6efd; font-weight: bold; }
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .info-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #666; width: 40%; }
+        .qr-section { text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>THÔNG BÁO THAY ĐỔI BÁC SĨ KHÁM</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${patientName}"></strong>,</p>
+
+        <p>
+            <strong>MediTrust thành thật xin lỗi</strong> vì sự thay đổi ngoài ý muốn đối với lịch hẹn của quý khách.
+            Bác sĩ ban đầu không thể tiếp nhận ca khám theo lịch, vì vậy chúng tôi đã sắp xếp một bác sĩ khác
+            <strong>cùng chuyên khoa</strong> để đảm bảo quý khách vẫn được thăm khám đúng hẹn.
+        </p>
+
+        <div class="reason-box">
+            <strong>Lý do thay đổi:</strong> <span th:text="${reason}"></span>
+        </div>
+
+        <div class="change-box">
+            <p style="margin: 0 0 8px 0;"><strong>Bác sĩ phụ trách đã được thay đổi:</strong></p>
+            <p style="margin: 0;">
+                <span class="old-doctor" th:text="${oldDoctorName}"></span>
+                &nbsp;&rarr;&nbsp;
+                <span class="new-doctor" th:text="${newDoctorName}"></span>
+            </p>
+        </div>
+
+        <p><strong>Ngày giờ khám, chuyên khoa và chi phí của quý khách được giữ nguyên:</strong></p>
+
+        <table class="info-table">
+            <tr><td class="label">Mã lịch hẹn:</td><td th:text="'#' + ${bookingId}"></td></tr>
+            <tr><td class="label">Bác sĩ mới:</td><td th:text="${newDoctorName}"></td></tr>
+            <tr><td class="label">Chuyên khoa:</td><td th:text="${departmentName}"></td></tr>
+            <tr><td class="label">Thời gian:</td><td th:text="${time} + ' - ' + ${date}"></td></tr>
+            <tr><td class="label">Hình thức:</td><td th:text="${type}"></td></tr>
+            <tr><td class="label">Phí khám:</td><td style="color: #d63384; font-weight: bold;" th:text="${price} + ' VNĐ'"></td></tr>
+        </table>
+
+        <div class="qr-section">
+            <p style="margin-bottom: 10px; font-weight: bold;">Mã QR Check-in của bạn:</p>
+            <img src="cid:qrCodeImage" width="200" height="200" alt="QR Code">
+            <p style="font-size: 14px; color: #666; margin-top: 10px;">Vui lòng đưa mã này cho lễ tân khi đến phòng khám.</p>
+        </div>
+
+        <p>
+            Nếu bác sĩ mới không phù hợp với nhu cầu của quý khách, vui lòng liên hệ hotline bên dưới
+            để được hủy lịch và <strong>hoàn lại toàn bộ tiền cọc</strong>.
+        </p>
+        <p>Một lần nữa, chúng tôi rất xin lỗi vì sự bất tiện này.</p>
+    </div>
+    <div class="footer">
+        © 2026 MediTrust International Hospital. All rights reserved.<br>
+        Hotline: 0985 123 888 | Địa chỉ: Bắc Từ Liêm, Hà Nội.
+    </div>
+</div>
+</body>
+</html>
