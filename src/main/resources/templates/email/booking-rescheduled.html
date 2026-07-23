@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #0d6efd; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .change-box { background-color: #e7f1ff; border-left: 5px solid #0d6efd; padding: 15px; margin: 20px 0; }
+        .change-row { margin: 0 0 10px 0; }
+        .change-row:last-child { margin-bottom: 0; }
+        .change-label { font-size: 13px; color: #666; display: block; }
+        .old-value { color: #888; text-decoration: line-through; }
+        .new-value { color: #0d6efd; font-weight: bold; }
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .info-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #666; width: 40%; }
+        .quota-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 14px; }
+        .qr-section { text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>ĐỔI LỊCH KHÁM THÀNH CÔNG</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${patientName}"></strong>,</p>
+
+        <p>
+            Yêu cầu đổi lịch của quý khách đã được ghi nhận. Lịch hẹn
+            <strong th:text="'#' + ${bookingId}"></strong> nay có thông tin như sau.
+            <strong>Mã lịch hẹn và mã QR check-in không thay đổi</strong>, quý khách vẫn dùng mã cũ khi đến khám.
+        </p>
+
+        <div class="change-box">
+            <div class="change-row">
+                <span class="change-label">Bác sĩ phụ trách</span>
+                <span class="old-value" th:text="${oldDoctorName}"></span>
+                &nbsp;&rarr;&nbsp;
+                <span class="new-value" th:text="${newDoctorName}"></span>
+            </div>
+            <div class="change-row">
+                <span class="change-label">Thời gian khám</span>
+                <span class="old-value" th:text="${oldTime} + ' - ' + ${oldDate}"></span>
+                &nbsp;&rarr;&nbsp;
+                <span class="new-value" th:text="${newTime} + ' - ' + ${newDate}"></span>
+            </div>
+        </div>
+
+        <p><strong>Thông tin lịch hẹn sau khi đổi:</strong></p>
+
+        <table class="info-table">
+            <tr><td class="label">Mã lịch hẹn:</td><td th:text="'#' + ${bookingId}"></td></tr>
+            <tr><td class="label">Bác sĩ:</td><td th:text="${newDoctorName}"></td></tr>
+            <tr><td class="label">Chuyên khoa:</td><td th:text="${departmentName}"></td></tr>
+            <tr><td class="label">Thời gian:</td><td th:text="${newTime} + ' - ' + ${newDate}"></td></tr>
+            <tr><td class="label">Hình thức:</td><td th:text="${type}"></td></tr>
+            <tr><td class="label">Phí khám:</td><td style="color: #d63384; font-weight: bold;" th:text="${price} + ' VNĐ'"></td></tr>
+        </table>
+
+        <p style="font-size: 14px; color: #666;">
+            Phí khám được giữ nguyên theo mức đã chốt lúc đặt lịch — quý khách không phải trả thêm
+            kể cả khi bác sĩ mới có giá niêm yết khác.
+        </p>
+
+        <div class="quota-box">
+            Quý khách đã đổi lịch này <strong th:text="${usedTimes}">1</strong> /
+            <strong th:text="${maxTimes}">2</strong> lần cho phép.
+            <span th:if="${usedTimes >= maxTimes}">
+                Đây là lần đổi cuối cùng, những thay đổi tiếp theo xin liên hệ hotline bên dưới.
+            </span>
+        </div>
+
+        <div class="qr-section">
+            <p style="margin-bottom: 10px; font-weight: bold;">Mã QR Check-in của bạn:</p>
+            <img src="cid:qrCodeImage" width="200" height="200" alt="QR Code">
+            <p style="font-size: 14px; color: #666; margin-top: 10px;">Vui lòng đưa mã này cho lễ tân khi đến phòng khám.</p>
+        </div>
+
+        <p>Hẹn gặp quý khách tại MediTrust. Chúc quý khách nhiều sức khỏe!</p>
+    </div>
+    <div class="footer">
+        © 2026 MediTrust International Hospital. All rights reserved.<br>
+        Hotline: 0985 123 888 | Địa chỉ: Bắc Từ Liêm, Hà Nội.
+    </div>
+</div>
+</body>
+</html>

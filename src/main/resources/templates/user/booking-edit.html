@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Đổi lịch khám - MediTrust</title>
+
+  <link th:href="@{/assets/img/favicon.png}" rel="icon">
+  <link th:href="@{/assets/img/apple-touch-icon.png}" rel="apple-touch-icon">
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+  <link th:href="@{/assets/vendor/fontawesome-free/css/all.min.css}" rel="stylesheet">
+  <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+
+  <style>
+    body.appointment-page { background-color: #F8FAFC; font-family: 'Inter', sans-serif; }
+    .appointment-page .main { padding-top: 120px; }
+
+    .custom-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .current-card { border-top: 4px solid #64748B; }
+    .form-control, .form-select { border-radius: 8px; padding: 10px 15px; border-color: #E2E8F0; }
+    .form-control:focus, .form-select:focus {
+      border-color: #006B63; box-shadow: 0 0 0 0.25rem rgba(0, 107, 99, 0.1);
+    }
+
+    .deadline-banner {
+      background: linear-gradient(135deg, #006B63, #00897B);
+      color: #fff;
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .deadline-banner .metric { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .deadline-banner .metric-label { font-size: 0.8rem; opacity: 0.85; }
+
+    /* Lưới khung giờ — giống hệt trang đặt lịch */
+    .time-slot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 12px;
+    }
+    .time-slot-grid .btn-check + .btn {
+      width: 100% !important;
+      margin: 0 !important;
+      border-radius: 8px !important;
+      padding: 10px 0 !important;
+      border: 1px solid #E2E8F0;
+      background-color: #fff;
+      color: #334155;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+    }
+    .time-slot-grid .btn-check:not(:disabled):hover + .btn { border-color: #94A3B8; }
+    .time-slot-grid .btn-check:checked + .btn {
+      background-color: #E0F2FE;
+      border-color: #0284C7;
+      color: #0284C7;
+      font-weight: 700;
+      position: relative;
+    }
+    .time-slot-grid .btn-check:checked + .btn::after {
+      content: '\F26A';
+      font-family: 'bootstrap-icons';
+      position: absolute;
+      top: -6px; right: -6px;
+      background: #0284C7; color: white;
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .time-slot-grid .btn-check:disabled + .btn {
+      background-color: #F8FAFC;
+      border-color: #E2E8F0;
+      color: #94A3B8;
+      opacity: 0.7;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+    /* Khung giờ bệnh nhân đang giữ — luôn chọn lại được */
+    .time-slot-grid .btn-check.is-current + .btn { border-color: #006B63; color: #006B63; }
+    .time-slot-grid .btn-check.is-current + .btn::before {
+      content: 'đang giữ';
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    .btn-teal { background-color: #006B63; color: #fff; border-radius: 8px; padding: 12px 24px; font-weight: 600; }
+    .btn-teal:hover { background-color: #00534D; color: #fff; }
+    .btn-outline-dark { border-radius: 8px; padding: 12px 24px; font-weight: 600; }
+  </style>
+</head>
+
+<body class="appointment-page">
+
+<div th:replace="~{user/include/header :: header-nav}"></div>
+
+<main class="main pb-5">
+  <div class="container mt-4">
+
+    <h1 class="fw-bold mb-2" style="color: #0F172A; font-size: 2.2rem;">Đổi lịch khám</h1>
+    <p class="text-muted mb-4">
+      Bạn có thể đổi bác sĩ trong cùng chuyên khoa, đổi ngày giờ và cập nhật thông tin người khám.
+      Mã lịch hẹn <strong th:text="'#' + ${booking.id}">#1</strong> và mã QR check-in được giữ nguyên.
+    </p>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- ===== HẠN CHÓT & SỐ LẦN ĐỔI ===== -->
+    <div class="deadline-banner row align-items-center g-3">
+      <div class="col-md-5 d-flex align-items-center">
+        <i class="bi bi-hourglass-split fs-1 me-3 opacity-75"></i>
+        <div>
+          <div class="metric" th:text="${hoursLeft} + ' giờ'">48 giờ</div>
+          <div class="metric-label">còn lại tính đến giờ khám</div>
+        </div>
+      </div>
+      <div class="col-md-4 d-flex align-items-center">
+        <i class="bi bi-arrow-repeat fs-1 me-3 opacity-75"></i>
+        <div>
+          <div class="metric" th:text="${remainingTimes} + ' / ' + ${maxTimes}">2 / 2</div>
+          <div class="metric-label">lượt đổi lịch còn lại</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="small" style="opacity: 0.9;">
+          Chỉ đổi được khi còn cách giờ khám trên
+          <strong th:text="${minHours}">24</strong> tiếng.
+          Sau mốc này vui lòng gọi hotline.
+        </div>
+      </div>
+    </div>
+
+    <form th:action="@{/user/booking/edit/{id}(id=${booking.id})}" method="post" id="rescheduleForm">
+      <div class="row gy-4">
+
+        <!-- ===== CỘT TRÁI: LỊCH HIỆN TẠI ===== -->
+        <div class="col-lg-4">
+          <div class="custom-card current-card">
+            <h5 class="fw-bold mb-3 border-bottom pb-2">Lịch hẹn hiện tại</h5>
+
+            <div class="d-flex mb-3">
+              <i class="bi bi-person-badge fs-5 text-muted me-3"></i>
+              <div>
+                <div class="fw-bold small">Bác sĩ</div>
+                <div class="text-muted" style="font-size: 0.9rem;"
+                     th:text="'BS. ' + ${booking.doctor.user.fullName}">BS.</div>
+              </div>
+            </div>
+            <div class="d-flex mb-3">
+              <i class="bi bi-hospital fs-5 text-muted me-3"></i>
+              <div>
+                <div class="fw-bold small">Chuyên khoa</div>
+                <div class="text-muted" style="font-size: 0.9rem;"
+                     th:text="${booking.doctor.department.name}">Khoa</div>
+              </div>
+            </div>
+            <div class="d-flex mb-3">
+              <i class="bi bi-calendar-event fs-5 text-muted me-3"></i>
+              <div>
+                <div class="fw-bold small">Thời gian</div>
+                <div class="text-muted" style="font-size: 0.9rem;"
+                     th:text="${booking.appointmentTime} + ' — ' + ${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}">Giờ</div>
+              </div>
+            </div>
+            <div class="d-flex">
+              <i class="bi bi-cash-coin fs-5 text-muted me-3"></i>
+              <div>
+                <div class="fw-bold small"
+                     th:text="'Phí khám: ' + ${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'">Phí</div>
+                <div class="text-muted" style="font-size: 0.8rem;">Giữ nguyên sau khi đổi lịch</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="custom-card">
+            <h5 class="fw-bold mb-3 border-bottom pb-2">Chọn bác sĩ</h5>
+
+            <div class="mb-3">
+              <label class="small fw-bold mb-1" for="doctorId">
+                Bác sĩ khám <span class="text-danger">*</span>
+              </label>
+              <select id="doctorId" name="doctorId" class="form-select" required>
+                <option th:each="d : ${sameDepartmentDoctors}"
+                        th:value="${d.id}"
+                        th:selected="${d.id == booking.doctor.id}"
+                        th:text="'BS. ' + ${d.user.fullName}
+                                 + (${d.id == booking.doctor.id} ? ' (đang khám cho bạn)' : '')
+                                 + ' — ' + ${#numbers.formatDecimal(d.price, 0, 'POINT', 0, 'COMMA')} + ' đ'"></option>
+              </select>
+              <div class="form-text">
+                Chỉ hiện bác sĩ thuộc khoa
+                <strong th:text="${booking.doctor.department.name}">…</strong>
+                để giữ đúng chuyên môn ca khám.
+              </div>
+            </div>
+
+            <div class="alert alert-light border mb-0 small" id="priceNotice" style="display: none;">
+              <i class="bi bi-info-circle text-primary"></i>
+              Bác sĩ này có giá niêm yết <strong id="noticeNewPrice"></strong>, nhưng bạn
+              <strong>vẫn chỉ trả mức đã chốt</strong>
+              <span th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></span>.
+              Không thu thêm, không hoàn lại.
+            </div>
+          </div>
+
+          <div class="custom-card">
+            <h5 class="fw-bold mb-3 border-bottom pb-2">Người đi khám</h5>
+
+            <div class="mb-3">
+              <label class="small fw-bold mb-1" for="patientName">Họ tên</label>
+              <input type="text" id="patientName" name="patientName" class="form-control"
+                     th:value="${booking.patientName}" th:placeholder="${currentUser.fullName}">
+            </div>
+            <div class="mb-3">
+              <label class="small fw-bold mb-1" for="patientPhone">Số điện thoại</label>
+              <input type="tel" id="patientPhone" name="patientPhone" class="form-control"
+                     th:value="${booking.patientPhone}" th:placeholder="${currentUser.phone}">
+            </div>
+            <div class="mb-0">
+              <label class="small fw-bold mb-1" for="appointmentType">Loại hình khám <span class="text-danger">*</span></label>
+              <select id="appointmentType" name="appointmentType" class="form-select" required>
+                <option value="BHYT" th:selected="${booking.appointmentType == 'BHYT'}">Khám BHYT</option>
+                <option value="Dịch vụ" th:selected="${booking.appointmentType == 'Dịch vụ'}">Khám Dịch vụ</option>
+                <option value="Từ xa" th:selected="${booking.appointmentType == 'Từ xa'}">Khám Từ xa</option>
+                <option value="Tại nhà" th:selected="${booking.appointmentType == 'Tại nhà'}">Khám Tại nhà</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== CỘT PHẢI: NGÀY & GIỜ ===== -->
+        <div class="col-lg-8">
+          <div class="custom-card">
+            <h5 class="fw-bold mb-3">Chọn ngày khám</h5>
+            <input type="date" id="appointmentDate" name="appointmentDate"
+                   class="form-control form-control-lg mb-4"
+                   th:value="${booking.appointmentDate}" th:min="${today}" required>
+
+            <hr class="text-muted opacity-25 my-4">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+              <h5 class="fw-bold mb-0">Chọn giờ khám</h5>
+              <div class="small mt-2 mt-md-0" style="color: #64748B;">
+                <span class="me-3"><i class="bi bi-square rounded me-1 border" style="padding: 1px 6px;"></i> Trống</span>
+                <span class="me-3"><i class="bi bi-square-fill rounded me-1" style="padding: 1px 6px; color: #0284C7;"></i> Đã chọn</span>
+                <span><i class="bi bi-square-fill rounded me-1" style="padding: 1px 6px; color: #CBD5E1;"></i> Kín lịch</span>
+              </div>
+            </div>
+
+            <div id="slotHint" class="alert alert-light border py-2 small">Đang tải khung giờ trống…</div>
+
+            <div id="timeSlotContainer">
+              <div class="mb-4">
+                <h6 class="fw-bold mb-3" style="color: #475569;">
+                  <i class="bi bi-brightness-alt-high text-warning me-2 fs-5"></i> Buổi Sáng
+                </h6>
+                <div class="time-slot-grid" role="group">
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_0730" value="07:30 - 08:00"><label class="btn" for="t_0730">07:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_0800" value="08:00 - 08:30"><label class="btn" for="t_0800">08:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_0830" value="08:30 - 09:00"><label class="btn" for="t_0830">08:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_0900" value="09:00 - 09:30"><label class="btn" for="t_0900">09:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_0930" value="09:30 - 10:00"><label class="btn" for="t_0930">09:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1000" value="10:00 - 10:30"><label class="btn" for="t_1000">10:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1030" value="10:30 - 11:00"><label class="btn" for="t_1030">10:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1100" value="11:00 - 11:30"><label class="btn" for="t_1100">11:00</label>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <h6 class="fw-bold mb-3" style="color: #475569;">
+                  <i class="bi bi-brightness-high text-warning me-2 fs-5"></i> Buổi Chiều
+                </h6>
+                <div class="time-slot-grid" role="group">
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1330" value="13:30 - 14:00"><label class="btn" for="t_1330">13:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1400" value="14:00 - 14:30"><label class="btn" for="t_1400">14:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1430" value="14:30 - 15:00"><label class="btn" for="t_1430">14:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1500" value="15:00 - 15:30"><label class="btn" for="t_1500">15:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1530" value="15:30 - 16:00"><label class="btn" for="t_1530">15:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1600" value="16:00 - 16:30"><label class="btn" for="t_1600">16:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1630" value="16:30 - 17:00"><label class="btn" for="t_1630">16:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1700" value="17:00 - 17:30"><label class="btn" for="t_1700">17:00</label>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <h6 class="fw-bold mb-3" style="color: #475569;">
+                  <i class="bi bi-moon-stars text-primary me-2 fs-5"></i> Buổi Tối
+                </h6>
+                <div class="time-slot-grid" role="group">
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1730" value="17:30 - 18:00"><label class="btn" for="t_1730">17:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1800" value="18:00 - 18:30"><label class="btn" for="t_1800">18:00</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1830" value="18:30 - 19:00"><label class="btn" for="t_1830">18:30</label>
+                  <input type="radio" class="btn-check time-slot" name="appointmentTime" id="t_1900" value="19:00 - 19:30"><label class="btn" for="t_1900">19:00</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="custom-card">
+            <h5 class="fw-bold mb-3">Triệu chứng &amp; ghi chú</h5>
+            <textarea class="form-control bg-light border-0" name="notes" rows="3"
+                      placeholder="Mô tả triệu chứng hoặc lý do thăm khám..."
+                      th:text="${booking.notes}"></textarea>
+            <div class="form-text">
+              Cập nhật triệu chứng mới nhất sẽ giúp bác sĩ chuẩn bị tốt hơn cho buổi khám.
+            </div>
+          </div>
+
+          <div class="custom-card d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div class="mb-3 mb-md-0">
+              <span class="text-muted small">Sau khi lưu, email xác nhận sẽ được gửi cho bạn.</span>
+              <h5 class="fw-bold mb-0" style="color: #006B63;">Xác nhận đổi lịch</h5>
+            </div>
+            <div class="d-flex gap-2">
+              <a th:href="@{/user/profile}" class="btn btn-outline-dark">Quay lại</a>
+              <button type="submit" class="btn btn-teal">
+                Lưu thay đổi <i class="bi bi-check2 ms-2"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</main>
+
+<div th:replace="~{user/include/footer :: footer}"></div>
+
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/assets/js/main.js}"></script>
+
+<script th:inline="javascript">
+  document.addEventListener('DOMContentLoaded', function () {
+    // Lịch hẹn đang giữ — dùng để không tự coi slot của chính mình là "đã kín"
+    var CURRENT = {
+      doctorId: /*[[${booking.doctor.id}]]*/ 0,
+      date: /*[[${#temporals.format(booking.appointmentDate, 'yyyy-MM-dd')}]]*/ '',
+      time: /*[[${booking.appointmentTime}]]*/ '',
+      price: /*[[${booking.bookingPrice}]]*/ 0
+    };
+
+    var doctorSelect = document.getElementById('doctorId');
+    var dateInput = document.getElementById('appointmentDate');
+    var slotContainer = document.getElementById('timeSlotContainer');
+    var slotHint = document.getElementById('slotHint');
+    var priceNotice = document.getElementById('priceNotice');
+    var noticeNewPrice = document.getElementById('noticeNewPrice');
+
+    var slotInputs = Array.prototype.slice.call(slotContainer.querySelectorAll('.time-slot'));
+    var priceFormatter = new Intl.NumberFormat('vi-VN');
+
+    // Giá niêm yết của bác sĩ, đọc từ chính option đang chọn
+    var doctorPrices = {};
+    Array.prototype.slice.call(doctorSelect.options).forEach(function (opt) {
+      var match = opt.textContent.match(/([\d.]+)\s*đ\s*$/);
+      if (match) { doctorPrices[opt.value] = match[1]; }
+    });
+
+    function updatePriceNotice() {
+      var listed = doctorPrices[doctorSelect.value];
+      var current = priceFormatter.format(Math.round(CURRENT.price));
+
+      if (listed && listed !== current) {
+        noticeNewPrice.textContent = listed + ' đ';
+        priceNotice.style.display = '';
+      } else {
+        priceNotice.style.display = 'none';
+      }
+    }
+
+    /** Khóa các khung giờ đã trôi qua nếu đang chọn chính hôm nay. */
+    function disablePastSlots() {
+      var now = new Date();
+      var todayStr = now.getFullYear() + '-'
+        + String(now.getMonth() + 1).padStart(2, '0') + '-'
+        + String(now.getDate()).padStart(2, '0');
+
+      if (dateInput.value !== todayStr) return;
+
+      slotInputs.forEach(function (input) {
+        var parts = input.value.split(' - ')[0].split(':');
+        var slotMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        if (slotMinutes <= now.getHours() * 60 + now.getMinutes()) {
+          input.disabled = true;
+          input.checked = false;
+        }
+      });
+    }
+
+    function loadSlots() {
+      var doctorId = doctorSelect.value;
+      var date = dateInput.value;
+
+      // Slot đang giữ của chính lịch hẹn này thì không được coi là kín
+      var keepingOwnSlot = (String(doctorId) === String(CURRENT.doctorId)) && (date === CURRENT.date);
+
+      var previouslyChecked = slotInputs.filter(function (i) { return i.checked; })
+                                        .map(function (i) { return i.value; })[0];
+
+      slotInputs.forEach(function (input) {
+        input.disabled = false;
+        input.classList.remove('is-current');
+      });
+
+      if (!doctorId || !date) {
+        slotHint.className = 'alert alert-light border py-2 small';
+        slotHint.textContent = 'Chọn bác sĩ và ngày khám để xem khung giờ còn trống.';
+        return;
+      }
+
+      slotHint.className = 'alert alert-light border py-2 small';
+      slotHint.textContent = 'Đang tải khung giờ trống…';
+
+      fetch('/api/bookings/booked-slots?doctorId=' + encodeURIComponent(doctorId)
+            + '&date=' + encodeURIComponent(date))
+        .then(function (res) { return res.ok ? res.json() : []; })
+        .then(function (unavailable) {
+          var free = 0;
+
+          slotInputs.forEach(function (input) {
+            var isOwnSlot = keepingOwnSlot && input.value === CURRENT.time;
+
+            if (isOwnSlot) {
+              input.classList.add('is-current');
+              return; // luôn để trống cho chính chủ chọn lại
+            }
+            if (unavailable.indexOf(input.value) !== -1) {
+              input.disabled = true;
+              input.checked = false;
+            }
+          });
+
+          disablePastSlots();
+          slotInputs.forEach(function (input) { if (!input.disabled) free++; });
+
+          // Giữ lại lựa chọn cũ nếu vẫn hợp lệ, nếu không thì bật lại slot đang giữ
+          var target = slotInputs.filter(function (i) {
+            return i.value === previouslyChecked && !i.disabled;
+          })[0];
+
+          if (!target && keepingOwnSlot) {
+            target = slotInputs.filter(function (i) {
+              return i.value === CURRENT.time && !i.disabled;
+            })[0];
+          }
+          if (target) { target.checked = true; }
+
+          if (free > 0) {
+            slotHint.className = 'alert alert-success py-2 small';
+            slotHint.innerHTML = '<i class="bi bi-check-circle me-1"></i> Còn <strong>'
+              + free + '</strong> khung giờ trống. Khung giờ bạn đang giữ được đánh dấu “đang giữ”.';
+          } else {
+            slotHint.className = 'alert alert-warning py-2 small';
+            slotHint.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> '
+              + 'Ngày này đã kín lịch, hãy chọn ngày khác hoặc bác sĩ khác trong khoa.';
+          }
+        })
+        .catch(function () {
+          slotHint.className = 'alert alert-danger py-2 small';
+          slotHint.textContent = 'Không tải được danh sách khung giờ, vui lòng thử lại.';
+        });
+    }
+
+    doctorSelect.addEventListener('change', function () {
+      updatePriceNotice();
+      loadSlots();
+    });
+    dateInput.addEventListener('change', loadSlots);
+
+    // .btn-check bị ẩn nên required của trình duyệt sẽ chặn submit mà không báo gì
+    document.getElementById('rescheduleForm').addEventListener('submit', function (e) {
+      var chosen = slotInputs.some(function (input) { return input.checked; });
+      if (!chosen) {
+        e.preventDefault();
+        slotHint.className = 'alert alert-danger py-2 small';
+        slotHint.innerHTML = '<i class="bi bi-exclamation-octagon me-1"></i> Vui lòng chọn một khung giờ khám.';
+        slotHint.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    updatePriceNotice();
+    loadSlots();
+  });
+</script>
+</body>
+</html>
