@@ -19,6 +19,17 @@ public interface EmailService {
      */
     void sendBookingDoctorChange(Booking booking, String oldDoctorName, String reason);
 
+    /**
+     * Xác nhận bệnh nhân đã tự đổi lịch thành công, trình bày dạng "trước → sau".
+     *
+     * @param booking       lịch hẹn SAU khi đã đổi
+     * @param oldDoctorName tên bác sĩ cũ (phải lấy trước khi đổi)
+     * @param oldDate       ngày khám cũ
+     * @param oldTime       khung giờ cũ
+     */
+    void sendBookingRescheduled(Booking booking, String oldDoctorName,
+                                java.time.LocalDate oldDate, String oldTime);
+
     // === 3 HÀM MỚI CHO TUYỂN DỤNG ===
     void sendCandidateConfirmation(Candidate candidate); // Gửi cho Ứng viên (đã nộp xong)
     void sendNewCandidateNotification(Candidate candidate); // Gửi cho Admin (có người nộp)

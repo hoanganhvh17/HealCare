@@ -21,7 +21,21 @@ Availability is computed against a **fixed 30-minute slot grid** running 07:30�
 
 Note this lock is in-process only; it does not protect against double-booking across multiple app instances.
 
-## 4. Shared cancel logic
+`rescheduleByUser(bookingId, userId, RescheduleRequestDTO)` (the patient editing their own booking at `/user/booking/edit/{id}`) also reuses `slotLocks`. It skips the lock entirely when doctor+date+time are unchanged — otherwise the booking's own row would be found by `existsBy...` and reported as a conflict with itself.
+
+## 4. Patient self-service edit rules
+
+`BookingService.whyCannotReschedule(booking)` is the **single source of truth** for whether a patient may still change a booking — it returns `null` when allowed, otherwise the Vietnamese reason shown to the patient. `ProfileController` calls it to enable/disable the button and `UserBookingEditController` calls it again on both GET and POST, so the UI can never disagree with the server.
+
+Constants live on `BookingService`: `MIN_HOURS_BEFORE_CHANGE = 24` and `MAX_RESCHEDULE_TIMES = 2`.
+
+- Changing doctor is restricted to the **same department**, matching `reassign()`.
+- `bookingPrice` and `paymentStatus` are deliberately **never touched** — moving to a pricier doctor costs the patient nothing.
+- `rescheduleCount` / `lastRescheduledAt` on `Booking` only advance when the slot actually moves; editing notes or the patient's name does not consume a change.
+- Moving a booking clears `queueOrder` / `lateMarkedAt`, since the old queue position belongs to the old slot.
+- The new slot only has to be in the future — the 24-hour rule gates the *current* appointment, mirroring cancel, since booking a brand-new slot for tomorrow has never been restricted.
+
+## 5. Shared cancel logic
 `BookingServiceImpl.cancelWithRefund(bookingId, reason)` is the single place that cancels a booking: sets `CANCELED`, refunds `bookingPrice` to the wallet when `paymentStatus == "PAID"` (marking it `REFUNDED`, otherwise `FAILED`), and sends the cancellation email. `AdminBookingController` and the receptionist bulk-cancel flow both call it — put any change to cancellation behaviour here, not in a controller.
 
 ## Data model notes

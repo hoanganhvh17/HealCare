@@ -400,12 +400,45 @@
                       <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
                     </td>
                     <td class="text-center">
-                      <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
-                         th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
-                         class="btn btn-sm btn-outline-danger"
-                         onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
-                        <i class="bi bi-x-circle"></i> Hủy
-                      </a>
+                      <div th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                           class="d-flex flex-column align-items-center gap-1">
+
+                        <div class="d-flex gap-2 justify-content-center">
+                          <!-- Còn hạn đổi: mở trang sửa lịch -->
+                          <a th:if="${editBlockReasons.get(booking.id) == null}"
+                             th:href="@{/user/booking/edit/{id}(id=${booking.id})}"
+                             class="btn btn-sm btn-outline-primary" title="Đổi bác sĩ, ngày hoặc giờ khám">
+                            <i class="bi bi-pencil-square"></i> Đổi lịch
+                          </a>
+                          <!-- Hết hạn đổi: nút mờ, di chuột vào để biết lý do -->
+                          <button th:if="${editBlockReasons.get(booking.id) != null}"
+                                  type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                  th:title="${editBlockReasons.get(booking.id)}">
+                            <i class="bi bi-pencil-square"></i> Đổi lịch
+                          </button>
+
+                          <a th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
+                             class="btn btn-sm btn-outline-danger"
+                             onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
+                            <i class="bi bi-x-circle"></i> Hủy
+                          </a>
+                        </div>
+
+                        <!-- Đếm ngược hạn chót để bệnh nhân không bị bất ngờ -->
+                        <small th:if="${editBlockReasons.get(booking.id) == null and hoursLeft.get(booking.id) != null}"
+                               class="text-muted" style="font-size: 0.72rem;">
+                          <i class="bi bi-hourglass-split"></i>
+                          Còn <span th:text="${hoursLeft.get(booking.id)}">48</span> giờ để tự đổi/hủy
+                        </small>
+                        <small th:if="${editBlockReasons.get(booking.id) != null}"
+                               class="text-muted" style="font-size: 0.72rem;"
+                               th:text="${editBlockReasons.get(booking.id)}">Lý do</small>
+
+                        <span th:if="${booking.rescheduleCount != null and booking.rescheduleCount > 0}"
+                              class="badge bg-light text-secondary border" style="font-size: 0.68rem;">
+                          Đã đổi <span th:text="${booking.rescheduleCount}">1</span> lần
+                        </span>
+                      </div>
 
                       <div th:if="${booking.status.name() == 'COMPLETED'}" class="d-flex gap-2 justify-content-center">
                         <a th:href="@{/user/medical-record/view/{bookingId}(bookingId=${booking.id})}"
@@ -585,6 +618,17 @@
       element.classList.add("bi-eye");
     }
   }
+
+  // Mở đúng tab theo hash, để sau khi đổi/hủy lịch người dùng quay lại
+  // ngay tab "Lịch sử đặt hẹn" thay vì phải bấm lại.
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.location.hash) return;
+
+    var trigger = document.querySelector('[data-bs-target="' + window.location.hash + '"]');
+    if (trigger) {
+      new bootstrap.Tab(trigger).show();
+    }
+  });
 </script>
 
 </body>

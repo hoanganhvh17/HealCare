@@ -1,5 +1,6 @@
 package com.bookinghealthy.service.impl;
 
+import com.bookinghealthy.dto.RescheduleRequestDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
@@ -17,8 +18,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -193,6 +196,205 @@ public class BookingServiceImpl implements BookingService {
         emailService.sendBookingCancellation(booking, reason);
 
         return refunded;
+    }
+
+    // ===================== BỆNH NHÂN TỰ ĐỔI LỊCH =====================
+
+    @Override
+    public Long hoursUntilAppointment(Booking booking) {
+        LocalDateTime start = appointmentStartOf(booking);
+        if (start == null) {
+            return null;
+        }
+        return ChronoUnit.HOURS.between(LocalDateTime.now(), start);
+    }
+
+    @Override
+    public String whyCannotReschedule(Booking booking) {
+        if (booking == null) {
+            return "Không tìm thấy lịch hẹn.";
+        }
+        if (booking.getStatus() == BookingStatus.CANCELED) {
+            return "Lịch hẹn đã bị hủy nên không sửa được nữa.";
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            return "Lịch hẹn đã khám xong nên không sửa được nữa.";
+        }
+
+        int used = rescheduleCountOf(booking);
+        if (used >= MAX_RESCHEDULE_TIMES) {
+            return "Bạn đã đổi lịch " + used + " lần (tối đa " + MAX_RESCHEDULE_TIMES
+                    + " lần). Vui lòng liên hệ hotline để được hỗ trợ.";
+        }
+
+        Long hoursLeft = hoursUntilAppointment(booking);
+        if (hoursLeft == null) {
+            return "Không đọc được khung giờ của lịch hẹn, vui lòng liên hệ hotline.";
+        }
+        if (hoursLeft < MIN_HOURS_BEFORE_CHANGE) {
+            return "Chỉ đổi được lịch khi còn cách giờ khám trên " + MIN_HOURS_BEFORE_CHANGE
+                    + " tiếng. Vui lòng liên hệ hotline để được hỗ trợ.";
+        }
+        return null;
+    }
+
+    @Override
+    public Booking rescheduleByUser(Long bookingId, Long userId, RescheduleRequestDTO request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        if (booking.getUser() == null || !booking.getUser().getId().equals(userId)) {
+            throw new IllegalStateException("Bạn không có quyền sửa lịch hẹn này.");
+        }
+
+        // Kiểm tra lại ở server chứ không tin vào việc giao diện đã ẩn nút
+        String blockedReason = whyCannotReschedule(booking);
+        if (blockedReason != null) {
+            throw new IllegalStateException(blockedReason);
+        }
+
+        if (request.getDoctorId() == null || request.getAppointmentDate() == null
+                || request.getAppointmentTime() == null || request.getAppointmentTime().isBlank()) {
+            throw new IllegalStateException("Vui lòng chọn đầy đủ bác sĩ, ngày khám và khung giờ.");
+        }
+
+        Doctor newDoctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy bác sĩ đã chọn."));
+
+        // Cùng ràng buộc chuyên khoa như reassign(): người bệnh không được tự nhảy sang khoa khác,
+        // vì giá đã chốt và hồ sơ bệnh án gắn với chuyên môn của khoa ban đầu.
+        Long currentDepartmentId = (booking.getDoctor() != null && booking.getDoctor().getDepartment() != null)
+                ? booking.getDoctor().getDepartment().getId() : null;
+        Long newDepartmentId = (newDoctor.getDepartment() != null) ? newDoctor.getDepartment().getId() : null;
+
+        if (currentDepartmentId == null || newDepartmentId == null || !currentDepartmentId.equals(newDepartmentId)) {
+            throw new IllegalStateException("Chỉ đổi được sang bác sĩ cùng chuyên khoa với lịch hẹn ban đầu.");
+        }
+
+        final LocalDate newDate = request.getAppointmentDate();
+        final String newTime = request.getAppointmentTime().trim();
+
+        LocalTime newStart = parseSlotStart(newTime);
+        if (newStart == null) {
+            throw new IllegalStateException("Khung giờ không hợp lệ: " + newTime);
+        }
+        if (LocalDateTime.of(newDate, newStart).isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Khung giờ vừa chọn đã trôi qua, vui lòng chọn khung giờ khác.");
+        }
+
+        boolean slotUnchanged = booking.getDoctor() != null
+                && newDoctor.getId().equals(booking.getDoctor().getId())
+                && newDate.equals(booking.getAppointmentDate())
+                && newTime.equals(booking.getAppointmentTime());
+
+        // Chỉ sửa ghi chú / thông tin người khám thì không đụng tới slot và không tính là một lần đổi lịch
+        if (slotUnchanged) {
+            applyEditableFields(booking, request);
+            return bookingRepository.save(booking);
+        }
+
+        // Giữ lại thông tin cũ để đưa vào email "trước → sau"
+        final String oldDoctorName = (booking.getDoctor() != null && booking.getDoctor().getUser() != null)
+                ? "Dr. " + booking.getDoctor().getUser().getFullName() : "Bác sĩ trước đó";
+        final LocalDate oldDate = booking.getAppointmentDate();
+        final String oldTime = booking.getAppointmentTime();
+
+        // Dùng CHUNG khóa với reserve()/reassign() để hai người cùng nhắm một slot không thể cùng chiếm
+        final String slotKey = buildSlotKey(newDoctor.getId(), newDate, newTime);
+        final ReentrantLock lock = slotLocks.computeIfAbsent(slotKey, key -> new ReentrantLock());
+        final boolean[] releaseAfterReturn = {true};
+
+        lock.lock();
+        try {
+            boolean booked = bookingRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
+                    newDoctor.getId(), newDate, newTime, BookingStatus.CANCELED);
+
+            if (booked) {
+                throw new IllegalStateException("Khung giờ " + newTime + " đã có người giữ chỗ, vui lòng chọn giờ khác.");
+            }
+
+            if (isBlockedForDoctor(newDoctor.getId(), newDate, newTime)) {
+                throw new IllegalStateException("Bác sĩ đã khóa khung giờ " + newTime + ", vui lòng chọn giờ khác.");
+            }
+
+            booking.setDoctor(newDoctor);
+            booking.setAppointmentDate(newDate);
+            booking.setAppointmentTime(newTime);
+
+            // Đổi sang khung khám mới thì vị trí hàng chờ cũ của lễ tân không còn ý nghĩa
+            booking.setQueueOrder(null);
+            booking.setLateMarkedAt(null);
+
+            booking.setRescheduleCount(rescheduleCountOf(booking) + 1);
+            booking.setLastRescheduledAt(LocalDateTime.now());
+
+            // Giữ nguyên bookingPrice và paymentStatus: bệnh nhân không bị thu thêm
+            // dù bác sĩ mới có giá niêm yết khác.
+            applyEditableFields(booking, request);
+            Booking savedBooking = bookingRepository.save(booking);
+
+            emailService.sendBookingRescheduled(savedBooking, oldDoctorName, oldDate, oldTime);
+
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                releaseAfterReturn[0] = false;
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCompletion(int status) {
+                        lock.unlock();
+                        slotLocks.remove(slotKey, lock);
+                    }
+                });
+            }
+
+            return savedBooking;
+        } finally {
+            if (releaseAfterReturn[0]) {
+                lock.unlock();
+                slotLocks.remove(slotKey, lock);
+            }
+        }
+    }
+
+    /** Các trường bệnh nhân được sửa tự do, không ảnh hưởng tới việc giữ slot. */
+    private void applyEditableFields(Booking booking, RescheduleRequestDTO request) {
+        if (request.getAppointmentType() != null && !request.getAppointmentType().isBlank()) {
+            booking.setAppointmentType(request.getAppointmentType().trim());
+        }
+
+        // Bỏ trống thì quay về thông tin chủ tài khoản, giống lúc đặt lịch lần đầu
+        String name = request.getPatientName();
+        booking.setPatientName((name != null && !name.isBlank())
+                ? name.trim() : booking.getUser().getFullName());
+
+        String phone = request.getPatientPhone();
+        booking.setPatientPhone((phone != null && !phone.isBlank())
+                ? phone.trim() : booking.getUser().getPhone());
+
+        booking.setNotes(request.getNotes());
+    }
+
+    private int rescheduleCountOf(Booking booking) {
+        return booking.getRescheduleCount() == null ? 0 : booking.getRescheduleCount();
+    }
+
+    /** Thời điểm bắt đầu ca khám, null nếu dữ liệu giờ không đúng định dạng "HH:mm - HH:mm". */
+    private LocalDateTime appointmentStartOf(Booking booking) {
+        if (booking == null || booking.getAppointmentDate() == null) {
+            return null;
+        }
+        LocalTime start = parseSlotStart(booking.getAppointmentTime());
+        return (start == null) ? null : LocalDateTime.of(booking.getAppointmentDate(), start);
+    }
+
+    private LocalTime parseSlotStart(String appointmentTime) {
+        if (appointmentTime == null || appointmentTime.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalTime.parse(appointmentTime.split(" - ")[0].trim(), SLOT_TIME_FORMATTER);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

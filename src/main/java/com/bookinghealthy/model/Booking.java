@@ -80,4 +80,13 @@ public class Booking {
     // Thời điểm lễ tân đánh dấu trễ (để hiển thị badge và tra cứu lại)
     @Column(name = "late_marked_at")
     private LocalDateTime lateMarkedAt;
+
+    // === BỆNH NHÂN TỰ ĐỔI LỊCH ===
+    // Số lần bệnh nhân đã tự đổi bác sĩ / ngày / giờ. Chỉ tăng khi khung khám thật sự đổi,
+    // sửa ghi chú hay tên người khám thì không tính. Dùng để chặn giữ chỗ ảo.
+    @Column(name = "reschedule_count")
+    private Integer rescheduleCount;
+
+    @Column(name = "last_rescheduled_at")
+    private LocalDateTime lastRescheduledAt;
 }

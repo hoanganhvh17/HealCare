@@ -140,6 +140,60 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    // === XÁC NHẬN BỆNH NHÂN TỰ ĐỔI LỊCH ===
+    @Async
+    @Override
+    public void sendBookingRescheduled(Booking booking, String oldDoctorName,
+                                       java.time.LocalDate oldDate, String oldTime) {
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(booking.getUser().getEmail());
+            helper.setSubject("MediTrust - Đã đổi lịch khám #" + booking.getId() + " thành công");
+
+            org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+            context.setVariable("patientName",
+                    booking.getPatientName() != null && !booking.getPatientName().isBlank()
+                            ? booking.getPatientName()
+                            : booking.getUser().getFullName());
+            context.setVariable("bookingId", booking.getId());
+            context.setVariable("departmentName", booking.getDoctor().getDepartment().getName());
+
+            java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            context.setVariable("oldDoctorName", oldDoctorName);
+            context.setVariable("oldDate", oldDate != null ? oldDate.format(dateFormatter) : "");
+            context.setVariable("oldTime", oldTime);
+
+            context.setVariable("newDoctorName", "Dr. " + booking.getDoctor().getUser().getFullName());
+            context.setVariable("newDate", booking.getAppointmentDate().format(dateFormatter));
+            context.setVariable("newTime", booking.getAppointmentTime());
+
+            context.setVariable("type", booking.getAppointmentType());
+            context.setVariable("price", booking.getBookingPrice().toString());
+
+            // Cho bệnh nhân biết còn mấy lần đổi nữa, tránh bất ngờ khi bị chặn
+            int used = booking.getRescheduleCount() == null ? 0 : booking.getRescheduleCount();
+            context.setVariable("usedTimes", used);
+            context.setVariable("maxTimes", com.bookinghealthy.service.BookingService.MAX_RESCHEDULE_TIMES);
+
+            String htmlContent = templateEngine.process("email/booking-rescheduled", context);
+            helper.setText(htmlContent, true);
+
+            // Lịch hẹn giữ nguyên id nên mã QR check-in cũ vẫn dùng được
+            byte[] qrCode = com.bookinghealthy.util.QRCodeGenerator.getQRCodeImage("BOOKING_ID:" + booking.getId(), 250, 250);
+            if (qrCode != null) {
+                helper.addInline("qrCodeImage", new org.springframework.core.io.ByteArrayResource(qrCode), "image/png");
+            }
+
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            System.err.println("Lỗi khi gửi mail ĐỔI LỊCH: " + e.getMessage());
+        }
+    }
+
     // === 1. GỬI XÁC NHẬN CHO ỨNG VIÊN ===
     @Async
     @Override

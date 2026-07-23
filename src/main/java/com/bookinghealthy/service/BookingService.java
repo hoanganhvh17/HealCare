@@ -1,5 +1,6 @@
 package com.bookinghealthy.service;
 
+import com.bookinghealthy.dto.RescheduleRequestDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.User;
 
@@ -7,6 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BookingService {
+
+    /** Bệnh nhân chỉ được tự đổi/hủy khi còn cách giờ khám nhiều hơn số giờ này. */
+    int MIN_HOURS_BEFORE_CHANGE = 24;
+
+    /** Số lần tối đa một lịch hẹn được bệnh nhân tự dời, tránh giữ chỗ ảo. */
+    int MAX_RESCHEDULE_TIMES = 2;
+
     Booking save(Booking booking);
     Booking reserve(Booking booking);
     // (Chúng ta sẽ thêm các hàm find... sau)
@@ -34,4 +42,34 @@ public interface BookingService {
      * @return true nếu có hoàn tiền vào ví, false nếu lịch chưa thanh toán.
      */
     boolean cancelWithRefund(Long bookingId, String reason);
+
+    /**
+     * Kiểm tra một lịch hẹn có còn được bệnh nhân tự sửa hay không.
+     * Dùng chung cho trang hồ sơ (ẩn/hiện nút) và cho controller (chặn thật sự),
+     * để giao diện và server không bao giờ nói khác nhau.
+     *
+     * @return null nếu được phép sửa, ngược lại là lý do bằng tiếng Việt để hiển thị cho bệnh nhân.
+     */
+    String whyCannotReschedule(Booking booking);
+
+    /**
+     * Số giờ còn lại tính đến giờ khám. Âm nghĩa là đã quá giờ.
+     * Trả về null nếu không đọc được khung giờ của lịch hẹn.
+     */
+    Long hoursUntilAppointment(Booking booking);
+
+    /**
+     * Bệnh nhân tự sửa lịch hẹn của mình: đổi bác sĩ (bắt buộc cùng chuyên khoa),
+     * đổi ngày/giờ, sửa thông tin người khám và ghi chú.
+     * <p>
+     * Giữ nguyên {@code bookingPrice} đã chốt lúc đặt và trạng thái thanh toán —
+     * bệnh nhân không bị thu thêm dù bác sĩ mới có giá niêm yết khác.
+     * Dùng chung cơ chế khóa slot với {@code reserve()} nên hai người cùng nhắm
+     * một khung giờ sẽ không thể cùng chiếm.
+     *
+     * @param userId id của người đang đăng nhập, để chặn sửa lịch của người khác.
+     * @throws IllegalStateException khi hết hạn sửa, quá số lần cho phép, khác chuyên khoa,
+     *                               slot đã kín / bị bác sĩ chặn, hoặc chọn giờ trong quá khứ.
+     */
+    Booking rescheduleByUser(Long bookingId, Long userId, RescheduleRequestDTO request);
 }

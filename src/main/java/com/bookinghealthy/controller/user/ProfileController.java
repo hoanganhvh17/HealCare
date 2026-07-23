@@ -25,7 +25,9 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/user")
@@ -65,9 +67,20 @@ public class ProfileController {
         // Lấy danh sách booking (đã sắp xếp giảm dần theo ngày)
         List<Booking> myBookings = bookingService.findByUser(user);
 
+        // Điều kiện đổi lịch được tính ở service để giao diện và server không nói khác nhau:
+        // null = còn đổi được, ngược lại là lý do hiển thị ngay trên nút.
+        Map<Long, String> editBlockReasons = new HashMap<>();
+        Map<Long, Long> hoursLeft = new HashMap<>();
+        for (Booking booking : myBookings) {
+            editBlockReasons.put(booking.getId(), bookingService.whyCannotReschedule(booking));
+            hoursLeft.put(booking.getId(), bookingService.hoursUntilAppointment(booking));
+        }
+
         model.addAttribute("user", user);
         model.addAttribute("updateProfile", dto);
         model.addAttribute("myBookings", myBookings);
+        model.addAttribute("editBlockReasons", editBlockReasons);
+        model.addAttribute("hoursLeft", hoursLeft);
         return "user/profile";
     }
 
