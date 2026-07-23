@@ -13,5 +13,10 @@ Default logins: `admin`/`admin123`, `patient_tom`/`123456`, doctors such as `doc
 
 `data.sql` also exists but is disabled (`spring.sql.init.mode=never`).
 
+## Testing the voice agent
+The mic only works in a **secure context**. `http://localhost:8090` qualifies, so normal local dev is fine — but reaching the same dev server from another device over `http://192.168.x.x:8090` silently disables every voice feature. Test on `localhost` in Chrome or Edge, and put the app behind HTTPS before demoing voice off-machine.
+
+Reading answers aloud also needs a Vietnamese voice installed on the OS (Windows: *Settings > Time & Language > Speech*). Without one the assistant falls back to the default voice and mispronounces Vietnamese; a console warning is logged once.
+
 ## Uploads
 Uploaded images are written to an `uploads/` directory beside the running process and served at `/uploads/**` (see [WebConfig.java](src/main/java/com/bookinghealthy/config/WebConfig.java)). This folder is not in the repo — it is created at runtime. Multipart limit is 10MB.

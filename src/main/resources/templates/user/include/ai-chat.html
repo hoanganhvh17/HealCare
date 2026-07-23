@@ -132,7 +132,16 @@
     </button>
   </div>
 
+  <!-- Cờ đăng nhập cho chế độ gọi: /appointment yêu cầu đăng nhập, nên trước khi
+       điều hướng phải biết khách đã đăng nhập chưa để mời đăng nhập cho tử tế. -->
+  <script th:inline="javascript">
+    window.MEDITRUST_IS_LOGGED_IN = /*[[${#authorization.expression('isAuthenticated()')}]]*/ false;
+  </script>
+
+  <!-- Lớp giọng nói: phải nạp TRƯỚC ai-chat.js vì ai-chat.js gọi MediTrustVoice.attach() -->
+  <script th:src="@{/assets/js/meditrust-voice.js}"></script>
   <script th:src="@{/assets/js/ai-chat.js}"></script>
+  <script th:src="@{/assets/js/meditrust-voice-call.js}"></script>
 </div>
 </body>
 </html>

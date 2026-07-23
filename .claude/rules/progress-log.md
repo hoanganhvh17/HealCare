@@ -35,6 +35,7 @@ Keep entries short (one line). Details belong in the topic rule file, not here.
 
 ## Log
 
+- 2026-07-23 — `feat:` giao tiếp bằng giọng nói cho trợ lý AI (nút mic/loa ở cả 3 khung chat + chế độ gọi rảnh tay cho bệnh nhân) — `meditrust-voice.js`, `meditrust-voice-call.js`, `ai-chat.js` (`window.MediTrustChat`), `AiService` (`speech_reply`), 3 template `ai-chat` — ai-assistant.md, coding-conventions.md, environment-setup.md
 - 2026-07-23 — `docs:` thêm quy tắc bắt buộc ghi nhật ký tiến độ vào `.claude/rules/` — `.claude/rules/progress-log.md`, `CLAUDE.md` — progress-log.md (mới)
 - 2026-07-23 — `feat:` thay đổi lịch khám phía client (bệnh nhân tự dời lịch tại `/user/booking/edit/{id}`) — `UserBookingEditController`, `BookingService.whyCannotReschedule` / `rescheduleByUser`, `templates/user/` — booking-flow.md
 - 2026-07-23 — `feat:` role lễ tân: đặt lịch tại quầy, hủy/dời lịch, hàng đợi khám — `controller/receptionist/`, `ReceptionServiceImpl.sortByQueue`, `DataInitializer.ensureReceptionistAccount` — authentication-and-roles.md, booking-flow.md

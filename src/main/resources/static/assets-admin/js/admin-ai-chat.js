@@ -175,5 +175,17 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.onmouseup = () => { isResizing = false; document.body.style.userSelect = 'auto'; };
     }
+
+    // 7. Giọng nói: nút mic để đọc câu hỏi, nút loa để nghe câu trả lời.
+    //    Module tự ẩn nếu trình duyệt không hỗ trợ.
+    if (window.MediTrustVoice) {
+        window.MediTrustVoice.attach({
+            inputId: 'admin-ai-input-sidebar',
+            sendBtnId: 'admin-ai-send-sidebar',
+            messagesId: 'admin-ai-messages-sidebar',
+            botSelector: '.admin-chat-msg.bot',
+            micTitle: 'Bấm để đọc câu hỏi'
+        });
+    }
 });
 }

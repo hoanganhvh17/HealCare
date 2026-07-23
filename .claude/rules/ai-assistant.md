@@ -5,9 +5,11 @@
 ## Patient triage (`chatWithMemory`)
 A large Vietnamese system prompt constrains the model to return **strict JSON** with these keys:
 
-`reasoning`, `ai_reply`, `suggested_prompts` (always 3), `recommended_departments` (array of department IDs), `is_emergency`, `patient_summary`, `booking_intent`, `booking_target`.
+`reasoning`, `ai_reply`, `speech_reply`, `suggested_prompts` (always 3), `recommended_departments` (array of department IDs), `is_emergency`, `patient_summary`, `booking_intent`, `booking_target`.
 
 The frontend consumes these fields to surface doctor cards and auto-open the booking form, so **the schema is a contract** — changing key names requires updating the templates under `templates/*/include/ai-chat*.html`.
+
+`speech_reply` is the spoken-aloud variant of `ai_reply` (≤2 sentences, no emoji/HTML/disclaimer) used by the voice layer. The prompt says "ĐÚNG 9 KEYS" in **two places** — keep both in step when adding or removing a key. The voice layer always falls back to `MediTrustVoice.toSpeechText(ai_reply)` when the model omits it, so a non-compliant model degrades rather than breaks.
 
 Department IDs carry special meaning in the prompt: **21 = Cấp cứu (Emergency)** and **22 = Y học gia đình** (the safety fallback when symptoms are ambiguous). These are seeded IDs from `DataInitializer`; re-seeding into a different order would break the prompt's assumptions.
 
@@ -18,6 +20,16 @@ The live department list is injected into the prompt at request time from `Depar
 - Only the **last 6 messages** are sent to the model.
 - `patient_summary` is re-extracted from prior assistant messages via regex and re-injected each turn as durable memory.
 - If the session belongs to a logged-in `User`, the patient's most recent `COMPLETED` booking's `MedicalRecord` (diagnosis, symptoms, doctor notes) is also injected as context.
+
+## Voice Agent (STT/TTS)
+Speech runs **entirely in the browser** via the Web Speech API — no API key, no Maven dependency, no server endpoint. OpenRouter has no audio endpoint, so a server-side Whisper/TTS path would need a separate paid key.
+
+- [meditrust-voice.js](src/main/resources/static/assets/js/meditrust-voice.js) — shared module (`window.MediTrustVoice`). `attach({inputId, sendBtnId, messagesId, botSelector})` adds a mic button and, via a **debounced MutationObserver**, a 🔊 button on each assistant bubble. It is wired into all three live chat widgets (patient, doctor, admin) and needs no changes to their render functions. Speaker clicks use event delegation so buttons restored from `sessionStorage` still work.
+- `toSpeechText()` turns HTML/Markdown into speakable Vietnamese: strips tags/emoji/the ⚠️ disclaimer and rewrites machine strings — `"T5 24/07 (09:00 - 09:30)"` → *"thứ Năm ngày 24 tháng 7 (9 giờ đến 9 rưỡi)"*. It mirrors `translateDay()` in `AiController`, so changing that slot-label format breaks the spoken output.
+- [meditrust-voice-call.js](src/main/resources/static/assets/js/meditrust-voice-call.js) — hands-free call mode, **patient only**. State machine `idle → listening → thinking → speaking → listening`, auto-submits after **2s of silence** (its own timer; Chrome's `onend` is unreliable for Vietnamese), restarts on `onend` with a burst guard, and drops to typing after 2 unclear turns.
+- **Half-duplex is mandatory**: always stop recognition before `speak()`, restart only on `onend`. The Web Speech API does not cancel laptop-speaker echo, so listening while speaking makes the assistant answer itself in a loop.
+- `ai-chat.js` exposes `window.MediTrustChat` (`sendMessage`, `openChat`, `sessionId`, `suppressAutoRedirect`, `onReply[]`). `onReply` fires **exactly once per turn including on error**, so the call module never hangs. While a call is active `suppressAutoRedirect` blocks the 900ms auto-redirect in `resolveBookingHandoff` so the patient can confirm by voice first.
+- Emergency (`is_emergency`) turns the overlay red, offers `tel:115`, and **abandons the booking flow**. Booking is never created by voice — a confirmed "đồng ý" only opens the prefilled `/appointment` form. When anonymous, the target URL is stashed in `sessionStorage` and offered again after login (`window.MEDITRUST_IS_LOGGED_IN` is written by the Thymeleaf fragment).
 
 ## Other surfaces
 Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiController`, `DoctorAssistantService`, with the `AiRule` entity for configurable rules.

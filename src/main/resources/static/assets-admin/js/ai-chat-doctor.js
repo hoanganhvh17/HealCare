@@ -347,5 +347,17 @@ if (window.aiChatDoctorLoaded) {
     }
 
     setTimeout(checkDoctorEmergencyAlert, 2000);
+
+    // --- GIỌNG NÓI: nút mic để đọc câu hỏi, nút loa để nghe câu trả lời.
+    //     Tiện khi bác sĩ đang khám, tay bận. Module tự ẩn nếu trình duyệt không hỗ trợ. ---
+    if (window.MediTrustVoice) {
+        window.MediTrustVoice.attach({
+            inputId: 'ai-chat-input-doctor',
+            sendBtnId: 'ai-chat-send-doctor',
+            messagesId: 'ai-chat-messages-doctor',
+            botSelector: '.chat-msg.bot',
+            micTitle: 'Bấm để đọc câu hỏi'
+        });
+    }
 });
 }

@@ -231,6 +231,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Lớp giọng nói dùng chung: phải nạp TRƯỚC file chat vì file chat gọi MediTrustVoice.attach() -->
+    <script th:src="@{/assets/js/meditrust-voice.js}"></script>
     <script th:src="@{/assets-admin/js/ai-chat-doctor.js}"></script>
 </div>
 </body>

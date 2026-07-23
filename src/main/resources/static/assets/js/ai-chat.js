@@ -849,6 +849,15 @@ maximizeBtn.addEventListener('click', (e) => {
                    return msgDiv;
         }
 
+        // Báo kết quả một lượt chat cho các module bên ngoài (hiện tại: chế độ gọi bằng giọng nói).
+        // Luôn được gọi đúng MỘT lần cho mỗi lượt, kể cả khi lỗi, để bên nghe không bị treo.
+        function notifyReply(payload) {
+            const subscribers = (window.MediTrustChat && window.MediTrustChat.onReply) || [];
+            subscribers.forEach(function(fn) {
+                try { fn(payload); } catch (e) { console.error('Lỗi ở subscriber onReply:', e); }
+            });
+        }
+
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (!text) return;
@@ -976,26 +985,37 @@ maximizeBtn.addEventListener('click', (e) => {
                                                         <a href="${bookingHandoff.appointmentUrl}" class="btn btn-sm btn-primary mt-2">Mở trang đặt lịch</a>
                                                     </div>`;
                                                 sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
-                                                setTimeout(() => {
-                                                    window.location.href = bookingHandoff.appointmentUrl;
-                                                }, 900);
+
+                                                notifyReply({ aiData: aiData, userText: text, bookingHandoff: bookingHandoff });
+
+                                                // Chế độ gọi tự đọc câu xác nhận rồi chờ khách nói "đồng ý",
+                                                // nên khi đang gọi thì KHÔNG tự nhảy trang.
+                                                if (!window.MediTrustChat || !window.MediTrustChat.suppressAutoRedirect) {
+                                                    setTimeout(() => {
+                                                        window.location.href = bookingHandoff.appointmentUrl;
+                                                    }, 900);
+                                                }
                                                 return;
                                             }
 
                                             // Lưu lại khung HTML (Đã chạy ngầm memory JSON)
                                             sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
+                                            notifyReply({ aiData: aiData, userText: text, bookingHandoff: null });
 
                                         } catch (parseError) {
                                             // FALLBACK: Đề phòng rủi ro AI bị ảo giác sinh ra text thường thay vì JSON
                                             console.error("Lỗi parse JSON:", parseError);
                                             typingMsg.innerHTML = aiRawText.replace(/\n/g, '<br>');
                                             sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
+                                            notifyReply({ aiData: null, rawText: aiRawText, userText: text, bookingHandoff: null });
                                         }
                 } else {
                     typingMsg.innerHTML = 'Hệ thống bận.';
+                    notifyReply({ aiData: null, userText: text, bookingHandoff: null, error: 'server-busy' });
                 }
             } catch (error) {
                 typingMsg.innerHTML = 'Lỗi kết nối.';
+                notifyReply({ aiData: null, userText: text, bookingHandoff: null, error: 'network' });
             }
         }
 
@@ -1116,4 +1136,33 @@ maximizeBtn.addEventListener('click', (e) => {
         document.addEventListener('mouseup', function() {
             toggleBtn.classList.remove('dragging');
         });
+
+        // ==========================================
+        // 9. GIỌNG NÓI (Voice Agent)
+        // ==========================================
+
+        // 9a. Nút mic + nút loa. Module tự ẩn nếu trình duyệt không hỗ trợ.
+        if (window.MediTrustVoice) {
+            window.MediTrustVoice.attach({
+                inputId: 'ai-chat-input',
+                sendBtnId: 'ai-chat-send',
+                messagesId: 'ai-chat-messages',
+                botSelector: '.chat-msg.bot',
+                micTitle: 'Bấm để nói với trợ lý'
+            });
+        }
+
+        // 9b. Mở khung chat ra ngoài cho chế độ gọi rảnh tay.
+        //     Nhờ vậy meditrust-voice-call.js làm việc trên dữ liệu có cấu trúc
+        //     (speech_reply, is_emergency, booking_target) thay vì bóc chữ từ DOM.
+        window.MediTrustChat = {
+            sendMessage: sendMessage,
+            appendMessage: appendMessage,
+            openChat: function() { if (chatBox.classList.contains('d-none')) toggleBtn.click(); },
+            get sessionId() { return sessionId; },
+            // Chế độ gọi bật cờ này để tự lo phần xác nhận bằng giọng nói
+            // thay vì để khung chat tự nhảy trang sau 900ms.
+            suppressAutoRedirect: false,
+            onReply: []
+        };
     });

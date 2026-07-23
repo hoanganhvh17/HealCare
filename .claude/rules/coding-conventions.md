@@ -9,6 +9,14 @@ Thymeleaf templates live in `src/main/resources/templates/{user,admin,doctor,aut
 ## Secrets
 `VNPayConfig` holds **hardcoded static sandbox credentials**, and [application.properties](src/main/resources/application.properties) contains live-looking mail, OAuth, and AI keys. Treat all of these as **dev-only** and do not present them as production-safe. Flag it if the app is being prepared for deployment.
 
+## Browser APIs (giọng nói)
+The voice layer relies on browser-only APIs, so anything touching it must degrade rather than break:
+
+- `SpeechRecognition` exists **only in Chrome/Edge** (Firefox has none) and **only in a secure context** — `https://` or `http://localhost`. On plain HTTP over a LAN IP it fails silently. `MediTrustVoice.isSupported()` gates every entry point; when false the mic/call buttons are never inserted and the typing chat is untouched.
+- Never use regex lookbehind `(?<=…)` in these files. Older Safari treats it as a **parse error** and discards the whole script, which would also kill the graceful-degradation path.
+- `window.speechSynthesis` is a read-only accessor — it cannot be stubbed with plain assignment, only `Object.defineProperty` (relevant when writing browser tests).
+- Chrome quirks already worked around in `MediTrustVoice.speak()`: `getVoices()` is empty until `voiceschanged`, utterances over ~200 chars get truncated (so text is chunked by sentence), and the TTS queue stalls after ~15s (a `pause()`/`resume()` keep-alive ticks every 10s).
+
 ## Error handling
 Controllers largely catch broad `Exception`, call `printStackTrace()`, and surface a message through `RedirectAttributes` flash attributes. There is no global `@ControllerAdvice`; custom error pages exist at `templates/error/{403,404,500}.html`.
 
