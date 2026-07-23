@@ -1,0 +1,14 @@
+# Build, Run & Test Commands
+
+Uses the Maven wrapper (`./mvnw` on Unix, `mvnw.cmd` on Windows). Java 21 is required.
+
+```bash
+./mvnw spring-boot:run          # Run the app (starts on http://localhost:8090)
+./mvnw clean package            # Build the jar
+./mvnw test                     # Run tests (NOTE: no test classes exist yet under src/test)
+./mvnw test -Dtest=ClassName#methodName   # Run a single test once tests exist
+```
+
+- **Preview features are off.** `maven-compiler-plugin` pins `source`/`target` to 21 with no `--enable-preview`. Do not re-add that flag: `javac` only accepts it when `-source` equals the compiler's own version, so it breaks any IDE or toolchain running a JDK newer than 21 (Eclipse JDT in VS Code compiles at release 26 and aborts the build, leaving `target/classes` nearly empty and the app failing with `ClassNotFoundException`). Stick to standard Java 21 language features.
+- There is **no frontend build step** — CSS/JS live as static assets under `src/main/resources/static/` and are served directly. Do not introduce a bundler without discussing it first.
+- `maven-resources-plugin` pins UTF-8 encoding; keep it, as templates and prompts contain Vietnamese text.
