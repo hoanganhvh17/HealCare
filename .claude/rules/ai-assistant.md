@@ -30,6 +30,19 @@ Speech runs **entirely in the browser** via the Web Speech API — no API key, n
 - **Half-duplex is mandatory**: always stop recognition before `speak()`, restart only on `onend`. The Web Speech API does not cancel laptop-speaker echo, so listening while speaking makes the assistant answer itself in a loop.
 - `ai-chat.js` exposes `window.MediTrustChat` (`sendMessage`, `openChat`, `sessionId`, `suppressAutoRedirect`, `onReply[]`). `onReply` fires **exactly once per turn including on error**, so the call module never hangs. While a call is active `suppressAutoRedirect` blocks the 900ms auto-redirect in `resolveBookingHandoff` so the patient can confirm by voice first.
 - Emergency (`is_emergency`) turns the overlay red, offers `tel:115`, and **abandons the booking flow**. Booking is never created by voice — a confirmed "đồng ý" only opens the prefilled `/appointment` form. When anonymous, the target URL is stashed in `sessionStorage` and offered again after login (`window.MEDITRUST_IS_LOGGED_IN` is written by the Thymeleaf fragment).
+- `parseYesNo()` returns `no` **only for a bare refusal**. Anything carrying an instruction ("đổi sang bác sĩ B", "chuyển sang chiều mai") returns `unknown` and is forwarded to the model — returning `no` there made the assistant re-ask "đổi bác sĩ hay đổi giờ ạ?" after the patient had already said which.
+- Tuning constants: `DEFAULT_RATE = 1.5` in `meditrust-voice.js` (speaking speed, one place for the whole app) and `SILENCE_MS = 1100` in `meditrust-voice-call.js` (how long a pause means "done talking").
+
+## Picking the right doctor
+`resolveBookingHandoff()` must never silently substitute a doctor. Two guards enforce that, and both are load-bearing:
+
+- `/api/chat/doctors/department/{id}` takes an optional **`doctorId`** that sorts the named doctor to the front *before* the `.limit(3)` truncation. Without it, asking for a doctor outside the department's first three silently booked the first one instead.
+- `pickBestDoctorMatch()` matches on **word boundaries only** (exact full name → Vietnamese given name → all words present). The search API runs `LIKE %keyword%` on full names, so "bác sĩ B" matches nearly everyone; taking the first hit booked the wrong person. When nothing matches it returns `null`, and `resolveBookingHandoff` returns `{doctorNotFound: true, requestedDoctorName}` — both the chat widget and the voice layer must surface that instead of redirecting.
+
+`extractDoctorName()` strips trailing filler ("đi", "nhé", "ạ", "cho tôi"). It anchors the strip to end-of-string rather than `\b`, because JavaScript's `\b` only understands ASCII letters and would never match a word ending in a diacritic.
+
+## Xưng hô
+The prompt's section 0 forces the assistant to call itself **"em"** and the patient **"anh/chị"** — never "bạn", "tôi", or "mình" — in both `ai_reply` and `speech_reply`. Every hardcoded Vietnamese string in the voice modules follows the same convention; keep new strings consistent.
 
 ## Other surfaces
 Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiController`, `DoctorAssistantService`, with the `AiRule` entity for configurable rules.

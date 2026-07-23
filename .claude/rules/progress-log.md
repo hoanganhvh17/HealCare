@@ -35,6 +35,7 @@ Keep entries short (one line). Details belong in the topic rule file, not here.
 
 ## Log
 
+- 2026-07-23 — `fix:` đặt nhầm bác sĩ khi khách yêu cầu đổi người, trợ lý hỏi lại dù khách đã nói rõ, xưng hô em/anh-chị, tăng tốc độ đọc và giảm thời gian chờ — `AiController` (tham số `doctorId`), `ai-chat.js` (`pickBestDoctorMatch`, `extractDoctorName`, `doctorNotFound`), `meditrust-voice-call.js` (`parseYesNo`), `AiService` (luật xưng hô + luật đổi bác sĩ) — ai-assistant.md
 - 2026-07-23 — `feat:` giao tiếp bằng giọng nói cho trợ lý AI (nút mic/loa ở cả 3 khung chat + chế độ gọi rảnh tay cho bệnh nhân) — `meditrust-voice.js`, `meditrust-voice-call.js`, `ai-chat.js` (`window.MediTrustChat`), `AiService` (`speech_reply`), 3 template `ai-chat` — ai-assistant.md, coding-conventions.md, environment-setup.md
 - 2026-07-23 — `docs:` thêm quy tắc bắt buộc ghi nhật ký tiến độ vào `.claude/rules/` — `.claude/rules/progress-log.md`, `CLAUDE.md` — progress-log.md (mới)
 - 2026-07-23 — `feat:` thay đổi lịch khám phía client (bệnh nhân tự dời lịch tại `/user/booking/edit/{id}`) — `UserBookingEditController`, `BookingService.whyCannotReschedule` / `rescheduleByUser`, `templates/user/` — booking-flow.md

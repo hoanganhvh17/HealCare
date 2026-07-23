@@ -18,8 +18,12 @@
     var synth = window.speechSynthesis;
 
     var CONSENT_KEY = 'meditrust_voice_consent';
-    var CONSENT_TEXT = 'Để nghe được giọng nói, trình duyệt sẽ chuyển lời nói của bạn thành chữ. '
-        + 'Bạn đồng ý bật micro chứ?';
+    var CONSENT_TEXT = 'Để nghe được giọng nói, trình duyệt sẽ chuyển lời nói của anh/chị thành chữ. '
+        + 'Anh/chị đồng ý bật micro chứ ạ?';
+
+    // Tốc độ đọc mặc định. 1.0 là tốc độ chuẩn của giọng đọc; nhanh hơn một chút
+    // nghe tự nhiên và đỡ sốt ruột hơn. Chỉnh ở đây là đổi cho toàn hệ thống.
+    var DEFAULT_RATE = 1.5;
 
     var voicesCache = [];
     var warnedNoVietnameseVoice = false;
@@ -52,7 +56,7 @@
             return 'Tính năng nói chuyện chỉ chạy trên localhost hoặc trang có HTTPS.';
         }
         if (!isSpeechSupported()) {
-            return 'Trình duyệt của bạn không đọc được văn bản thành giọng nói.';
+            return 'Trình duyệt của anh/chị không đọc được văn bản thành giọng nói.';
         }
         return '';
     }
@@ -258,7 +262,7 @@
         chunks.forEach(function (chunk) {
             var u = new window.SpeechSynthesisUtterance(chunk);
             u.lang = 'vi-VN';
-            u.rate = typeof opts.rate === 'number' ? opts.rate : 0.95; // chậm hơn mặc định cho người lớn tuổi
+            u.rate = typeof opts.rate === 'number' ? opts.rate : DEFAULT_RATE;
             u.pitch = 1;
             if (voice) u.voice = voice;
 
@@ -332,17 +336,17 @@
         switch (code) {
             case 'not-allowed':
             case 'service-not-allowed':
-                return 'Bạn chưa cho phép dùng micro. Hãy bấm vào biểu tượng ổ khoá trên thanh địa chỉ để bật lại.';
+                return 'Anh/chị chưa cho phép dùng micro. Hãy bấm vào biểu tượng ổ khoá trên thanh địa chỉ để bật lại ạ.';
             case 'no-speech':
-                return 'Em chưa nghe thấy gì cả, bạn thử nói lại giúp em nhé.';
+                return 'Em chưa nghe thấy gì cả, anh/chị nói lại giúp em nhé.';
             case 'audio-capture':
-                return 'Không tìm thấy micro nào trên máy của bạn.';
+                return 'Không tìm thấy micro nào trên máy của anh/chị.';
             case 'network':
                 return 'Mất kết nối tới dịch vụ nhận dạng giọng nói.';
             case 'aborted':
                 return '';
             default:
-                return 'Micro đang gặp trục trặc, bạn thử lại sau ít phút nhé.';
+                return 'Micro đang gặp trục trặc, anh/chị thử lại sau ít phút nhé.';
         }
     }
 
@@ -416,7 +420,7 @@
             rec.start();
         } catch (e) {
             activeRecognition = null;
-            if (cfg.onError) cfg.onError('start-failed', 'Không khởi động được micro, bạn thử lại nhé.');
+            if (cfg.onError) cfg.onError('start-failed', 'Không khởi động được micro, anh/chị thử lại nhé.');
             return null;
         }
         return rec;
@@ -523,7 +527,7 @@
             micBtn.classList.toggle('listening', on);
             micBtn.innerHTML = on ? '<i class="bi bi-stop-fill"></i>' : '<i class="bi bi-mic-fill"></i>';
             micBtn.title = on ? 'Đang nghe — bấm để dừng' : (cfg.micTitle || 'Bấm để nói');
-            input.placeholder = on ? 'Đang nghe, mời bạn nói...' : placeholderBackup;
+            input.placeholder = on ? 'Em đang nghe, mời anh/chị nói...' : placeholderBackup;
         }
 
         micBtn.addEventListener('click', function (e) {

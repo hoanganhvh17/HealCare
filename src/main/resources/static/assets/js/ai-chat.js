@@ -202,7 +202,18 @@
                 function extractDoctorName(text) {
                     const normalized = normalizeText(text);
                     const match = normalized.match(/(?:bác sĩ|bs\.?)\s+(.+?)(?:\s+lúc|\s+vào|\s+ngày|\s+thứ|\s+để|\s+đặt|\s+khám|$)/i);
-                    return match ? match[1].trim() : '';
+                    if (!match) return '';
+
+                    // Cắt các từ đệm cuối câu ("đổi sang bác sĩ B đi nhé" -> "B").
+                    // Không cắt thì keyword tìm kiếm thành "b đi nhé" và LIKE trên fullName không khớp,
+                    // dẫn tới việc âm thầm chọn nhầm bác sĩ khác.
+                    //
+                    // Neo vào CUỐI CHUỖI chứ không dùng \b: trong JS, \b chỉ hiểu chữ cái ASCII,
+                    // nên "nhé" hay "ạ" (kết thúc bằng ký tự có dấu) sẽ không bao giờ khớp được.
+                    return match[1]
+                        .replace(/(\s+(đi|nhé|nha|nhá|ạ|à|với|luôn|thôi|được không|cho tôi|cho mình|giúp tôi|giúp mình))+$/gi, '')
+                        .replace(/[.,!?]+$/, '')
+                        .trim();
                 }
 
                 function extractDateHint(text) {
@@ -256,6 +267,46 @@
                     return url.toString();
                 }
 
+                /**
+                 * Chọn đúng bác sĩ khách nhắc tới trong danh sách trả về.
+                 *
+                 * KHÔNG được dùng kiểu "khớp chuỗi con rồi lấy phần tử đầu": API tìm kiếm chạy
+                 * LIKE %keyword% trên họ tên, nên "bác sĩ B" khớp gần như mọi bác sĩ và sẽ chọn nhầm.
+                 * Ở đây chỉ khớp theo RANH GIỚI TỪ, không khớp thì trả null để bên gọi hỏi lại khách.
+                 */
+                function pickBestDoctorMatch(doctors, requestedName) {
+                    const want = normalizeText(requestedName);
+                    if (!want) return null;
+
+                    const wantWords = want.split(' ').filter(Boolean);
+                    if (wantWords.length === 0) return null;
+                    const wantLast = wantWords[wantWords.length - 1];
+
+                    // 1. Trùng khít cả họ và tên
+                    let hit = doctors.find(function(doc) {
+                        return normalizeText(doc.fullName) === want;
+                    });
+                    if (hit) return hit;
+
+                    // 2. Trùng tên gọi — từ cuối trong họ tên tiếng Việt ("bác sĩ Bình" -> "Trần Văn Bình")
+                    const byGivenName = doctors.filter(function(doc) {
+                        const words = normalizeText(doc.fullName).split(' ').filter(Boolean);
+                        return words.length > 0 && words[words.length - 1] === wantLast;
+                    });
+                    if (byGivenName.length === 1) return byGivenName[0];
+
+                    // 3. Chứa đủ mọi từ khách nói, xét theo từ nguyên vẹn
+                    const byAllWords = doctors.filter(function(doc) {
+                        const words = normalizeText(doc.fullName).split(' ').filter(Boolean);
+                        return wantWords.every(function(w) { return words.indexOf(w) !== -1; });
+                    });
+                    if (byAllWords.length === 1) return byAllWords[0];
+
+                    // Còn mơ hồ (nhiều bác sĩ cùng tên gọi) thì lấy người đầu trong nhóm đã lọc,
+                    // vẫn hơn hẳn việc lấy bừa phần tử đầu của toàn bộ kết quả LIKE.
+                    return byGivenName[0] || byAllWords[0] || null;
+                }
+
                 async function resolveBookingHandoff(aiData, userText) {
                     const bookingIntent = aiData && (aiData.booking_intent === true || normalizeText(userText).match(/đặt lịch|chuyển sang đặt lịch|tiến hành khám|book lịch|book khám|đặt khám/));
                     if (!bookingIntent) return null;
@@ -282,9 +333,7 @@
                             if (searchRes.ok) {
                                 const doctors = await searchRes.json();
                                 if (Array.isArray(doctors) && doctors.length > 0) {
-                                    doctorSearchResult = doctors.find(function(doc) {
-                                        return normalizeText(doc.fullName) === normalizeText(requestedDoctorName);
-                                    }) || doctors[0];
+                                    doctorSearchResult = pickBestDoctorMatch(doctors, requestedDoctorName);
                                 }
                             }
                         } catch (err) {
@@ -301,10 +350,7 @@
                                 if (fallbackRes.ok) {
                                     const fallbackDoctors = await fallbackRes.json();
                                     if (Array.isArray(fallbackDoctors) && fallbackDoctors.length > 0) {
-                                        const normalizedRequestedName = normalizeText(requestedDoctorName);
-                                        doctorSearchResult = fallbackDoctors.find(function(doc) {
-                                            return normalizeText(doc.fullName).indexOf(normalizedRequestedName) !== -1;
-                                        }) || null;
+                                        doctorSearchResult = pickBestDoctorMatch(fallbackDoctors, requestedDoctorName);
                                     }
                                 }
                             } catch (err) {
@@ -324,7 +370,11 @@
 
                     if (candidateDepartmentId) {
                         try {
-                            const deptRes = await fetch('/api/chat/doctors/department/' + candidateDepartmentId + '?sessionId=' + encodeURIComponent(sessionId));
+                            // Gửi kèm doctorId để backend ghim bác sĩ được chỉ đích danh lên đầu,
+                            // không bị .limit(3) cắt mất.
+                            let deptUrl = '/api/chat/doctors/department/' + candidateDepartmentId + '?sessionId=' + encodeURIComponent(sessionId);
+                            if (candidateDoctorId) deptUrl += '&doctorId=' + encodeURIComponent(candidateDoctorId);
+                            const deptRes = await fetch(deptUrl);
                             if (deptRes.ok) {
                                 availableDoctors = await deptRes.json();
                             }
@@ -342,6 +392,12 @@
                         selectedDoctor = availableDoctors.find(function(doc) {
                             return String(doc.id) === String(candidateDoctorId);
                         }) || null;
+                    }
+
+                    // Khách đã nêu đích danh một bác sĩ nhưng hệ thống không tìm ra người đó:
+                    // TUYỆT ĐỐI không được lặng lẽ chọn bác sĩ khác rồi điều hướng, vì như vậy là đặt nhầm người.
+                    if (!selectedDoctor && requestedDoctorName) {
+                        return { doctorNotFound: true, requestedDoctorName: requestedDoctorName };
                     }
 
                     if (!selectedDoctor) {
@@ -483,7 +539,7 @@
                                               })
                                               .catch(() => {
                                                   // Rủi ro mạng lag -> Vẫn có câu chào mặc định cứu cánh
-                                                  typingMsg.innerHTML = 'Xin chào! Tôi là Trợ lý AI MediTrust. Bạn cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
+                                                  typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
                                               });
                                       }
                         }
@@ -592,7 +648,7 @@
                                      })
                                      .catch(() => {
                                          // Rủi ro mạng lag -> Vẫn có câu chào mặc định cứu cánh
-                                         typingMsg.innerHTML = 'Xin chào! Tôi là Trợ lý AI MediTrust. Bạn cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
+                                         typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
                                      });
                              }
               });
@@ -971,6 +1027,24 @@ maximizeBtn.addEventListener('click', (e) => {
                                                                                         }
 
                                             const bookingHandoff = await resolveBookingHandoff(aiData, text);
+
+                                            // Khách nêu đích danh bác sĩ nhưng không tìm thấy: nói thật cho khách biết,
+                                            // tuyệt đối không lặng lẽ điều hướng sang bác sĩ khác.
+                                            if (bookingHandoff && bookingHandoff.doctorNotFound) {
+                                                typingMsg.innerHTML += `
+                                                    <div class="mt-3 p-3" style="background: #fff8e1; border-left: 4px solid #ffc107; border-radius: 8px;">
+                                                        <div class="fw-bold mb-1" style="color: #b8860b;">
+                                                            <i class="bi bi-exclamation-circle"></i> Em chưa tìm thấy bác sĩ "${bookingHandoff.requestedDoctorName}"
+                                                        </div>
+                                                        <div style="font-size: 13px; color: #334155;">
+                                                            Anh/chị kiểm tra lại tên giúp em, hoặc chọn một bác sĩ trong danh sách phía trên ạ.
+                                                        </div>
+                                                    </div>`;
+                                                sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
+                                                notifyReply({ aiData: aiData, userText: text, bookingHandoff: bookingHandoff });
+                                                return;
+                                            }
+
                                             if (bookingHandoff) {
                                                 const fallbackText = bookingHandoff.fallback
                                                     ? 'Khung giờ anh/chị yêu cầu chưa khớp hoàn toàn, em đã chọn khung giờ gần nhất còn trống.'

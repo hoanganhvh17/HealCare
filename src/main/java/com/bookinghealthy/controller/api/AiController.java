@@ -95,9 +95,18 @@ public class AiController {
     // API LẤY DATA BÁC SĨ (COPY 100% LOGIC TỪ BOOKING API, BỎ QUA BẢNG SCHEDULE)
     // =========================================================================
     @GetMapping("/doctors/department/{departmentId}")
-    public ResponseEntity<List<DoctorDTO>> getDoctorsByDepartment(@PathVariable Long departmentId, @RequestParam(required = false) String sessionId) {
+    public ResponseEntity<List<DoctorDTO>> getDoctorsByDepartment(@PathVariable Long departmentId,
+                                                                  @RequestParam(required = false) String sessionId,
+                                                                  @RequestParam(required = false) Long doctorId) {
 
-        List<Doctor> doctors = doctorService.findByDepartmentId(departmentId);
+        List<Doctor> doctors = new java.util.ArrayList<>(doctorService.findByDepartmentId(departmentId));
+
+        // Khi khách chỉ đích danh một bác sĩ ("đổi sang bác sĩ B"), phải đưa người đó lên đầu
+        // TRƯỚC khi .limit(3) cắt danh sách. Nếu không, bác sĩ B nằm ngoài top 3 sẽ bị loại
+        // và frontend âm thầm rơi về bác sĩ đầu danh sách — tức là đặt nhầm người.
+        if (doctorId != null) {
+            doctors.sort(java.util.Comparator.comparing((Doctor d) -> !doctorId.equals(d.getId())));
+        }
         java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM");
         java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
 
@@ -254,7 +263,7 @@ public class AiController {
     public ResponseEntity<String> getWelcomeMessage() {
         System.out.println("\n========== [DEBUG API WELCOME] START ==========");
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        String defaultGreeting = "Xin chào! Tôi là Trợ lý AI MediTrust. Bạn cần hỗ trợ vấn đề sức khỏe gì hôm nay?";
+        String defaultGreeting = "Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?";
 
         if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
             System.out.println("[LOG 1] Thất bại: User là Anonymous (Chưa đăng nhập).");

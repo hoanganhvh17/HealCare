@@ -14,7 +14,7 @@
 (function (window, document) {
     'use strict';
 
-    var SILENCE_MS = 2000;          // im lặng bao lâu thì coi như khách đã nói xong
+    var SILENCE_MS = 1100;          // im lặng bao lâu thì coi như khách đã nói xong
     var MAX_UNCLEAR = 2;            // nghe hụt quá số lần này thì mời khách gõ chữ (KB4)
     var MAX_RESTART_BURST = 5;      // chặn vòng lặp khởi động lại vô hạn
     var PENDING_URL_KEY = 'meditrust_pending_booking_url';
@@ -40,14 +40,31 @@
     // 1. NHẬN DIỆN CÂU ĐỒNG Ý / TỪ CHỐI
     // =====================================================================
 
-    var NO_WORDS = /(^|\s)(không|khong|ko|thôi|thoi|khoan|chưa|chua|hủy|huy|dừng|dung lại|đổi|doi)(\s|$|,|\.)/i;
+    var NO_WORDS = /(^|\s)(không|khong|ko|thôi|thoi|khoan|chưa|chua|hủy|huy|dừng)(\s|$|,|\.)/i;
     var YES_WORDS = /(^|\s)(có|co|đồng ý|dong y|vâng|vang|ừ|ù|ok|okay|okie|được|duoc|đúng|dung roi|chốt|chot|xác nhận|xac nhan|nhất trí|tiếp tục|đặt đi|dat di|làm đi)(\s|$|,|\.)/i;
 
-    /** Trả về 'yes' | 'no' | 'unknown'. Kiểm tra phủ định trước vì "dạ không" có cả hai. */
+    // Câu có nội dung chỉ dẫn cụ thể ("đổi sang bác sĩ B", "chuyển sang 3 giờ chiều").
+    // Những câu này KHÔNG phải lời từ chối suông — phải chuyển thẳng cho AI xử lý,
+    // nếu không trợ lý sẽ hỏi lại "đổi bác sĩ hay đổi giờ ạ?" dù khách vừa nói rõ rồi.
+    var INSTRUCTION_WORDS = /(đổi|doi|chuyển|chuyen|sang|khác|khac|bác sĩ|bac si|bs |giờ|gio |ngày|ngay |sáng|chiều|tối|thứ|mai)/i;
+
+    /**
+     * Trả về 'yes' | 'no' | 'unknown'.
+     * 'no' chỉ dành cho lời từ chối suông; câu nào có chỉ dẫn cụ thể thì trả 'unknown'
+     * để bên gọi đẩy sang cho AI, vì AI mới đủ ngữ cảnh để làm theo.
+     */
     function parseYesNo(text) {
-        var t = ' ' + (text || '').toLowerCase().trim() + ' ';
-        if (NO_WORDS.test(t)) return 'no';
-        if (YES_WORDS.test(t)) return 'yes';
+        var raw = (text || '').toLowerCase().trim();
+        var t = ' ' + raw + ' ';
+
+        if (NO_WORDS.test(t)) {
+            // "thôi, đổi sang bác sĩ B" -> vừa từ chối vừa ra chỉ dẫn: để AI lo
+            return INSTRUCTION_WORDS.test(raw) ? 'unknown' : 'no';
+        }
+        if (YES_WORDS.test(t)) {
+            // "được, nhưng đổi sang buổi chiều" -> có chỉ dẫn kèm theo thì cũng để AI lo
+            return INSTRUCTION_WORDS.test(raw) ? 'unknown' : 'yes';
+        }
         return 'unknown';
     }
 
@@ -188,7 +205,7 @@
         if (!els.transcript) return;
         var html = '';
         if (assistantText) html += escapeHtml(assistantText);
-        if (userText) html += '<span class="mtvc-you">Bạn: ' + escapeHtml(userText) + '</span>';
+        if (userText) html += '<span class="mtvc-you">Anh/chị: ' + escapeHtml(userText) + '</span>';
         els.transcript.innerHTML = html;
         els.transcript.scrollTop = els.transcript.scrollHeight;
     }
@@ -206,7 +223,7 @@
         els.avatar.classList.toggle('pulse', next === 'listening' || next === 'speaking');
         els.interrupt.hidden = next !== 'speaking';
 
-        if (next === 'listening') setStatus(micMuted ? 'Đã tắt micro' : 'Đang nghe bạn nói...');
+        if (next === 'listening') setStatus(micMuted ? 'Đã tắt micro' : 'Em đang nghe anh/chị nói...');
         else if (next === 'thinking') setStatus('Em đang suy nghĩ...');
         else if (next === 'speaking') setStatus('Em đang trả lời...');
     }
@@ -289,7 +306,7 @@
                 if (restartBurst > MAX_RESTART_BURST) {
                     shouldListen = false;
                     setStatus('Micro không ổn định');
-                    els.note.textContent = 'Micro liên tục ngắt kết nối. Bạn thử gõ chữ giúp em nhé.';
+                    els.note.textContent = 'Micro liên tục ngắt kết nối. Anh/chị gõ chữ giúp em nhé.';
                     setTimeout(function () { hangUp(true); }, 4000);
                     return;
                 }
@@ -309,11 +326,11 @@
     function handleUnclear() {
         unclearCount++;
         if (unclearCount === 1) {
-            say('Dạ em nghe chưa rõ, bạn nói lại giúp em nhé.', function () { startListening(); });
+            say('Dạ em nghe chưa rõ, anh/chị nói lại giúp em nhé.', function () { startListening(); });
             return;
         }
         if (unclearCount >= MAX_UNCLEAR) {
-            say('Em xin lỗi, em nghe chưa được rõ. Bạn gõ giúp em vào khung chat nhé.', function () {
+            say('Em xin lỗi, em nghe chưa được rõ. Anh/chị gõ giúp em vào khung chat nhé.', function () {
                 hangUp(true);
             });
             return;
@@ -352,7 +369,7 @@
             if (answer === 'yes') { confirmBooking(); return; }
             if (answer === 'no') {
                 awaitingConfirm = null;
-                say('Dạ vâng. Bạn muốn đổi sang giờ khác hay đổi bác sĩ ạ?', function () { startListening(); });
+                say('Dạ vâng ạ. Anh/chị muốn đổi sang giờ khác hay đổi bác sĩ ạ?', function () { startListening(); });
                 return;
             }
             // Nói gì đó khác hẳn ("đổi sang buổi chiều") -> để AI xử lý tiếp
@@ -364,7 +381,7 @@
 
         var input = document.getElementById('ai-chat-input');
         if (!input || !chat()) {
-            say('Hệ thống đang bận, bạn thử lại sau ít phút nhé.', function () { hangUp(false); });
+            say('Dạ hệ thống đang bận, anh/chị thử lại sau ít phút giúp em nhé.', function () { hangUp(false); });
             return;
         }
         input.value = text;
@@ -376,7 +393,7 @@
         if (state === 'idle' || state === 'emergency') return;
 
         if (payload.error) {
-            say('Hệ thống đang bận. Bạn thử nói lại giúp em nhé.', function () { startListening(); });
+            say('Dạ hệ thống đang bận. Anh/chị nói lại giúp em nhé.', function () { startListening(); });
             return;
         }
 
@@ -384,7 +401,7 @@
 
         // Model trả về text thường thay vì JSON -> vẫn đọc được
         if (!aiData) {
-            say(payload.rawText || 'Dạ em chưa hiểu ý bạn, bạn nói lại giúp em nhé.',
+            say(payload.rawText || 'Dạ em chưa hiểu ý anh/chị, anh/chị nói lại giúp em nhé.',
                 function () { startListening(); });
             return;
         }
@@ -397,6 +414,16 @@
 
         var spoken = aiData.speech_reply || V().toSpeechText(aiData.ai_reply);
 
+        // Khách nêu đích danh bác sĩ nhưng hệ thống không tìm ra: phải nói thật,
+        // không được lặng lẽ chốt sang bác sĩ khác.
+        if (payload.bookingHandoff && payload.bookingHandoff.doctorNotFound) {
+            awaitingConfirm = null;
+            say('Dạ em chưa tìm thấy bác sĩ ' + payload.bookingHandoff.requestedDoctorName
+                + '. Anh/chị đọc lại tên giúp em, hoặc để em giữ bác sĩ đang gợi ý ạ?',
+                function () { startListening(); });
+            return;
+        }
+
         // KB1 — đã chốt được bác sĩ + khung giờ: hỏi xác nhận rồi mới điều hướng
         if (payload.bookingHandoff) {
             awaitingConfirm = payload.bookingHandoff;
@@ -404,7 +431,7 @@
                 || (payload.bookingHandoff.doctor && payload.bookingHandoff.doctor.fullName)
                 || 'bác sĩ';
             var slot = V().humanizeSchedule(payload.bookingHandoff.selectedSlotLabel || '');
-            var question = 'Em đặt lịch với ' + doctorName + ', ' + slot + '. Bạn xác nhận nhé?';
+            var question = 'Em đặt lịch với ' + doctorName + ', ' + slot + '. Anh/chị xác nhận giúp em nhé?';
 
             say(spoken + ' ' + question, function () { startListening(); });
             return;
@@ -427,13 +454,13 @@
         setStatus('CẢNH BÁO KHẨN CẤP');
 
         var spoken = aiData.speech_reply || V().toSpeechText(aiData.ai_reply);
-        var warning = 'Đây có thể là dấu hiệu cấp cứu. Bạn hãy gọi ngay số một một năm, '
+        var warning = 'Đây có thể là dấu hiệu cấp cứu. Anh/chị hãy gọi ngay số một một năm, '
             + 'hoặc tới phòng cấp cứu gần nhất.';
 
         setTranscript(warning + ' ' + spoken, '');
-        els.note.textContent = 'Trợ lý đã tạm dừng để bạn liên hệ cấp cứu.';
+        els.note.textContent = 'Trợ lý đã tạm dừng để anh/chị liên hệ cấp cứu.';
         // Đọc chậm hơn hẳn cho rõ từng chữ
-        V().speak(warning + ' ' + spoken, { rate: 0.85 });
+        V().speak(warning + ' ' + spoken, { rate: 1.0 });
     }
 
     // =====================================================================
@@ -452,13 +479,13 @@
                 sessionStorage.setItem(PENDING_LABEL_KEY, handoff.selectedSlotLabel || '');
             } catch (e) { /* bỏ qua */ }
 
-            say('Bạn đăng nhập giúp em một lát để em giữ chỗ khung giờ này nhé.', function () {
+            say('Dạ anh/chị đăng nhập giúp em một lát để em giữ chỗ khung giờ này ạ.', function () {
                 window.location.href = '/login';
             });
             return;
         }
 
-        say('Dạ, em mở trang đặt lịch cho bạn ngay.', function () {
+        say('Dạ, em mở trang đặt lịch cho anh/chị ngay ạ.', function () {
             window.location.href = handoff.appointmentUrl;
         });
     }
@@ -481,7 +508,7 @@
         bar.id = 'mtvc-resume-bar';
         bar.innerHTML =
             '<div><strong>Tiếp tục đặt lịch?</strong><br>' +
-            '<span style="color:#5b6b82;font-size:14px;">' + escapeHtml(label || 'Lịch hẹn bạn vừa chọn') + '</span></div>' +
+            '<span style="color:#5b6b82;font-size:14px;">' + escapeHtml(label || 'Lịch hẹn anh/chị vừa chọn') + '</span></div>' +
             '<button type="button" class="btn btn-primary btn-sm" id="mtvc-resume-yes">Đặt tiếp</button>' +
             '<button type="button" class="btn btn-light btn-sm" id="mtvc-resume-no">Để sau</button>';
         document.body.appendChild(bar);
@@ -530,7 +557,7 @@
             .catch(function () { return ''; })
             .then(function (greeting) {
                 var text = (greeting || '').trim()
-                    || 'Dạ em chào bạn, em là trợ lý MediTrust. Bạn đang thấy trong người thế nào ạ?';
+                    || 'Dạ em chào anh/chị, em là trợ lý MediTrust. Anh/chị đang thấy trong người thế nào ạ?';
                 say(text, function () { startListening(); });
             });
     }
