@@ -25,7 +25,11 @@ Note this lock is in-process only; it does not protect against double-booking ac
 
 ## 4. Patient self-service edit rules
 
-`BookingService.whyCannotReschedule(booking)` is the **single source of truth** for whether a patient may still change a booking — it returns `null` when allowed, otherwise the Vietnamese reason shown to the patient. `ProfileController` calls it to enable/disable the button and `UserBookingEditController` calls it again on both GET and POST, so the UI can never disagree with the server.
+`whyCannotCancel(booking)` and `whyCannotReschedule(booking)` on `BookingService` are the **single source of truth** for what a patient may still do — each returns `null` when allowed, otherwise the Vietnamese reason shown to the patient. `whyCannotReschedule` delegates to `whyCannotCancel` and adds the reschedule quota on top, so the two can never drift apart.
+
+`ProfileController` calls both to disable the buttons *and* print the reason under the card, and calls `whyCannotCancel` again in `/user/cancel-booking/{id}`; `UserBookingEditController` calls `whyCannotReschedule` on both GET and POST. The UI can therefore never disagree with the server.
+
+The patient's booking list on `/user/profile` is split by `ProfileController` into `upcomingBookings` (still PENDING/CONFIRMED and not yet started, nearest first) and `pastBookings` (everything else, newest first) — `findByUser` itself has no `ORDER BY`, so never render it unsorted.
 
 Constants live on `BookingService`: `MIN_HOURS_BEFORE_CHANGE = 24` and `MAX_RESCHEDULE_TIMES = 2`.
 

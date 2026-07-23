@@ -201,8 +201,17 @@ public class BookingServiceImpl implements BookingService {
     // ===================== BỆNH NHÂN TỰ ĐỔI LỊCH =====================
 
     @Override
+    public LocalDateTime appointmentStart(Booking booking) {
+        if (booking == null || booking.getAppointmentDate() == null) {
+            return null;
+        }
+        LocalTime start = parseSlotStart(booking.getAppointmentTime());
+        return (start == null) ? null : LocalDateTime.of(booking.getAppointmentDate(), start);
+    }
+
+    @Override
     public Long hoursUntilAppointment(Booking booking) {
-        LocalDateTime start = appointmentStartOf(booking);
+        LocalDateTime start = appointmentStart(booking);
         if (start == null) {
             return null;
         }
@@ -210,21 +219,15 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public String whyCannotReschedule(Booking booking) {
+    public String whyCannotCancel(Booking booking) {
         if (booking == null) {
             return "Không tìm thấy lịch hẹn.";
         }
         if (booking.getStatus() == BookingStatus.CANCELED) {
-            return "Lịch hẹn đã bị hủy nên không sửa được nữa.";
+            return "Lịch hẹn đã bị hủy trước đó.";
         }
         if (booking.getStatus() == BookingStatus.COMPLETED) {
-            return "Lịch hẹn đã khám xong nên không sửa được nữa.";
-        }
-
-        int used = rescheduleCountOf(booking);
-        if (used >= MAX_RESCHEDULE_TIMES) {
-            return "Bạn đã đổi lịch " + used + " lần (tối đa " + MAX_RESCHEDULE_TIMES
-                    + " lần). Vui lòng liên hệ hotline để được hỗ trợ.";
+            return "Lịch hẹn đã khám xong nên không hủy được nữa.";
         }
 
         Long hoursLeft = hoursUntilAppointment(booking);
@@ -232,8 +235,32 @@ public class BookingServiceImpl implements BookingService {
             return "Không đọc được khung giờ của lịch hẹn, vui lòng liên hệ hotline.";
         }
         if (hoursLeft < MIN_HOURS_BEFORE_CHANGE) {
-            return "Chỉ đổi được lịch khi còn cách giờ khám trên " + MIN_HOURS_BEFORE_CHANGE
-                    + " tiếng. Vui lòng liên hệ hotline để được hỗ trợ.";
+            return "Không thể hủy lịch khi còn dưới " + MIN_HOURS_BEFORE_CHANGE
+                    + " tiếng trước giờ khám. Vui lòng liên hệ hotline 0985 123 888 để được hỗ trợ.";
+        }
+        return null;
+    }
+
+    @Override
+    public String whyCannotReschedule(Booking booking) {
+        // Đổi lịch có đủ mọi điều kiện của hủy lịch, cộng thêm hạn mức số lần
+        String cancelBlock = whyCannotCancel(booking);
+        if (cancelBlock != null) {
+            // Riêng câu chữ về mốc 24 tiếng thì đổi lại cho đúng ngữ cảnh "đổi lịch"
+            Long hoursLeft = hoursUntilAppointment(booking);
+            if (hoursLeft != null && hoursLeft < MIN_HOURS_BEFORE_CHANGE
+                    && booking.getStatus() != BookingStatus.CANCELED
+                    && booking.getStatus() != BookingStatus.COMPLETED) {
+                return "Chỉ đổi được lịch khi còn cách giờ khám trên " + MIN_HOURS_BEFORE_CHANGE
+                        + " tiếng. Vui lòng liên hệ hotline để được hỗ trợ.";
+            }
+            return cancelBlock;
+        }
+
+        int used = rescheduleCountOf(booking);
+        if (used >= MAX_RESCHEDULE_TIMES) {
+            return "Bạn đã đổi lịch " + used + " lần (tối đa " + MAX_RESCHEDULE_TIMES
+                    + " lần). Vui lòng liên hệ hotline để được hỗ trợ.";
         }
         return null;
     }
@@ -375,15 +402,6 @@ public class BookingServiceImpl implements BookingService {
 
     private int rescheduleCountOf(Booking booking) {
         return booking.getRescheduleCount() == null ? 0 : booking.getRescheduleCount();
-    }
-
-    /** Thời điểm bắt đầu ca khám, null nếu dữ liệu giờ không đúng định dạng "HH:mm - HH:mm". */
-    private LocalDateTime appointmentStartOf(Booking booking) {
-        if (booking == null || booking.getAppointmentDate() == null) {
-            return null;
-        }
-        LocalTime start = parseSlotStart(booking.getAppointmentTime());
-        return (start == null) ? null : LocalDateTime.of(booking.getAppointmentDate(), start);
     }
 
     private LocalTime parseSlotStart(String appointmentTime) {

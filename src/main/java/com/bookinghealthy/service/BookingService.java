@@ -53,10 +53,25 @@ public interface BookingService {
     String whyCannotReschedule(Booking booking);
 
     /**
+     * Kiểm tra một lịch hẹn có còn được bệnh nhân tự hủy hay không.
+     * Khác {@link #whyCannotReschedule} ở chỗ KHÔNG giới hạn số lần —
+     * hủy chỉ phụ thuộc trạng thái và mốc {@value #MIN_HOURS_BEFORE_CHANGE} tiếng.
+     *
+     * @return null nếu được phép hủy, ngược lại là lý do bằng tiếng Việt.
+     */
+    String whyCannotCancel(Booking booking);
+
+    /**
      * Số giờ còn lại tính đến giờ khám. Âm nghĩa là đã quá giờ.
      * Trả về null nếu không đọc được khung giờ của lịch hẹn.
      */
     Long hoursUntilAppointment(Booking booking);
+
+    /**
+     * Thời điểm bắt đầu ca khám (ngày khám + giờ bắt đầu của khung giờ).
+     * Trả về null nếu {@code appointmentTime} không đúng dạng "HH:mm - HH:mm".
+     */
+    java.time.LocalDateTime appointmentStart(Booking booking);
 
     /**
      * Bệnh nhân tự sửa lịch hẹn của mình: đổi bác sĩ (bắt buộc cùng chuyên khoa),

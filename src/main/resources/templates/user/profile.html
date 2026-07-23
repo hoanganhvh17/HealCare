@@ -163,6 +163,71 @@
       background-color: #006666;
     }
 
+    /* ===== TAB LỊCH HẸN ===== */
+    .stat-tile {
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      height: 100%;
+    }
+    .stat-tile .stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .stat-tile .stat-label { font-size: 0.8rem; color: #64748b; }
+    .stat-upcoming { border-left: 4px solid #006666; }
+    .stat-upcoming .stat-value { color: #006666; }
+    .stat-done { border-left: 4px solid #94a3b8; }
+    .stat-done .stat-value { color: #475569; }
+    .stat-canceled { border-left: 4px solid #ef4444; }
+    .stat-canceled .stat-value { color: #dc2626; }
+
+    .booking-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: #fff;
+      transition: box-shadow 0.2s ease;
+    }
+    .booking-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06); }
+    /* Lịch gần nhất được làm nổi để không lẫn với các lịch còn lại */
+    .booking-card.is-next {
+      border-color: #006666;
+      background: #f0fbfa;
+    }
+
+    .date-chip {
+      width: 62px;
+      height: 62px;
+      border-radius: 12px;
+      background: #006666;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.05;
+    }
+    .date-chip .dc-day { font-size: 1.5rem; font-weight: 700; }
+    .date-chip .dc-month { font-size: 0.7rem; opacity: 0.85; }
+
+    .notice-row {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+    .notice-ok { background: #f0fdfa; color: #0f766e; }
+    .notice-warn { background: #fff7ed; color: #b45309; }
+
+    .empty-box {
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 28px;
+      text-align: center;
+      color: #64748b;
+      background: #fbfdff;
+    }
+
     /* Custom Form */
     .form-label-top {
       font-size: 0.9rem;
@@ -368,12 +433,157 @@
             </div>
 
             <div class="tab-pane fade" id="booking-history">
-              <h6 class="fw-normal text-dark mb-4">Lịch sử đặt hẹn của bạn</h6>
-              <div class="table-responsive">
+
+              <!-- ===== TỔNG QUAN NHANH ===== -->
+              <div class="row g-3 mb-4">
+                <div class="col-4">
+                  <div class="stat-tile stat-upcoming">
+                    <div class="stat-value" th:text="${#lists.size(upcomingBookings)}">0</div>
+                    <div class="stat-label">Lịch sắp tới</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="stat-tile stat-done">
+                    <div class="stat-value" th:text="${completedCount}">0</div>
+                    <div class="stat-label">Đã khám</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="stat-tile stat-canceled">
+                    <div class="stat-value" th:text="${canceledCount}">0</div>
+                    <div class="stat-label">Đã hủy</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== LỊCH SẮP TỚI ===== -->
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <h6 class="fw-bold text-dark mb-0">
+                  <i class="bi bi-calendar-check text-teal me-1"></i> Lịch sắp tới
+                  <span class="text-muted fw-normal">(Gần nhất lên đầu)</span>
+                </h6>
+                <a th:href="@{/appointment}" class="btn btn-sm btn-teal py-2 px-3">
+                  <i class="bi bi-plus-lg"></i> Đặt lịch mới
+                </a>
+              </div>
+
+              <div th:if="${#lists.isEmpty(upcomingBookings)}" class="empty-box mb-4">
+                <i class="bi bi-calendar-x fs-2 d-block mb-2 opacity-50"></i>
+                Bạn chưa có lịch khám nào sắp tới.
+                <a th:href="@{/appointment}" class="text-teal fw-medium">Đặt lịch ngay</a>
+              </div>
+
+              <div class="booking-card" th:each="booking, iter : ${upcomingBookings}"
+                   th:classappend="${iter.first} ? ' is-next' : ''">
+
+                <div class="row g-3 align-items-center">
+                  <!-- Ngày khám -->
+                  <div class="col-auto">
+                    <div class="date-chip">
+                      <span class="dc-day" th:text="${#temporals.format(booking.appointmentDate, 'dd')}">01</span>
+                      <span class="dc-month" th:text="'Th' + ${#temporals.format(booking.appointmentDate, 'MM')}">Th01</span>
+                    </div>
+                  </div>
+
+                  <!-- Thông tin chính -->
+                  <div class="col-12 col-md">
+                    <span th:if="${iter.first}" class="badge bg-teal mb-1">Lịch gần nhất</span>
+                    <div class="fw-bold text-dark fs-6 mb-1">
+                      <i class="bi bi-clock me-1 text-teal"></i>
+                      <span th:text="${booking.appointmentTime}">08:00 - 08:30</span>
+                      <span class="text-muted fw-normal">·</span>
+                      <span class="text-muted fw-normal"
+                            th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}">01/01/2026</span>
+                    </div>
+                    <div class="text-dark">
+                      <i class="bi bi-person-badge me-1 text-muted"></i>
+                      <span th:text="'BS. ' + ${booking.doctor.user.fullName}">BS.</span>
+                      <span class="text-muted">· <span th:text="${booking.doctor.department.name}">Khoa</span></span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                      Mã <span th:text="'#' + ${booking.id}">#1</span>
+                      · <span th:text="${booking.appointmentType}">Dịch vụ</span>
+                      · <span class="text-teal fw-medium"
+                              th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</span>
+                      <span th:if="${booking.rescheduleCount != null and booking.rescheduleCount > 0}"
+                            class="badge bg-light text-secondary border ms-1">
+                        Đã đổi <span th:text="${booking.rescheduleCount}">1</span> lần
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Trạng thái + hành động -->
+                  <div class="col-12 col-md-auto text-md-end">
+                    <div class="mb-2">
+                      <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
+                      <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
+                      <span th:if="${booking.paymentStatus == 'PAID'}" class="badge bg-light text-success border">Đã thanh toán</span>
+                      <span th:if="${booking.paymentStatus == 'UNPAID'}" class="badge bg-light text-muted border">Chưa thanh toán</span>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-md-end flex-wrap">
+                      <!-- Đổi lịch -->
+                      <a th:if="${editBlockReasons.get(booking.id) == null}"
+                         th:href="@{/user/booking/edit/{id}(id=${booking.id})}"
+                         class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-pencil-square"></i> Đổi lịch
+                      </a>
+                      <button th:if="${editBlockReasons.get(booking.id) != null}"
+                              type="button" class="btn btn-sm btn-outline-secondary" disabled
+                              th:title="${editBlockReasons.get(booking.id)}">
+                        <i class="bi bi-pencil-square"></i> Đổi lịch
+                      </button>
+
+                      <!-- Hủy lịch: khóa hẳn khi còn dưới 24 tiếng -->
+                      <a th:if="${cancelBlockReasons.get(booking.id) == null}"
+                         th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
+                         class="btn btn-sm btn-outline-danger"
+                         onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
+                        <i class="bi bi-x-circle"></i> Hủy lịch
+                      </a>
+                      <button th:if="${cancelBlockReasons.get(booking.id) != null}"
+                              type="button" class="btn btn-sm btn-outline-secondary" disabled
+                              th:title="${cancelBlockReasons.get(booking.id)}">
+                        <i class="bi bi-x-circle"></i> Hủy lịch
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dòng giải thích: vì sao còn/không còn thao tác được -->
+                <div class="notice-row notice-ok"
+                     th:if="${cancelBlockReasons.get(booking.id) == null and editBlockReasons.get(booking.id) == null}">
+                  <i class="bi bi-hourglass-split"></i>
+                  Còn <strong th:text="${hoursLeft.get(booking.id)}">48</strong> giờ nữa đến giờ khám —
+                  bạn vẫn tự đổi hoặc hủy lịch này được.
+                </div>
+                <div class="notice-row notice-warn"
+                     th:if="${cancelBlockReasons.get(booking.id) != null}">
+                  <i class="bi bi-lock-fill"></i>
+                  <span th:text="${cancelBlockReasons.get(booking.id)}">Lý do</span>
+                </div>
+                <div class="notice-row notice-warn"
+                     th:if="${cancelBlockReasons.get(booking.id) == null and editBlockReasons.get(booking.id) != null}">
+                  <i class="bi bi-info-circle-fill"></i>
+                  <span th:text="${editBlockReasons.get(booking.id)}">Lý do</span>
+                </div>
+              </div>
+
+              <!-- ===== LỊCH ĐÃ QUA ===== -->
+              <h6 class="fw-bold text-dark mb-3 mt-5">
+                <i class="bi bi-clock-history text-muted me-1"></i> Lịch đã qua
+                <span class="text-muted fw-normal">(Mới nhất lên đầu)</span>
+              </h6>
+
+              <div th:if="${#lists.isEmpty(pastBookings)}" class="empty-box">
+                Chưa có lịch khám nào đã hoàn tất hoặc đã hủy.
+              </div>
+
+              <div class="table-responsive" th:unless="${#lists.isEmpty(pastBookings)}">
                 <table class="table table-hover align-middle">
                   <thead class="table-light">
                   <tr>
-                    <th class="text-muted fw-medium border-0">Ngày</th>
+                    <th class="text-muted fw-medium border-0">Ngày khám</th>
                     <th class="text-muted fw-medium border-0">Bác sĩ</th>
                     <th class="text-muted fw-medium border-0">Khoa</th>
                     <th class="text-muted fw-medium border-0">Giá</th>
@@ -382,70 +592,35 @@
                   </tr>
                   </thead>
                   <tbody>
-                  <tr th:each="booking : ${myBookings}">
+                  <tr th:each="booking : ${pastBookings}">
                     <td>
-                      <span class="fw-medium text-dark" th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}"></span><br>
-                      <small class="text-muted" th:text="${booking.appointmentTime}"></small>
+                      <span class="fw-medium text-dark"
+                            th:text="${#temporals.format(booking.appointmentDate, 'dd/MM/yyyy')}">01/01/2026</span><br>
+                      <small class="text-muted" th:text="${booking.appointmentTime}">08:00</small>
                     </td>
-                    <td th:text="'BS. ' + ${booking.doctor.user.fullName}"></td>
-                    <td th:text="${booking.doctor.department.name}"></td>
-                    <td class="text-teal fw-medium" th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+                    <td th:text="'BS. ' + ${booking.doctor.user.fullName}">BS.</td>
+                    <td th:text="${booking.doctor.department.name}">Khoa</td>
+                    <td class="text-teal fw-medium"
+                        th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
                     <td>
-                      <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
-                      <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
-                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus != 'REFUNDED'}" class="badge bg-danger">Đã hủy</span>
-                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus == 'REFUNDED'}" class="badge bg-info text-dark">
-                          <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
+                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus != 'REFUNDED'}"
+                            class="badge bg-danger">Đã hủy</span>
+                      <span th:if="${booking.status.name() == 'CANCELED' && booking.paymentStatus == 'REFUNDED'}"
+                            class="badge bg-info text-dark">
+                        <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
                       </span>
                       <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
+                      <!-- Lịch quá giờ mà chưa được cập nhật kết quả -->
+                      <span th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                            class="badge bg-light text-muted border">Đã quá hạn</span>
                     </td>
                     <td class="text-center">
-                      <div th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
-                           class="d-flex flex-column align-items-center gap-1">
-
-                        <div class="d-flex gap-2 justify-content-center">
-                          <!-- Còn hạn đổi: mở trang sửa lịch -->
-                          <a th:if="${editBlockReasons.get(booking.id) == null}"
-                             th:href="@{/user/booking/edit/{id}(id=${booking.id})}"
-                             class="btn btn-sm btn-outline-primary" title="Đổi bác sĩ, ngày hoặc giờ khám">
-                            <i class="bi bi-pencil-square"></i> Đổi lịch
-                          </a>
-                          <!-- Hết hạn đổi: nút mờ, di chuột vào để biết lý do -->
-                          <button th:if="${editBlockReasons.get(booking.id) != null}"
-                                  type="button" class="btn btn-sm btn-outline-secondary" disabled
-                                  th:title="${editBlockReasons.get(booking.id)}">
-                            <i class="bi bi-pencil-square"></i> Đổi lịch
-                          </button>
-
-                          <a th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
-                             class="btn btn-sm btn-outline-danger"
-                             onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
-                            <i class="bi bi-x-circle"></i> Hủy
-                          </a>
-                        </div>
-
-                        <!-- Đếm ngược hạn chót để bệnh nhân không bị bất ngờ -->
-                        <small th:if="${editBlockReasons.get(booking.id) == null and hoursLeft.get(booking.id) != null}"
-                               class="text-muted" style="font-size: 0.72rem;">
-                          <i class="bi bi-hourglass-split"></i>
-                          Còn <span th:text="${hoursLeft.get(booking.id)}">48</span> giờ để tự đổi/hủy
-                        </small>
-                        <small th:if="${editBlockReasons.get(booking.id) != null}"
-                               class="text-muted" style="font-size: 0.72rem;"
-                               th:text="${editBlockReasons.get(booking.id)}">Lý do</small>
-
-                        <span th:if="${booking.rescheduleCount != null and booking.rescheduleCount > 0}"
-                              class="badge bg-light text-secondary border" style="font-size: 0.68rem;">
-                          Đã đổi <span th:text="${booking.rescheduleCount}">1</span> lần
-                        </span>
-                      </div>
-
                       <div th:if="${booking.status.name() == 'COMPLETED'}" class="d-flex gap-2 justify-content-center">
                         <a th:href="@{/user/medical-record/view/{bookingId}(bookingId=${booking.id})}"
                            class="btn btn-sm btn-outline-primary" title="Xem bệnh án">
                           <i class="bi bi-file-earmark-medical"></i> KQ
                         </a>
-                        <button type="button" class="btn btn-sm btn-warning text-dark"
+                        <button type="button" class="btn btn-sm btn-warning text-dark" title="Đánh giá bác sĩ"
                                 data-bs-toggle="modal"
                                 data-bs-target="#reviewModal"
                                 th:data-booking-id="${booking.id}"
@@ -454,10 +629,8 @@
                           <i class="bi bi-star-fill"></i> ĐG
                         </button>
                       </div>
+                      <span th:unless="${booking.status.name() == 'COMPLETED'}" class="text-muted small">—</span>
                     </td>
-                  </tr>
-                  <tr th:if="${#lists.isEmpty(myBookings)}">
-                    <td colspan="6" class="text-center py-5 text-muted">Bạn chưa có lịch hẹn nào.</td>
                   </tr>
                   </tbody>
                 </table>

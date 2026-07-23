@@ -6,6 +6,8 @@ MediTrust — a Spring Boot 3.2.5 / Java 21 healthcare appointment-booking app, 
 
 Detailed guidance is split by topic under `.claude/rules/` and imported below.
 
+> **Always keep this documentation up to date.** After finishing any piece of work — a new feature, a fix, a refactor, anything added or removed — record it in `.claude/rules/progress-log.md` and update the topic rule file(s) affected by the change, in the same change. See [progress-log.md](.claude/rules/progress-log.md) for the required entry format.
+
 ## Getting oriented
 
 @.claude/rules/project-overview.md
@@ -24,3 +26,4 @@ Detailed guidance is split by topic under `.claude/rules/` and imported below.
 ## Working in this repo
 
 @.claude/rules/coding-conventions.md
+@.claude/rules/progress-log.md

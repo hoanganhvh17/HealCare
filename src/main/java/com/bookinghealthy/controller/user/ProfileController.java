@@ -25,6 +25,8 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,22 +66,55 @@ public class ProfileController {
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
 
-        // Lấy danh sách booking (đã sắp xếp giảm dần theo ngày)
         List<Booking> myBookings = bookingService.findByUser(user);
 
-        // Điều kiện đổi lịch được tính ở service để giao diện và server không nói khác nhau:
-        // null = còn đổi được, ngược lại là lý do hiển thị ngay trên nút.
+        // Điều kiện đổi/hủy được tính ở service để giao diện và server không nói khác nhau:
+        // null = còn thao tác được, ngược lại là lý do hiển thị ngay dưới nút.
         Map<Long, String> editBlockReasons = new HashMap<>();
+        Map<Long, String> cancelBlockReasons = new HashMap<>();
         Map<Long, Long> hoursLeft = new HashMap<>();
+
+        // Repository trả về theo thứ tự chèn nên lịch mới đặt không nằm ở đầu bảng.
+        // Tách hẳn hai nhóm: sắp tới (gần nhất lên trước) và đã qua (mới nhất lên trước).
+        List<Booking> upcomingBookings = new ArrayList<>();
+        List<Booking> pastBookings = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
         for (Booking booking : myBookings) {
             editBlockReasons.put(booking.getId(), bookingService.whyCannotReschedule(booking));
+            cancelBlockReasons.put(booking.getId(), bookingService.whyCannotCancel(booking));
             hoursLeft.put(booking.getId(), bookingService.hoursUntilAppointment(booking));
+
+            LocalDateTime start = bookingService.appointmentStart(booking);
+            boolean stillOpen = booking.getStatus() == BookingStatus.PENDING
+                    || booking.getStatus() == BookingStatus.CONFIRMED;
+
+            if (stillOpen && start != null && !start.isBefore(now)) {
+                upcomingBookings.add(booking);
+            } else {
+                pastBookings.add(booking);
+            }
         }
+
+        Comparator<Booking> byStart = Comparator.comparing(
+                bookingService::appointmentStart, Comparator.nullsLast(Comparator.naturalOrder()));
+        upcomingBookings.sort(byStart);
+        pastBookings.sort(byStart.reversed());
+
+        long completedCount = myBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED).count();
+        long canceledCount = myBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.CANCELED).count();
 
         model.addAttribute("user", user);
         model.addAttribute("updateProfile", dto);
         model.addAttribute("myBookings", myBookings);
+        model.addAttribute("upcomingBookings", upcomingBookings);
+        model.addAttribute("pastBookings", pastBookings);
+        model.addAttribute("completedCount", completedCount);
+        model.addAttribute("canceledCount", canceledCount);
         model.addAttribute("editBlockReasons", editBlockReasons);
+        model.addAttribute("cancelBlockReasons", cancelBlockReasons);
         model.addAttribute("hoursLeft", hoursLeft);
         return "user/profile";
     }
@@ -167,38 +202,17 @@ public class ProfileController {
             // Check 1: Quyền sở hữu
             if (!booking.getUser().getId().equals(currentUser.getId())) {
                 ra.addFlashAttribute("errorMessage", "Bạn không có quyền hủy lịch này.");
-                return "redirect:/user/profile";
+                return "redirect:/user/profile#booking-history";
             }
 
-            // Check 2: Không cho hủy nếu đã Hoàn thành hoặc Đã hủy
-            if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELED) {
-                ra.addFlashAttribute("errorMessage", "Lịch này đã hoàn thành hoặc đã bị hủy, không thể thao tác.");
-                return "redirect:/user/profile";
+            // Check 2: Trạng thái + mốc 24 tiếng.
+            // Dùng chung whyCannotCancel() với giao diện, để nút bị khóa và server
+            // luôn nói cùng một lý do (trước đây lỗi parse giờ bị nuốt, lịch cũ vẫn hủy được).
+            String blockedReason = bookingService.whyCannotCancel(booking);
+            if (blockedReason != null) {
+                ra.addFlashAttribute("errorMessage", blockedReason);
+                return "redirect:/user/profile#booking-history";
             }
-
-            // === CHECK 3: KIỂM TRA THỜI GIAN (QUAN TRỌNG) ===
-            // Logic: Chỉ cho phép hủy trước giờ khám ít nhất 24 tiếng (hoặc 12 tiếng tùy bạn chỉnh)
-            try {
-                // Giả sử appointmentTime lưu dạng "08:00" hoặc "08:00 - 08:30"
-                // Ta lấy giờ bắt đầu để check
-                String startTimeStr = booking.getAppointmentTime().split(" - ")[0].trim(); // Lấy "08:00"
-                // Định dạng giờ phút nếu cần, ở đây LocalTime.parse mặc định hiểu HH:mm
-                LocalTime startTime = LocalTime.parse(startTimeStr, DateTimeFormatter.ofPattern("HH:mm"));
-
-                LocalDateTime appointmentDateTime = LocalDateTime.of(booking.getAppointmentDate(), startTime);
-                LocalDateTime now = LocalDateTime.now();
-
-                // Quy định: Phải hủy trước 24 tiếng
-                // Nếu (Hiện tại + 24h) mà lớn hơn (Giờ khám) -> Nghĩa là còn dưới 24h -> CHẶN
-                if (now.plusHours(24).isAfter(appointmentDateTime)) {
-                    ra.addFlashAttribute("errorMessage", "Rất tiếc, bạn chỉ có thể hủy lịch trước giờ khám ít nhất 24 tiếng. Vui lòng liên hệ hotline để được hỗ trợ.");
-                    return "redirect:/user/profile";
-                }
-            } catch (Exception e) {
-                // Nếu lỗi parse giờ (do dữ liệu cũ), ta tạm bỏ qua hoặc log lại
-                System.out.println("Lỗi check time: " + e.getMessage());
-            }
-            // ==================================================
 
             // Nếu vượt qua hết các bước kiểm tra -> Tiến hành HỦY
             booking.setStatus(BookingStatus.CANCELED);
@@ -220,6 +234,6 @@ public class ProfileController {
             ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
         }
 
-        return "redirect:/user/profile";
+        return "redirect:/user/profile#booking-history";
     }
 }
