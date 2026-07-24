@@ -431,7 +431,17 @@
                 || (payload.bookingHandoff.doctor && payload.bookingHandoff.doctor.fullName)
                 || 'bác sĩ';
             var slot = V().humanizeSchedule(payload.bookingHandoff.selectedSlotLabel || '');
-            var question = 'Em đặt lịch với ' + doctorName + ', ' + slot + '. Anh/chị xác nhận giúp em nhé?';
+
+            // Không được lặng lẽ đổi sang giờ khác: khách xin 10h30 mà hệ thống chỉ còn 10h
+            // thì phải nói rõ, nếu không khách bấm xác nhận rồi mới phát hiện sai giờ.
+            var warn = '';
+            if (payload.bookingHandoff.fallback) {
+                warn = 'Khung giờ '
+                    + V().humanizeSchedule(payload.bookingHandoff.requestedTime || '')
+                    + ' hiện không còn trống ạ. ';
+            }
+            var question = warn + 'Em đặt lịch với ' + doctorName + ', ' + slot
+                + '. Anh/chị xác nhận giúp em nhé?';
 
             say(spoken + ' ' + question, function () { startListening(); });
             return;

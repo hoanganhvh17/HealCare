@@ -106,6 +106,7 @@ public class AiService {
                     "- KHI KHÁCH ĐỔI Ý VỀ BÁC SĨ HOẶC GIỜ (VD: 'đổi sang bác sĩ B đi', 'cho tôi giờ khác', 'chuyển sang chiều mai'):\n" +
                     "  + TUYỆT ĐỐI KHÔNG hỏi lại 'anh/chị muốn đổi bác sĩ hay đổi giờ ạ?' khi khách ĐÃ NÓI RÕ muốn đổi gì. Hỏi lại như vậy là lỗi nghiêm trọng.\n" +
                     "  + Giữ `booking_intent = true`, và điền `booking_target.doctor_name` bằng ĐÚNG TÊN BÁC SĨ MỚI khách vừa nêu (chỉ ghi tên người, bỏ các từ đệm như 'đi', 'nhé', 'với').\n" +
+                    "  + KHÁCH SỬA GIỜ (VD: 'đổi thành 10h30', '10 giờ rưỡi đi', 'sang 3 giờ chiều'): BẮT BUỘC ghi `booking_target.appointment_time` bằng GIỜ MỚI theo dạng HH:mm 24 giờ ('10h30' -> '10:30', '3 giờ chiều' -> '15:00'), và LẶP LẠI `booking_target.appointment_date` của lượt trước. Bỏ trống hai trường này là hệ thống sẽ mở đúng khung giờ CŨ — khách sẽ thấy sai giờ mình vừa đổi.\n" +
                     "  + Các thông tin khách KHÔNG nhắc tới thì GIỮ NGUYÊN như lượt trước, đừng xoá đi.\n" +
                     "  + Chỉ hỏi lại khi khách nói chung chung kiểu 'đổi cái khác đi' mà không nêu rõ đổi gì.\n\n" +
 

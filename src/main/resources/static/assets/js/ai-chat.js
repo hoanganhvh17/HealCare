@@ -161,18 +161,60 @@
                         .trim();
                 }
 
-                function normalizeTimeHint(text) {
-                    const normalized = normalizeText(text)
-                        .replace(/h/g, ':')
-                        .replace(/giờ/g, ':')
-                        .replace(/\s+/g, '');
+                /** Ngày hôm nay theo múi giờ MÁY KHÁCH. Không dùng toISOString() vì đó là giờ UTC:
+                 *  ở Việt Nam (UTC+7), sau 17h nó đã nhảy sang ngày mai. */
+                function toIsoDate(date) {
+                    return date.getFullYear()
+                        + '-' + String(date.getMonth() + 1).padStart(2, '0')
+                        + '-' + String(date.getDate()).padStart(2, '0');
+                }
 
-                    const match = normalized.match(/(\d{1,2})(?::?(\d{2}))?/);
+                /**
+                 * Lấy giờ BẮT ĐẦU của một nhãn khung giờ.
+                 *   "T5 24/07 (10:00 - 10:30)" -> "10:00"
+                 *   "10:30 - 11:00"            -> "10:30"
+                 *
+                 * Bắt buộc phải so sánh theo giờ bắt đầu, KHÔNG được dùng indexOf: chuỗi "10:30"
+                 * nằm trong cả khung "10:00 - 10:30" (giờ KẾT THÚC) lẫn khung "10:30 - 11:00".
+                 * Khách xin 10h30 mà khớp bằng indexOf thì trúng ngay khung 10h00.
+                 */
+                function slotStartTime(slotLabel) {
+                    const inside = (slotLabel || '').match(/\((.*?)\)/);
+                    const range = inside ? inside[1] : (slotLabel || '');
+                    const start = range.match(/(\d{1,2}):(\d{2})/);
+                    return start ? String(parseInt(start[1], 10)).padStart(2, '0') + ':' + start[2] : '';
+                }
+
+                function normalizeTimeHint(text) {
+                    const raw = normalizeText(text);
+                    if (!raw) return '';
+
+                    // Neo vào dấu hiệu chỉ giờ ("h", ":", "giờ", "rưỡi") thay vì vơ lấy con số
+                    // ĐẦU TIÊN trong câu: "ngày 25 tháng 7 lúc 10h30" mà lấy số đầu thì ra "25:00",
+                    // còn trong "đặt lịch ngày 5/8" thì con số đó là NGÀY chứ không phải giờ.
+                    let match = raw.match(/(\d{1,2})\s*(?:h|:|giờ|gio|rưỡi|ruoi)\s*(\d{1,2})?/);
+                    if (!match) match = raw.match(/^(\d{1,2})$/);   // booking_target trả về trần một con số
                     if (!match) return '';
 
-                    const hour = String(parseInt(match[1], 10)).padStart(2, '0');
-                    const minute = match[2] ? String(parseInt(match[2], 10)).padStart(2, '0') : '00';
-                    return hour + ':' + minute;
+                    let hour = parseInt(match[1], 10);
+                    let minute = match[2] !== undefined ? parseInt(match[2], 10) : null;
+                    const tail = raw.slice(match.index + match[0].length);
+
+                    // "10 giờ rưỡi" / "10 rưỡi" = 10:30 — cách nói rất phổ biến khi gọi bằng giọng nói
+                    if (minute === null) {
+                        minute = /(rưỡi|ruoi)/.test(match[0] + tail.slice(0, 6)) ? 30 : 0;
+                    }
+
+                    // "3 giờ chiều" -> 15:00. Ngoài ra phòng khám mở 07:30-20:30 nên giờ 1-6
+                    // chỉ có thể là buổi chiều, trừ khi khách nói rõ "sáng".
+                    if (hour >= 1 && hour <= 11 && /^[^0-9]{0,10}(chiều|chieu|tối|đêm)/.test(tail)) {
+                        hour += 12;
+                    } else if (hour >= 1 && hour <= 6 && !/sáng/.test(raw)) {
+                        hour += 12;
+                    }
+
+                    if (hour > 23 || minute > 59) return '';
+                    return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
                 }
 
                 function addThirtyMinutes(timeText) {
@@ -221,12 +263,12 @@
                     const today = new Date();
 
                     if (normalized.includes('hôm nay')) {
-                        return today.toISOString().slice(0, 10);
+                        return toIsoDate(today);
                     }
                     if (normalized.includes('ngày mai')) {
                         const tomorrow = new Date(today);
                         tomorrow.setDate(today.getDate() + 1);
-                        return tomorrow.toISOString().slice(0, 10);
+                        return toIsoDate(tomorrow);
                     }
 
                     const slashMatch = normalized.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
@@ -307,6 +349,9 @@
                     return byGivenName[0] || byAllWords[0] || null;
                 }
 
+                // Ngày của lịch hẹn vừa chốt gần nhất — xem chỗ dùng bên dưới.
+                let lastHandoffDate = '';
+
                 async function resolveBookingHandoff(aiData, userText) {
                     const bookingIntent = aiData && (aiData.booking_intent === true || normalizeText(userText).match(/đặt lịch|chuyển sang đặt lịch|tiến hành khám|book lịch|book khám|đặt khám/));
                     if (!bookingIntent) return null;
@@ -317,8 +362,14 @@
                         : [];
 
                     const requestedDoctorName = (bookingTarget.doctor_name || extractDoctorName(userText) || '').trim();
-                    const requestedDate = bookingTarget.appointment_date || extractDateHint(userText);
                     const requestedTime = normalizeTimeHint(bookingTarget.appointment_time || userText);
+
+                    // Khách sửa mỗi giờ ("đổi thành 10h30") thì câu nói mới không có ngày.
+                    // Thiếu ngày là không tra được lịch trống thật, nên mượn lại ngày của lượt trước.
+                    let requestedDate = bookingTarget.appointment_date || extractDateHint(userText);
+                    if (!requestedDate && lastHandoffDate && lastHandoffDate >= toIsoDate(new Date())) {
+                        requestedDate = lastHandoffDate;
+                    }
                     const requestedDepartmentId = bookingTarget.department_id || deptIds[0] || null;
 
                     let doctorSearchResult = null;
@@ -414,11 +465,13 @@
                             const bookedSlotsRes = await fetch('/api/bookings/booked-slots?doctorId=' + selectedDoctor.id + '&date=' + encodeURIComponent(requestedDate));
                             if (bookedSlotsRes.ok) {
                                 const unavailableSlots = await bookedSlotsRes.json();
+                                const wantedStart = slotStartTime(explicitSlotRange);
                                 const slotIsFree = !Array.isArray(unavailableSlots) || unavailableSlots.every(function(slot) {
-                                    return slot.indexOf(explicitSlotRange) === -1 && slot.indexOf(explicitSlotRange.split(' - ')[0]) === -1;
+                                    return slotStartTime(slot) !== wantedStart;
                                 });
 
                                 if (slotIsFree) {
+                                    lastHandoffDate = requestedDate;
                                     return {
                                         doctor: selectedDoctor,
                                         doctorName: candidateDoctorName || selectedDoctor.fullName,
@@ -437,8 +490,9 @@
 
                     let selectedSlotLabel = null;
                     if (requestedTime) {
+                        // So khớp theo GIỜ BẮT ĐẦU của khung giờ, xem chú thích ở slotStartTime().
                         selectedSlotLabel = selectedDoctor.availableSlots.find(function(slotLabel) {
-                            return slotLabel.indexOf(requestedTime) !== -1;
+                            return slotStartTime(slotLabel) === requestedTime;
                         }) || null;
                     }
 
@@ -453,6 +507,8 @@
                     const appointmentTime = selectedSlotLabel.match(/\((.*?)\)/) ? selectedSlotLabel.match(/\((.*?)\)/)[1] : slotInfo.appointmentTime;
                     const appointmentUrl = buildAppointmentUrl(selectedDoctor.id, appointmentDate, appointmentTime);
 
+                    lastHandoffDate = appointmentDate;
+
                     return {
                         doctor: selectedDoctor,
                         doctorName: candidateDoctorName || selectedDoctor.fullName,
@@ -460,7 +516,8 @@
                         appointmentTime: appointmentTime,
                         appointmentUrl: appointmentUrl,
                         selectedSlotLabel: selectedSlotLabel,
-                        fallback: requestedTime && selectedSlotLabel.indexOf(requestedTime) === -1
+                        requestedTime: requestedTime,
+                        fallback: !!requestedTime && slotStartTime(selectedSlotLabel) !== requestedTime
                     };
                 }
 
@@ -539,7 +596,7 @@
                                               })
                                               .catch(() => {
                                                   // Rủi ro mạng lag -> Vẫn có câu chào mặc định cứu cánh
-                                                  typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
+                                                  typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI Heal Care. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
                                               });
                                       }
                         }
@@ -648,7 +705,7 @@
                                      })
                                      .catch(() => {
                                          // Rủi ro mạng lag -> Vẫn có câu chào mặc định cứu cánh
-                                         typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
+                                         typingMsg.innerHTML = 'Xin chào! Em là Trợ lý AI Heal Care. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?';
                                      });
                              }
               });
@@ -1047,7 +1104,7 @@ maximizeBtn.addEventListener('click', (e) => {
 
                                             if (bookingHandoff) {
                                                 const fallbackText = bookingHandoff.fallback
-                                                    ? 'Khung giờ anh/chị yêu cầu chưa khớp hoàn toàn, em đã chọn khung giờ gần nhất còn trống.'
+                                                    ? `Khung giờ ${bookingHandoff.requestedTime || 'anh/chị yêu cầu'} hiện không còn trống, em xin phép giữ khung giờ gần nhất bên dưới.`
                                                     : 'Em đã mở đúng bác sĩ và khung giờ anh/chị vừa yêu cầu.';
                                                 typingMsg.innerHTML += `
                                                     <div class="mt-3 p-3" style="background: #eef6ff; border-left: 4px solid #0d6efd; border-radius: 8px;">

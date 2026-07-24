@@ -263,7 +263,7 @@ public class AiController {
     public ResponseEntity<String> getWelcomeMessage() {
         System.out.println("\n========== [DEBUG API WELCOME] START ==========");
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        String defaultGreeting = "Xin chào! Em là Trợ lý AI HealCare. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?";
+        String defaultGreeting = "Xin chào! Em là Trợ lý AI Heal Care. Anh / Chị cần hỗ trợ vấn đề sức khỏe gì hôm nay?";
 
         if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
             System.out.println("[LOG 1] Thất bại: User là Anonymous (Chưa đăng nhập).");
