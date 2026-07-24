@@ -424,6 +424,21 @@
             return;
         }
 
+        // Khung giờ khách xin đã kín: báo NGAY từ đầu và đưa hướng thay thế.
+        // KHÔNG đọc lại câu của model ở đây — model không nhìn thấy lịch trực nên nó hay
+        // nói "em đã ghi nhận giờ khám" rồi mâu thuẫn ngay với thực tế.
+        if (payload.bookingHandoff && payload.bookingHandoff.fallback) {
+            var alt = payload.bookingHandoff.alternatives || {};
+            var hasOptions = (alt.sameTimeDoctors && alt.sameTimeDoctors.length)
+                || (alt.otherTimes && alt.otherTimes.length);
+
+            // Còn hướng thay thế thì đây là câu hỏi MỞ ("đổi bác sĩ hay đổi giờ"),
+            // câu trả lời phải chuyển cho AI chứ không phải parseYesNo.
+            awaitingConfirm = hasOptions ? null : payload.bookingHandoff;
+            say(describeSlotFull(payload.bookingHandoff), function () { startListening(); });
+            return;
+        }
+
         // KB1 — đã chốt được bác sĩ + khung giờ: hỏi xác nhận rồi mới điều hướng
         if (payload.bookingHandoff) {
             awaitingConfirm = payload.bookingHandoff;
@@ -431,16 +446,7 @@
                 || (payload.bookingHandoff.doctor && payload.bookingHandoff.doctor.fullName)
                 || 'bác sĩ';
             var slot = V().humanizeSchedule(payload.bookingHandoff.selectedSlotLabel || '');
-
-            // Không được lặng lẽ đổi sang giờ khác: khách xin 10h30 mà hệ thống chỉ còn 10h
-            // thì phải nói rõ, nếu không khách bấm xác nhận rồi mới phát hiện sai giờ.
-            var warn = '';
-            if (payload.bookingHandoff.fallback) {
-                warn = 'Khung giờ '
-                    + V().humanizeSchedule(payload.bookingHandoff.requestedTime || '')
-                    + ' hiện không còn trống ạ. ';
-            }
-            var question = warn + 'Em đặt lịch với ' + doctorName + ', ' + slot
+            var question = 'Em đặt lịch với ' + doctorName + ', ' + slot
                 + '. Anh/chị xác nhận giúp em nhé?';
 
             say(spoken + ' ' + question, function () { startListening(); });
@@ -448,6 +454,40 @@
         }
 
         say(spoken, function () { startListening(); });
+    }
+
+    /** Vì sao em gợi ý bác sĩ này — khách cần nghe lý do, không chỉ nghe cái tên. */
+    function describeLoadVoice(nearbyLoad) {
+        if (!nearbyLoad) return 'quanh giờ đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
+        if (nearbyLoad <= 2) return 'quanh giờ đó bác sĩ chỉ có ' + nearbyLoad + ' ca nên anh/chị ít phải chờ';
+        return 'quanh giờ đó bác sĩ có ' + nearbyLoad + ' ca khám';
+    }
+
+    /** Câu đọc khi khung giờ khách xin đã kín: nói thật, rồi đưa đúng hai hướng chọn. */
+    function describeSlotFull(handoff) {
+        var alt = handoff.alternatives || {};
+        var wanted = V().humanizeSchedule(handoff.requestedTime || '');
+        var sameTime = alt.sameTimeDoctors || [];
+        var otherTimes = alt.otherTimes || [];
+
+        var text = 'Dạ khung giờ ' + wanted + ' đã kín lịch rồi ạ. ';
+
+        if (sameTime.length > 0) {
+            text += 'Em gợi ý anh/chị bác sĩ ' + sameTime[0].fullName
+                + ' cùng chuyên khoa, vẫn còn trống đúng ' + wanted
+                + ', vì ' + describeLoadVoice(sameTime[0].nearbyLoad) + '. ';
+        }
+        if (otherTimes.length > 0) {
+            text += 'Hoặc anh/chị giữ bác sĩ ' + (alt.requestedDoctorName || handoff.doctorName || 'hiện tại')
+                + ' và dời sang ' + V().humanizeSchedule(otherTimes[0].slot) + '. ';
+        }
+
+        if (sameTime.length === 0 && otherTimes.length === 0) {
+            return text + 'Khung giờ gần nhất còn trống là '
+                + V().humanizeSchedule(handoff.selectedSlotLabel || '')
+                + ' với bác sĩ ' + (handoff.doctorName || '') + '. Anh/chị dùng khung giờ này nhé?';
+        }
+        return text + 'Anh/chị chọn hướng nào ạ?';
     }
 
     /** KB3 — chuyển overlay sang chế độ cảnh báo cấp cứu. */

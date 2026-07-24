@@ -3,7 +3,7 @@
 The booking pipeline is the heart of the app and spans several classes.
 
 ## 1. Time slots
-Availability is computed against a **fixed 30-minute slot grid** running 07:30–20:30. The canonical slot list is **duplicated** in [BookingApi.java](src/main/java/com/bookinghealthy/controller/api/BookingApi.java) (`ALL_SLOTS`) and in `TimeSlotService` — **keep both in sync** if you change operating hours.
+Availability is computed against a **fixed 30-minute slot grid** running 07:30–20:30. The canonical slot list is **duplicated three times** — [BookingApi.java](src/main/java/com/bookinghealthy/controller/api/BookingApi.java) (`ALL_SLOTS`), [AiController.java](src/main/java/com/bookinghealthy/controller/api/AiController.java) (`ALL_SLOTS`, used by both the doctor-list and slot-alternatives endpoints), and `TimeSlotService` — **keep all three in sync** if you change operating hours.
 
 `GET /api/bookings/booked-slots?doctorId=&date=` returns unavailable slots = existing bookings (any status except `CANCELED`) **plus** doctor-blocked ranges (`DoctorBlockTime`, matched with interval-overlap logic).
 

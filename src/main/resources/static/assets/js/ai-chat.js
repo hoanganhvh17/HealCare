@@ -301,6 +301,215 @@
                     };
                 }
 
+                const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+                /** "2026-07-24" + "10:30 - 11:00" -> "T6 24/07 (10:30 - 11:00)" (đúng dạng translateDay ở AiController). */
+                function buildSlotLabelFrom(isoDate, slot) {
+                    const parts = (isoDate || '').split('-');
+                    if (parts.length !== 3) return slot;
+                    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                    return DAY_LABELS[d.getDay()] + ' ' + parts[2] + '/' + parts[1] + ' (' + slot + ')';
+                }
+
+                function formatDayMonth(isoDate) {
+                    const parts = (isoDate || '').split('-');
+                    return parts.length === 3 ? parts[2] + '/' + parts[1] : isoDate;
+                }
+
+                /** Câu giải thích VÌ SAO em gợi ý bác sĩ này — khách cần biết lý do, không chỉ cái tên. */
+                function describeLoad(nearbyLoad) {
+                    if (nearbyLoad === 0) return 'quanh giờ đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
+                    if (nearbyLoad <= 2) return 'quanh giờ đó bác sĩ chỉ có ' + nearbyLoad + ' ca nên anh/chị ít phải chờ';
+                    return 'quanh giờ đó bác sĩ có ' + nearbyLoad + ' ca khám';
+                }
+
+                // Hai hướng vừa gợi ý cho khách, đang chờ khách chọn. Danh sách này do hệ thống
+                // tra ra chứ KHÔNG nằm trong hội thoại, nên model hoàn toàn không biết gì về nó.
+                let pendingAlternatives = null;
+
+                function lastNameWord(fullName) {
+                    const words = normalizeText(fullName).split(' ').filter(Boolean);
+                    return words.length ? words[words.length - 1] : '';
+                }
+
+                /**
+                 * Hiểu câu trả lời cho "anh/chị chọn hướng nào ạ?" ngay tại chỗ.
+                 * Trả về { kind: 'doctor', doctor } | { kind: 'time', option } | null.
+                 */
+                function resolveAlternativeChoice(text, handoff) {
+                    const alt = (handoff && handoff.alternatives) || {};
+                    const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
+                    const otherTimes = Array.isArray(alt.otherTimes) ? alt.otherTimes : [];
+                    if (!sameTime.length && !otherTimes.length) return null;
+
+                    const raw = normalizeText(text).replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (!raw) return null;
+                    const padded = ' ' + raw + ' ';
+
+                    // Thứ tự in ra trong thẻ: (1) đổi bác sĩ giữ giờ, (2) giữ bác sĩ đổi giờ.
+                    const directions = [];
+                    if (sameTime.length) directions.push('doctor');
+                    if (otherTimes.length) directions.push('time');
+
+                    let want = null;
+
+                    // 1. Cả câu chỉ là một con số / từ chỉ thứ tự
+                    if (/^(1|một|mot|đầu tiên|dau tien|cái đầu|cai dau)$/.test(raw)) want = directions[0];
+                    else if (/^(2|hai|thứ hai|thu hai|cái sau|cai sau)$/.test(raw)) want = directions[1];
+
+                    // 2. "hướng 1", "cách 2", "phương án 1". Chặn con số của giờ giấc ("chọn 10 giờ")
+                    //    bằng cách chỉ nhận số đứng ngay sau từ chỉ lựa chọn và không dính h/:/giờ.
+                    if (!want) {
+                        const ordinal = raw.match(/(?:hướng|huong|cách|cach|phương án|phuong an|option|số|so)\s*(\d)(?!\s*(?:\d|:|h|giờ|gio|rưỡi|ruoi))/);
+                        if (ordinal) want = directions[parseInt(ordinal[1], 10) - 1] || null;
+                    }
+
+                    // 3. Gọi đích danh một bác sĩ trong danh sách gợi ý
+                    if (!want) {
+                        for (let i = 0; i < sameTime.length; i++) {
+                            const given = lastNameWord(sameTime[i].fullName);
+                            if (given && padded.indexOf(' ' + given + ' ') !== -1) {
+                                return { kind: 'doctor', doctor: sameTime[i] };
+                            }
+                        }
+                    }
+
+                    // 4. Đọc thẳng một khung giờ có trong danh sách
+                    if (!want) {
+                        const spokenTime = normalizeTimeHint(text);
+                        if (spokenTime) {
+                            const hit = otherTimes.find(function(o) { return slotStartTime(o.slot) === spokenTime; });
+                            if (hit) return { kind: 'time', option: hit };
+                        }
+                    }
+
+                    // 5. Nói thẳng ý định. Xét "giữ bác sĩ / đổi giờ" TRƯỚC, vì câu đó cũng
+                    //    chứa chữ "bác sĩ" và sẽ bị nhánh đổi bác sĩ nuốt mất.
+                    if (!want) {
+                        if (/giữ bác sĩ|giu bac si|đổi giờ|doi gio|đổi lịch|doi lich|dời|doi sang gio|giờ khác|gio khac|khung giờ khác/.test(raw)) {
+                            want = 'time';
+                        } else if (/bác sĩ|bac si/.test(raw) && /đổi|doi|chuyển|chuyen|sang|khác|khac|chọn|chon/.test(raw)) {
+                            want = 'doctor';
+                        }
+                    }
+
+                    if (want === 'doctor' && sameTime.length) return { kind: 'doctor', doctor: sameTime[0] };
+                    if (want === 'time' && otherTimes.length) return { kind: 'time', option: otherTimes[0] };
+                    return null;
+                }
+
+                /** Biến lựa chọn của khách thành một handoff hoàn chỉnh (đã hết fallback). */
+                function handoffFromAlternative(prev, choice) {
+                    const date = prev.appointmentDate;
+
+                    if (choice.kind === 'doctor') {
+                        const d = choice.doctor;
+                        return {
+                            doctor: { id: d.id, fullName: d.fullName, avatar: d.avatar },
+                            doctorName: d.fullName,
+                            appointmentDate: date,
+                            appointmentTime: d.slot,
+                            appointmentUrl: buildAppointmentUrl(d.id, date, d.slot),
+                            selectedSlotLabel: d.slotLabel || buildSlotLabelFrom(date, d.slot),
+                            requestedTime: prev.requestedTime,
+                            fallback: false,
+                            alternatives: null
+                        };
+                    }
+
+                    const o = choice.option;
+                    return {
+                        doctor: { id: o.doctorId, fullName: o.fullName },
+                        doctorName: o.fullName,
+                        appointmentDate: date,
+                        appointmentTime: o.slot,
+                        appointmentUrl: buildAppointmentUrl(o.doctorId, date, o.slot),
+                        selectedSlotLabel: o.slotLabel || buildSlotLabelFrom(date, o.slot),
+                        requestedTime: prev.requestedTime,
+                        fallback: false,
+                        alternatives: null
+                    };
+                }
+
+                /** Nhét danh sách vừa gợi ý vào lượt hỏi tiếp theo, để model không trả lời mù. */
+                function buildAlternativeContext(handoff) {
+                    const alt = handoff.alternatives || {};
+                    const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
+                    const otherTimes = Array.isArray(alt.otherTimes) ? alt.otherTimes : [];
+
+                    const lines = ['[NGỮ CẢNH HỆ THỐNG — không đọc lại nguyên văn cho khách]'];
+                    lines.push('Khung giờ ' + (handoff.requestedTime || '') + ' ngày ' + handoff.appointmentDate + ' ĐÃ KÍN.');
+                    if (sameTime.length) {
+                        lines.push('Hướng 1 — đổi bác sĩ, giữ nguyên giờ: '
+                            + sameTime.map(function(d) { return d.fullName + ' (' + d.slot + ')'; }).join('; '));
+                    }
+                    if (otherTimes.length) {
+                        lines.push('Hướng 2 — giữ bác sĩ ' + (alt.requestedDoctorName || handoff.doctorName || '') + ', dời sang: '
+                            + otherTimes.map(function(o) { return o.slot; }).join('; '));
+                    }
+                    lines.push('Khách đang trả lời câu hỏi "anh/chị chọn hướng nào ạ?". '
+                        + 'Hãy điền booking_target đúng theo lựa chọn của khách (doctor_name, appointment_date, appointment_time) '
+                        + 'và TUYỆT ĐỐI KHÔNG hỏi lại khách chọn hướng nào.');
+                    return lines.join('\n');
+                }
+
+                /**
+                 * Thẻ "khung giờ đã kín" — thay cho việc âm thầm đẩy khách sang giờ khác.
+                 * Nói thẳng là kín, rồi đưa ĐÚNG hai hướng: đổi bác sĩ mà giữ giờ, hoặc giữ
+                 * bác sĩ mà đổi giờ. Mỗi bác sĩ gợi ý đều kèm lý do vì sao em chọn người đó.
+                 */
+                function buildSlotFullHtml(handoff) {
+                    const alt = handoff.alternatives || {};
+                    const wantedTime = handoff.requestedTime || 'khung giờ anh/chị yêu cầu';
+                    const wantedDate = formatDayMonth(handoff.appointmentDate);
+                    const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
+                    const otherTimes = Array.isArray(alt.otherTimes) ? alt.otherTimes : [];
+
+                    let html = `<div class="mt-3 p-3" style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:8px;">
+                        <div class="fw-bold mb-2" style="color:#b8860b;">
+                            <i class="bi bi-clock-history"></i> Khung giờ ${wantedTime} ngày ${wantedDate} đã kín lịch rồi ạ
+                        </div>`;
+
+                    if (sameTime.length > 0) {
+                        html += `<div style="font-size:13px;color:#334155;margin-bottom:6px;">
+                            Em gợi ý anh/chị mấy bác sĩ cùng chuyên khoa vẫn còn trống <strong>đúng ${wantedTime}</strong>:
+                        </div>`;
+                        sameTime.forEach(function(doc) {
+                            html += `<div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#fff;border-radius:6px;">
+                                <img src="${doc.avatar}" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                                <div style="flex:1;font-size:13px;color:#334155;">
+                                    <div><strong>${doc.fullName}</strong>${doc.degree ? ' — ' + doc.degree : ''}</div>
+                                    <div style="color:#64748b;">Em gợi ý anh/chị bác sĩ này vì ${describeLoad(doc.nearbyLoad)}.</div>
+                                </div>
+                                <a href="${buildAppointmentUrl(doc.id, handoff.appointmentDate, doc.slot)}"
+                                   class="btn btn-sm btn-primary">Chọn</a>
+                            </div>`;
+                        });
+                    }
+
+                    if (otherTimes.length > 0) {
+                        const keepName = alt.requestedDoctorName || handoff.doctorName || 'bác sĩ hiện tại';
+                        html += `<div style="font-size:13px;color:#334155;margin:8px 0 6px;">
+                            Hoặc anh/chị vẫn giữ <strong>${keepName}</strong> và dời sang khung giờ gần nhất:
+                        </div><div class="d-flex flex-wrap gap-2">`;
+                        otherTimes.forEach(function(item) {
+                            html += `<a href="${buildAppointmentUrl(item.doctorId, handoff.appointmentDate, item.slot)}"
+                                        class="btn btn-sm btn-outline-primary">${item.slot}</a>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (sameTime.length === 0 && otherTimes.length === 0) {
+                        html += `<div style="font-size:13px;color:#334155;">
+                            Khung giờ gần nhất còn trống là <strong>${handoff.selectedSlotLabel}</strong> với
+                            <strong>${handoff.doctorName || handoff.doctor.fullName}</strong>. Anh/chị dùng khung giờ này nhé?
+                        </div>
+                        <a href="${handoff.appointmentUrl}" class="btn btn-sm btn-primary mt-2">Đặt khung giờ này</a>`;
+                    }
+
+                    return html + `</div>`;
+                }
+
                 function buildAppointmentUrl(doctorId, appointmentDate, appointmentTime) {
                     const url = new URL('/appointment', window.location.origin);
                     if (doctorId) url.searchParams.set('doctorId', doctorId);
@@ -351,6 +560,33 @@
 
                 // Ngày của lịch hẹn vừa chốt gần nhất — xem chỗ dùng bên dưới.
                 let lastHandoffDate = '';
+
+                /**
+                 * Hỏi server xem còn cách nào cho khung giờ khách vừa xin: bác sĩ cùng khoa
+                 * còn trống ĐÚNG giờ đó (ưu tiên người ít ca khám quanh giờ đó nhất), hoặc
+                 * khung giờ gần nhất của chính bác sĩ khách đang nhắm tới.
+                 */
+                async function fetchSlotAlternatives(departmentId, date, time, doctorId) {
+                    try {
+                        const url = new URL('/api/chat/slot-alternatives', window.location.origin);
+                        url.searchParams.set('departmentId', departmentId);
+                        url.searchParams.set('date', date);
+                        url.searchParams.set('time', time);
+                        if (doctorId) url.searchParams.set('doctorId', doctorId);
+                        if (sessionId) url.searchParams.set('sessionId', sessionId);
+
+                        const res = await fetch(url.toString());
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        const hasAny = data.requestedDoctorFree
+                            || (data.sameTimeDoctors && data.sameTimeDoctors.length)
+                            || (data.otherTimes && data.otherTimes.length);
+                        return hasAny ? data : null;
+                    } catch (err) {
+                        console.error(err);
+                        return null;
+                    }
+                }
 
                 async function resolveBookingHandoff(aiData, userText) {
                     const bookingIntent = aiData && (aiData.booking_intent === true || normalizeText(userText).match(/đặt lịch|chuyển sang đặt lịch|tiến hành khám|book lịch|book khám|đặt khám/));
@@ -509,6 +745,31 @@
 
                     lastHandoffDate = appointmentDate;
 
+                    // Khung giờ khách xin không còn: KHÔNG im lặng đẩy sang giờ khác.
+                    // Lấy các hướng thay thế để hỏi ý khách trước.
+                    let fallback = !!requestedTime && slotStartTime(selectedSlotLabel) !== requestedTime;
+                    let alternatives = null;
+                    if (fallback && candidateDepartmentId) {
+                        alternatives = await fetchSlotAlternatives(
+                            candidateDepartmentId, appointmentDate, requestedTime, selectedDoctor.id);
+
+                        // Hoá ra bác sĩ này vẫn trống đúng giờ khách xin: danh sách xem trước chỉ
+                        // lấy 4 khung giờ của ngày gần nhất nên đã cắt mất khung giờ đó.
+                        if (alternatives && alternatives.requestedDoctorFree && alternatives.slot) {
+                            return {
+                                doctor: selectedDoctor,
+                                doctorName: candidateDoctorName || selectedDoctor.fullName,
+                                appointmentDate: appointmentDate,
+                                appointmentTime: alternatives.slot,
+                                appointmentUrl: buildAppointmentUrl(selectedDoctor.id, appointmentDate, alternatives.slot),
+                                selectedSlotLabel: buildSlotLabelFrom(appointmentDate, alternatives.slot),
+                                requestedTime: requestedTime,
+                                fallback: false,
+                                alternatives: null
+                            };
+                        }
+                    }
+
                     return {
                         doctor: selectedDoctor,
                         doctorName: candidateDoctorName || selectedDoctor.fullName,
@@ -517,7 +778,8 @@
                         appointmentUrl: appointmentUrl,
                         selectedSlotLabel: selectedSlotLabel,
                         requestedTime: requestedTime,
-                        fallback: !!requestedTime && slotStartTime(selectedSlotLabel) !== requestedTime
+                        fallback: fallback,
+                        alternatives: alternatives
                     };
                 }
 
@@ -971,20 +1233,74 @@ maximizeBtn.addEventListener('click', (e) => {
             });
         }
 
+        /** In thẻ "đã chốt lịch" rồi mở trang đặt lịch (trừ khi đang trong cuộc gọi thoại). */
+        function finishBookingHandoff(typingMsg, handoff, aiData, userText) {
+            typingMsg.innerHTML += `
+                <div class="mt-3 p-3" style="background: #eef6ff; border-left: 4px solid #0d6efd; border-radius: 8px;">
+                    <div class="fw-bold mb-1" style="color: #0d6efd;"><i class="bi bi-calendar-check"></i> Em đã mở đúng bác sĩ và khung giờ anh/chị vừa chọn.</div>
+                    <div style="font-size: 13px; color: #334155;">
+                        <div><strong>Bác sĩ:</strong> ${handoff.doctorName || handoff.doctor.fullName}</div>
+                        <div><strong>Lịch hẹn:</strong> ${handoff.selectedSlotLabel}</div>
+                    </div>
+                    <a href="${handoff.appointmentUrl}" class="btn btn-sm btn-primary mt-2">Mở trang đặt lịch</a>
+                </div>`;
+            sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
+
+            notifyReply({ aiData: aiData, userText: userText, bookingHandoff: handoff });
+
+            // Chế độ gọi tự đọc câu xác nhận rồi chờ khách nói "đồng ý",
+            // nên khi đang gọi thì KHÔNG tự nhảy trang.
+            if (!window.MediTrustChat || !window.MediTrustChat.suppressAutoRedirect) {
+                setTimeout(() => {
+                    window.location.href = handoff.appointmentUrl;
+                }, 900);
+            }
+        }
+
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (!text) return;
             appendMessage('user', text);
             chatInput.value = '';
 
+            // Khách đang trả lời câu "anh/chị chọn hướng nào ạ?".
+            // Model KHÔNG biết em vừa gợi ý những gì (danh sách do hệ thống tra ra, không nằm
+            // trong hội thoại), nên tự chốt ngay ở đây thay vì hỏi model rồi bị hỏi lại khách.
+            if (pendingAlternatives) {
+                const choice = resolveAlternativeChoice(text, pendingAlternatives);
+                if (choice) {
+                    const chosen = handoffFromAlternative(pendingAlternatives, choice);
+                    pendingAlternatives = null;
+
+                    const replyText = choice.kind === 'doctor'
+                        ? `Dạ vâng ạ, em chuyển sang bác sĩ ${chosen.doctorName} giữ nguyên khung giờ anh/chị muốn.`
+                        : `Dạ vâng ạ, em giữ bác sĩ ${chosen.doctorName} và dời sang khung giờ mới.`;
+
+                    const localMsg = appendMessage('bot', replyText);
+                    finishBookingHandoff(localMsg, chosen, {
+                        ai_reply: replyText,
+                        speech_reply: replyText,
+                        is_emergency: false,
+                        booking_intent: true
+                    }, text);
+                    return;
+                }
+            }
+
             // Hiển thị hiệu ứng 3 dấu chấm nhảy trong lúc chờ AI phản hồi
                         const typingMsg = appendMessage('bot', '<div class="typing-dots"><span></span><span></span><span></span></div>');
 
             try {
+                // Khách trả lời kiểu khác ("cho tôi bác sĩ nào rảnh sớm nhất") thì vẫn phải hỏi
+                // model — nhưng phải kèm theo danh sách em vừa gợi ý, nếu không model trả lời mù.
+                const promptToSend = pendingAlternatives
+                    ? buildAlternativeContext(pendingAlternatives) + '\n\n' + text
+                    : text;
+
                 const response = await fetch('/api/chat/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId: sessionId, prompt: text })
+                    body: JSON.stringify({ sessionId: sessionId, prompt: promptToSend })
                 });
 
                 if (response.ok) {
@@ -1102,30 +1418,18 @@ maximizeBtn.addEventListener('click', (e) => {
                                                 return;
                                             }
 
-                                            if (bookingHandoff) {
-                                                const fallbackText = bookingHandoff.fallback
-                                                    ? `Khung giờ ${bookingHandoff.requestedTime || 'anh/chị yêu cầu'} hiện không còn trống, em xin phép giữ khung giờ gần nhất bên dưới.`
-                                                    : 'Em đã mở đúng bác sĩ và khung giờ anh/chị vừa yêu cầu.';
-                                                typingMsg.innerHTML += `
-                                                    <div class="mt-3 p-3" style="background: #eef6ff; border-left: 4px solid #0d6efd; border-radius: 8px;">
-                                                        <div class="fw-bold mb-1" style="color: #0d6efd;"><i class="bi bi-calendar-check"></i> ${fallbackText}</div>
-                                                        <div style="font-size: 13px; color: #334155;">
-                                                            <div><strong>Bác sĩ:</strong> ${bookingHandoff.doctorName || bookingHandoff.doctor.fullName}</div>
-                                                            <div><strong>Lịch hẹn:</strong> ${bookingHandoff.selectedSlotLabel}</div>
-                                                        </div>
-                                                        <a href="${bookingHandoff.appointmentUrl}" class="btn btn-sm btn-primary mt-2">Mở trang đặt lịch</a>
-                                                    </div>`;
+                                            // Khung giờ khách xin đã kín: hỏi ý khách chứ KHÔNG tự nhảy sang giờ khác.
+                                            if (bookingHandoff && bookingHandoff.fallback) {
+                                                pendingAlternatives = bookingHandoff;
+                                                typingMsg.innerHTML += buildSlotFullHtml(bookingHandoff);
                                                 sessionStorage.setItem('meditrust_chat_html', messagesContainer.innerHTML);
-
                                                 notifyReply({ aiData: aiData, userText: text, bookingHandoff: bookingHandoff });
+                                                return;
+                                            }
 
-                                                // Chế độ gọi tự đọc câu xác nhận rồi chờ khách nói "đồng ý",
-                                                // nên khi đang gọi thì KHÔNG tự nhảy trang.
-                                                if (!window.MediTrustChat || !window.MediTrustChat.suppressAutoRedirect) {
-                                                    setTimeout(() => {
-                                                        window.location.href = bookingHandoff.appointmentUrl;
-                                                    }, 900);
-                                                }
+                                            if (bookingHandoff) {
+                                                pendingAlternatives = null;
+                                                finishBookingHandoff(typingMsg, bookingHandoff, aiData, text);
                                                 return;
                                             }
 

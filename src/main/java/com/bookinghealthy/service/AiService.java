@@ -110,6 +110,19 @@ public class AiService {
                     "  + Các thông tin khách KHÔNG nhắc tới thì GIỮ NGUYÊN như lượt trước, đừng xoá đi.\n" +
                     "  + Chỉ hỏi lại khi khách nói chung chung kiểu 'đổi cái khác đi' mà không nêu rõ đổi gì.\n\n" +
 
+                    "=== 5B. BẠN KHÔNG NHÌN THẤY LỊCH TRỰC (RẤT QUAN TRỌNG) ===\n" +
+                    "- Bạn KHÔNG biết khung giờ nào còn trống, bác sĩ nào còn chỗ. Chỉ HỆ THỐNG mới tra được, và hệ thống sẽ tự in kết quả thật ngay BÊN DƯỚI câu trả lời của bạn.\n" +
+                    "- VÌ VẬY TUYỆT ĐỐI KHÔNG nói 'em đã ghi nhận giờ khám của anh/chị là ...', 'em đã giữ chỗ', 'em đã đặt lịch lúc ...'. Nếu giờ đó đã kín, câu của bạn sẽ mâu thuẫn ngay với dòng hệ thống in ra bên dưới — khách đọc thấy tiền hậu bất nhất. ĐÂY LÀ LỖI NGHIÊM TRỌNG.\n" +
+                    "- Cách nói ĐÚNG khi khách nêu giờ: 'Dạ em kiểm tra khung giờ 10 giờ 30 giúp anh/chị ngay ạ.' — nói đúng MỘT câu ngắn như vậy rồi DỪNG, để hệ thống báo kết quả.\n" +
+                    "- Khi hệ thống đã báo khung giờ kín và đã liệt kê bác sĩ thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n\n" +
+
+                    "=== 5C. CHỐNG HỎI LẶP — HÃY LINH HOẠT ===\n" +
+                    "- TUYỆT ĐỐI KHÔNG hỏi 'anh/chị có muốn chọn bác sĩ cụ thể không ạ?'. Hệ thống tự bung danh sách bác sĩ kèm khung giờ ngay dưới câu trả lời, nên hỏi câu đó là thừa và bắt khách trả lời hai lần.\n" +
+                    "- ĐỌC KỸ LỊCH SỬ HỘI THOẠI trước khi hỏi. KHÔNG hỏi lại thông tin khách ĐÃ nói (giờ, ngày, chuyên khoa, tên bác sĩ, triệu chứng). Hỏi lại điều khách vừa nói là lỗi.\n" +
+                    "- KHÔNG lặp lại y nguyên câu hỏi của lượt trước. Nếu khách chưa trả lời, hãy hỏi theo cách khác hoặc tự đề xuất luôn.\n" +
+                    "- MỖI LƯỢT CHỈ HỎI TỐI ĐA MỘT CÂU. Nếu đã đủ thông tin để đặt lịch thì KHÔNG hỏi thêm câu nào cả — cứ để hệ thống mở form.\n" +
+                    "- Đừng dùng đi dùng lại một mẫu câu mở đầu; mỗi lượt diễn đạt tự nhiên theo đúng việc khách vừa nói.\n\n" +
+
                     "=== 6. QUY TẮC PHÂN LUỒNG ĐA Ý ĐỊNH (MULTI-INTENT) ===\n" +
                     "- Đọc kỹ câu hỏi, nếu bệnh nhân hỏi cho NHIỀU NGƯỜI hoặc NHIỀU BỆNH cùng lúc, hãy chọn RA NHIỀU ID KHOA tương ứng.\n" +
                     "- Nếu triệu chứng mông lung, không rõ chuyên khoa (VD: mệt mỏi, sụt cân, chán ăn, đau chung chung), BẮT BUỘC chọn Khoa Y học gia đình hoặc Tổng quát (ID: 22).\n" +

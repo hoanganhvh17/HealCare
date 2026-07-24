@@ -46,7 +46,24 @@ Slot labels are `"T5 24/07 (10:00 - 10:30)"`, so a requested time must be compar
 
 `normalizeTimeHint()` requires an explicit time marker (`h`, `:`, `giờ`, `rưỡi`) before treating a number as a time; a loose number in `"đặt lịch ngày 5/8"` is a date. It also resolves `"10 giờ rưỡi"` → `10:30` and afternoon phrasing (`"3 giờ chiều"` → `15:00`; hours 1–6 are PM unless the patient said "sáng", since the clinic opens at 07:30).
 
-When the requested slot is not among the doctor's free slots, `resolveBookingHandoff` still falls back to the nearest one but sets `fallback: true` and echoes back `requestedTime`. **Both surfaces must announce that** — the chat card names the unavailable time, and the voice layer says it before asking for confirmation. A silent substitution is the same class of bug as booking the wrong doctor.
+## When the requested slot is full
+`fallback: true` on the handoff means the patient asked for a time they cannot have. That is **never** resolved silently:
+
+- The auto-redirect is skipped entirely — the chat renders `buildSlotFullHtml()` instead of the "mở trang đặt lịch" card, and the voice layer asks an open question rather than a yes/no one (so `awaitingConfirm` stays `null` and the answer goes back to the model).
+- Options come from `GET /api/chat/slot-alternatives?departmentId=&date=&time=&doctorId=`, which returns `sameTimeDoctors` (same department, free at that **exact** slot) and `otherTimes` (the requested doctor's nearest free slots). It applies the same filters as the doctor-list endpoint — past times, bookings, `DoctorBlockTime`, other sessions' soft locks — but **takes no soft lock of its own**, since asking the patient is not claiming a slot.
+- `sameTimeDoctors` is ranked by `nearbyLoad` (that doctor's bookings within `NEARBY_MINUTES` of the requested time), then `dayLoad`. Fewest first, so the patient waits least at the clinic. Both surfaces must state the **reason** out loud ("em gợi ý anh/chị bác sĩ này vì quanh giờ đó chỉ có 1 ca…") — a bare name gives the patient nothing to choose on.
+- If the endpoint reports `requestedDoctorFree`, the fallback was an artifact of the doctor-list preview returning only 4 slots of the nearest day; the handoff is rebuilt at the exact requested slot and is no longer a fallback.
+
+### Answering the offer
+The offered options exist only in `pendingAlternatives` in the browser — **the model never saw them**, so it cannot resolve "hướng 1" on its own and used to just re-ask. Two mechanisms close that:
+
+- `resolveAlternativeChoice()` answers locally, before any model call: option ordinals ("hướng 1", "cách 2", a bare "1"), a named doctor from the list, a spoken time from the list, or a stated intent ("đổi bác sĩ" / "giữ bác sĩ, đổi giờ"). It checks the *keep-doctor* phrasings first, since those also contain the words "bác sĩ". A hit skips the model entirely and goes straight to the confirmation card via `finishBookingHandoff()`.
+- Anything it cannot resolve still goes to the model, but `buildAlternativeContext()` prepends the offered list to that turn's prompt so the reply is informed rather than blind.
+
+Ordinals map to *directions*, not list positions, and a direction is only offered when its list is non-empty — with no `sameTimeDoctors`, "hướng 1" means the time change.
+
+## The assistant cannot see the schedule
+`AiService` has no access to bookings, so prompt section **5B forbids the model from claiming a slot is recorded, held, or booked**. It only says it is checking; the frontend prints the real answer underneath. Before that rule the model would open with "em đã ghi nhận giờ khám 10 giờ 30" and the availability card directly under it said the opposite. Section **5C** bans the boilerplate that came with it — asking "anh/chị có muốn chọn bác sĩ cụ thể không ạ?" when the doctor cards render anyway, re-asking what the patient already said, and more than one question per turn.
 
 `lastHandoffDate` remembers the date of the last resolved handoff, because a correction turn ("đổi thành 10h30") carries no date and without one the real slot list cannot be queried. It is only reused when the model omits the date and the remembered date is not in the past.
 
