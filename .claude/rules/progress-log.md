@@ -35,6 +35,9 @@ Keep entries short (one line). Details belong in the topic rule file, not here.
 
 ## Log
 
+- 2026-07-23 — `fix:` đồng bộ toàn bộ ảnh bác sĩ về một phong cách (chân dung studio, áo blouse trắng, nền xám) cho cả 132 bác sĩ — `uploads/doctor-*.jpg`, `uploads/bs-*.jpg` — environment-setup.md
+- 2026-07-23 — `feat:` bổ sung 5 bác sĩ cho mỗi chuyên khoa (110 bác sĩ + lịch trực + ảnh đại diện) — `DoctorSeedData` (mới), `DataInitializer.ensureExtraDoctors`, `uploads/bs-*.jpg` — environment-setup.md, code-structure.md
+- 2026-07-24 — `fix:` đặt nhầm khung giờ khi khách sửa giờ (xin 10h30 nhưng điều hướng ra 10h) — `ai-chat.js` (`slotStartTime`, `normalizeTimeHint`, `lastHandoffDate`, cờ `fallback`), `meditrust-voice-call.js` (đọc rõ khi phải đổi giờ), `AiService` (luật ghi lại `appointment_time`) — ai-assistant.md
 - 2026-07-23 — `fix:` đặt nhầm bác sĩ khi khách yêu cầu đổi người, trợ lý hỏi lại dù khách đã nói rõ, xưng hô em/anh-chị, tăng tốc độ đọc và giảm thời gian chờ — `AiController` (tham số `doctorId`), `ai-chat.js` (`pickBestDoctorMatch`, `extractDoctorName`, `doctorNotFound`), `meditrust-voice-call.js` (`parseYesNo`), `AiService` (luật xưng hô + luật đổi bác sĩ) — ai-assistant.md
 - 2026-07-23 — `feat:` giao tiếp bằng giọng nói cho trợ lý AI (nút mic/loa ở cả 3 khung chat + chế độ gọi rảnh tay cho bệnh nhân) — `meditrust-voice.js`, `meditrust-voice-call.js`, `ai-chat.js` (`window.MediTrustChat`), `AiService` (`speech_reply`), 3 template `ai-chat` — ai-assistant.md, coding-conventions.md, environment-setup.md
 - 2026-07-23 — `docs:` thêm quy tắc bắt buộc ghi nhật ký tiến độ vào `.claude/rules/` — `.claude/rules/progress-log.md`, `CLAUDE.md` — progress-log.md (mới)

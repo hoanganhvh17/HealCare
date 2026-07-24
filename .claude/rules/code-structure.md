@@ -9,4 +9,6 @@ Standard Spring MVC layering under `com.bookinghealthy`:
 - **`dto/`** — request/response shapes, including `dto/ai/` for the OpenAI-compatible payloads.
 - **`security/`**, **`config/`**, **`util/`**.
 
-Entities use Lombok (`@Getter`/`@Setter`/`@NoArgsConstructor`/`@AllArgsConstructor`) — note that `@AllArgsConstructor` is used positionally in `DataInitializer`, so **adding a field to `User` or `Doctor` breaks that seeding code** and it must be updated in the same change.
+Entities use Lombok (`@Getter`/`@Setter`/`@NoArgsConstructor`/`@AllArgsConstructor`) — note that `@AllArgsConstructor` is used positionally in `DataInitializer` (in both the main seed block and `ensureExtraDoctors`), so **adding a field to `User` or `Doctor` breaks that seeding code** and it must be updated in the same change.
+
+Bulk seed data is kept out of `DataInitializer`: `config/DoctorSeedData` holds only the `SeedDoctor` table (department → 5 doctors), while the logic that turns it into `User`/`Doctor`/`Schedule` rows stays in `DataInitializer`. It is called from `run()` rather than being its own `CommandLineRunner`, because a separate runner could execute *before* `DataInitializer` and create users, which would make `count() == 0` false and skip the entire main seed (no departments, no roles).

@@ -1,5 +1,6 @@
 package com.bookinghealthy.config;
 
+import com.bookinghealthy.config.DoctorSeedData.SeedDoctor;
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -172,6 +174,10 @@ public class DataInitializer implements CommandLineRunner {
         // trên DB trống. Với DB đã có sẵn dữ liệu cũ, không có khối này thì phải drop
         // schema mới dùng được vai trò mới.
         ensureReceptionistAccount();
+
+        // === BỔ SUNG 5 BÁC SĨ CHO MỖI CHUYÊN KHOA ===
+        // Cũng chạy NGOÀI điều kiện "users rỗng" để áp dụng được cho DB đã có sẵn dữ liệu.
+        ensureExtraDoctors();
     }
 
     /**
@@ -195,5 +201,139 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(receptionist);
             System.out.println(">>> Tạo mới tài khoản lễ tân: receptionist / 123456");
         }
+    }
+
+    // ==========================================================================
+    // ===== BỔ SUNG 5 BÁC SĨ / CHUYÊN KHOA (dữ liệu ở DoctorSeedData) =========
+    // ==========================================================================
+
+    /** Đầu số di động Việt Nam dùng để sinh số điện thoại cho bác sĩ seed. */
+    private static final String[] PHONE_PREFIXES = {
+            "090", "091", "094", "096", "097", "098", "032", "033", "034", "035", "036",
+            "037", "038", "039", "070", "076", "077", "078", "079", "081", "082", "083",
+            "085", "086", "088"
+    };
+
+    /** Câu kết của tiểu sử, xoay vòng theo thứ tự bác sĩ trong khoa để bio không lặp y hệt nhau. */
+    private static final String[] BIO_CLOSINGS = {
+            "Bác sĩ nhận khám theo lịch hẹn tại MediTrust, tư vấn rõ phác đồ và chi phí trước khi điều trị.",
+            "Bác sĩ ưu tiên điều trị bảo tồn, chỉ định cận lâm sàng hợp lý và theo dõi sát sau điều trị.",
+            "Bác sĩ khám và tư vấn bằng tiếng Việt, tiếng Anh; hỗ trợ tái khám trực tuyến khi người bệnh ở xa.",
+            "Bác sĩ có kinh nghiệm xử trí ca khó và phối hợp hội chẩn đa chuyên khoa tại MediTrust.",
+            "Bác sĩ dành thời gian giải thích rõ tình trạng bệnh và hướng dẫn chăm sóc tại nhà cho người bệnh."
+    };
+
+    /** Các nhóm ngày trực trong tuần, xoay vòng theo thứ tự bác sĩ trong khoa. */
+    private static final DayOfWeek[][] SCHEDULE_DAYS = {
+            {DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY},
+            {DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY},
+            {DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.THURSDAY},
+            {DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY},
+            {DayOfWeek.MONDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY}
+    };
+
+    /**
+     * Tạo thêm 5 bác sĩ cho MỖI chuyên khoa (22 khoa = 110 bác sĩ), kèm lịch trực.
+     *
+     * Chạy NGOÀI khối "users rỗng" và idempotent theo username, nên chạy lại nhiều lần
+     * cũng không sinh dữ liệu trùng, và áp dụng được cho DB đã có sẵn dữ liệu cũ.
+     * Mật khẩu mặc định: 123456.
+     */
+    private void ensureExtraDoctors() {
+        if (departmentRepository.count() == 0) {
+            System.out.println(">>> Bỏ qua seed bác sĩ bổ sung: DB chưa có chuyên khoa nào.");
+            return;
+        }
+
+        Role doctorRole = roleRepository.findByName("ROLE_DOCTOR")
+                .orElseGet(() -> {
+                    Role role = new Role();
+                    role.setName("ROLE_DOCTOR");
+                    return roleRepository.save(role);
+                });
+
+        Map<String, Department> departmentsMap = departmentRepository.findAll().stream()
+                .collect(Collectors.toMap(Department::getName, dept -> dept, (a, b) -> a));
+
+        // Mã hóa MỘT LẦN rồi dùng lại: mỗi lần BCrypt tốn ~100ms, 110 bác sĩ sẽ làm chậm khởi động.
+        String pass123 = passwordEncoder.encode("123456");
+
+        int seq = 0;
+        int created = 0;
+        for (Map.Entry<String, List<SeedDoctor>> entry : DoctorSeedData.BY_DEPARTMENT.entrySet()) {
+            Department department = departmentsMap.get(entry.getKey());
+            if (department == null) {
+                System.out.println(">>> Không tìm thấy chuyên khoa '" + entry.getKey()
+                        + "' trong DB, bỏ qua các bác sĩ của khoa này.");
+                continue;
+            }
+
+            int position = 0;
+            for (SeedDoctor seed : entry.getValue()) {
+                // Tăng seq TRƯỚC khi kiểm tra tồn tại để số điện thoại của từng bác sĩ
+                // không đổi giữa các lần chạy.
+                seq++;
+                position++;
+
+                String slug = slugify(seed.fullName());
+                String username = "bs_" + slug;
+                if (userRepository.existsByUsername(username)) {
+                    continue;
+                }
+
+                // Thứ tự tham số theo @AllArgsConstructor của User:
+                // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
+                User user = userRepository.save(new User(null, username, slug + "@meditrust.vn", pass123,
+                        seed.fullName(), generatePhone(seq), "bs-" + slug + ".jpg", seed.gender(),
+                        AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO));
+
+                Doctor doctor = doctorRepository.save(new Doctor(null, user, department,
+                        buildBio(seed, department.getName(), position), seed.experienceYears(),
+                        seed.degree(), BigDecimal.valueOf(seed.price())));
+
+                scheduleRepository.saveAll(buildSchedules(doctor, position));
+                created++;
+            }
+        }
+
+        if (created > 0) {
+            System.out.println(">>> Đã bổ sung " + created + " bác sĩ mới (mật khẩu: 123456).");
+        }
+    }
+
+    /** Bỏ dấu tiếng Việt và ký tự đặc biệt: "Nguyễn Đức Toàn" -> "nguyenductoan". */
+    private String slugify(String fullName) {
+        String noMark = Normalizer.normalize(fullName, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        // đ/Đ không tách dấu theo NFD nên phải thay tay.
+        return noMark.replace("đ", "d").replace("Đ", "D").toLowerCase().replaceAll("[^a-z0-9]", "");
+    }
+
+    /** Sinh số di động 10 chữ số, khác nhau cho từng bác sĩ và ổn định giữa các lần chạy. */
+    private String generatePhone(int seq) {
+        return PHONE_PREFIXES[seq % PHONE_PREFIXES.length] + String.format("%07d", 2450000 + seq * 1373L);
+    }
+
+    private String buildBio(SeedDoctor seed, String departmentName, int position) {
+        return seed.degree() + " " + seed.fullName() + " có " + seed.experienceYears()
+                + " năm kinh nghiệm khám và điều trị tại chuyên khoa " + departmentName + ". "
+                + "Thế mạnh chuyên môn: " + seed.expertise() + ". "
+                + "Đào tạo: " + seed.training() + ". "
+                + BIO_CLOSINGS[(position - 1) % BIO_CLOSINGS.length];
+    }
+
+    /**
+     * 3 buổi trực mỗi tuần: vị trí lẻ trong khoa trực ca sáng, vị trí chẵn trực ca chiều
+     * (nằm trong khung giờ nhận lịch 07:30–20:30 của hệ thống).
+     */
+    private List<Schedule> buildSchedules(Doctor doctor, int position) {
+        DayOfWeek[] days = SCHEDULE_DAYS[(position - 1) % SCHEDULE_DAYS.length];
+        LocalTime start = (position % 2 == 1) ? LocalTime.of(7, 30) : LocalTime.of(13, 30);
+        LocalTime end = (position % 2 == 1) ? LocalTime.of(11, 30) : LocalTime.of(17, 30);
+
+        List<Schedule> schedules = new ArrayList<>();
+        for (DayOfWeek day : days) {
+            schedules.add(new Schedule(null, doctor, day, start, end));
+        }
+        return schedules;
     }
 }
