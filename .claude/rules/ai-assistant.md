@@ -7,9 +7,9 @@ A large Vietnamese system prompt constrains the model to return **strict JSON** 
 
 `reasoning`, `ai_reply`, `speech_reply`, `suggested_prompts` (always 3), `recommended_departments` (array of department IDs), `is_emergency`, `patient_summary`, `booking_intent`, `booking_target`.
 
-The frontend consumes these fields to surface doctor cards and auto-open the booking form, so **the schema is a contract** — changing key names requires updating the templates under `templates/*/include/ai-chat*.html`.
+The frontend consumes these fields to surface doctor cards and auto-open the booking form, so **the schema is a contract** — changing key names requires updating the four scripts that parse the JSON (`assets/js/ai-chat.js`, `assets/js/meditrust-voice-call.js`, `assets-admin/js/ai-chat-doctor.js`, `assets-admin/js/doctor-ai-chat.js`). The templates under `templates/*/include/ai-chat*.html` only load those scripts and read no key themselves. The `/skills/ai-schema-change` skill carries the full checklist and the template→script mapping.
 
-`speech_reply` is the spoken-aloud variant of `ai_reply` (≤2 sentences, no emoji/HTML/disclaimer) used by the voice layer. The prompt says "ĐÚNG 9 KEYS" in **two places** — keep both in step when adding or removing a key. The voice layer always falls back to `MediTrustVoice.toSpeechText(ai_reply)` when the model omits it, so a non-compliant model degrades rather than breaks.
+`speech_reply` is the spoken-aloud variant of `ai_reply` (≤2 sentences, no emoji/HTML/disclaimer) used by the voice layer. The prompt states the key count in **two places, worded differently** — "ĐÚNG 9 KEYS" (`AiService.java:78`) and "đủ 9 trường" (`AiService.java:100`) — so grepping for one misses the other; keep both in step when adding or removing a key. The voice layer always falls back to `MediTrustVoice.toSpeechText(ai_reply)` when the model omits it, so a non-compliant model degrades rather than breaks.
 
 Department IDs carry special meaning in the prompt: **21 = Cấp cứu (Emergency)** and **22 = Y học gia đình** (the safety fallback when symptoms are ambiguous). These are seeded IDs from `DataInitializer`; re-seeding into a different order would break the prompt's assumptions.
 
