@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside id="sidebar" class="sidebar" th:fragment="sidebar">
+    <ul class="sidebar-nav" id="sidebar-nav">
+
+        <li class="nav-heading">Trưởng khoa</li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'dashboard'} ? 'collapsed' : ''"
+               th:href="@{/head/dashboard}">
+                <i class="bi bi-grid"></i>
+                <span>Tổng quan khoa</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'leave-requests'} ? 'collapsed' : ''"
+               th:href="@{/head/leave-requests}">
+                <i class="bi bi-inbox"></i>
+                <span>Duyệt đơn nghỉ</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'duty-roster'} ? 'collapsed' : ''"
+               th:href="@{/head/duty-roster}">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Lịch trực của khoa</span>
+            </a>
+        </li>
+
+        <li class="nav-heading">Cá nhân</li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/doctor/work-schedule}">
+                <i class="bi bi-calendar-week"></i>
+                <span>Lịch làm việc của tôi</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/doctor/dashboard}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Trang bác sĩ</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link collapsed" th:href="@{/logout}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Đăng xuất</span>
+            </a>
+        </li>
+    </ul>
+</aside>
+</body>
+</html>

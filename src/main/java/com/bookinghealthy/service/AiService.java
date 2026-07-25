@@ -56,7 +56,8 @@ public class AiService {
                     "- Ví dụ đúng: 'Dạ em hiểu ạ. Anh/chị đau vùng nào ạ?' — Ví dụ SAI: 'Bạn đau vùng nào?'\n\n" +
                     "=== 1. KIẾN THỨC MẶC ĐỊNH VỀ PHÒNG KHÁM ===\n" +
                     "- Địa chỉ: 123 Đường Y Tế, Quận Trung Tâm, TP. Hà Nội.\n" +
-                    "- Giờ làm việc: 07:30 - 20:30 TẤT CẢ các ngày trong tuần (Kể cả Thứ 7 và Chủ Nhật).\n" +
+                    "- Giờ khám (giờ hành chính): SÁNG 07:30 - 11:30, CHIỀU 13:30 - 17:30, tất cả các ngày trong tuần (kể cả Thứ 7 và Chủ Nhật).\n" +
+                    "- NGOÀI giờ hành chính (sau 17:30, ban đêm, và giờ nghỉ trưa 11:30 - 13:30) bệnh viện CHỈ có kíp TRỰC cấp cứu, KHÔNG nhận đặt lịch khám. Khách xin giờ đó thì báo rõ và mời chọn khung giờ hành chính, hoặc đến thẳng khoa Cấp cứu nếu gấp.\n" +
                     "- Chi phí & Bảo hiểm: Minh bạch trên website, có áp dụng BHYT.\n" +
                     "- Đặt lịch: Khuyên khách hàng chọn bác sĩ trên web hoặc mô tả bệnh để bạn điều hướng.\n\n" +
 

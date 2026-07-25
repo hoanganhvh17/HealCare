@@ -29,6 +29,8 @@ public class TimeSlotService {
     private DoctorBlockTimeRepository doctorBlockTimeRepository; // Inject Repository chặn giờ
 
     // === CẤU HÌNH GIỜ CHUẨN ===
+    // Chỉ có ca khám trong GIỜ HÀNH CHÍNH. Ngoài giờ hành chính là phiên trực
+    // (Thông tư 32/2023/TT-BYT) — trực không nhận đặt khám nên không có khung giờ buổi tối.
     private final String[] MORNING_SLOTS = {
             "07:30 - 08:00", "08:00 - 08:30", "08:30 - 09:00", "09:00 - 09:30",
             "09:30 - 10:00", "10:00 - 10:30", "10:30 - 11:00", "11:00 - 11:30"
@@ -37,11 +39,6 @@ public class TimeSlotService {
     private final String[] AFTERNOON_SLOTS = {
             "13:30 - 14:00", "14:00 - 14:30", "14:30 - 15:00", "15:00 - 15:30",
             "15:30 - 16:00", "16:00 - 16:30", "16:30 - 17:00", "17:00 - 17:30"
-    };
-
-    private final String[] EVENING_SLOTS = {
-            "17:30 - 18:00", "18:00 - 18:30", "18:30 - 19:00", "19:00 - 19:30",
-            "19:30 - 20:00", "20:00 - 20:30"
     };
 
     public List<TimeSlotDTO> getAvailableSlots(Long doctorId, LocalDate date, List<Schedule> workingSchedules) {
@@ -61,7 +58,6 @@ public class TimeSlotService {
         // 3. Duyệt và xử lý từng buổi (Truyền thêm blockedTimes vào)
         processSlots(allSlots, MORNING_SLOTS, "Sáng", date, workingSchedules, bookedTimeStrings, blockedTimes);
         processSlots(allSlots, AFTERNOON_SLOTS, "Chiều", date, workingSchedules, bookedTimeStrings, blockedTimes);
-        processSlots(allSlots, EVENING_SLOTS, "Tối", date, workingSchedules, bookedTimeStrings, blockedTimes);
 
         return allSlots;
     }

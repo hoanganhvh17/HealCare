@@ -80,6 +80,14 @@ public class BookingController {
             Doctor doctor = doctorService.findById(doctorId)
                     .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
+            // Chặn đặt vào khung giờ NGOÀI ca làm việc của bác sĩ (ví dụ đặt buổi chiều khi
+            // bác sĩ chỉ đăng ký ca sáng). Chặn ở server để POST tự chế cũng không lách được.
+            if (!bookingService.isSlotWithinWorkingHours(doctorId, appointmentDate, appointmentTime)) {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                        "Bác sĩ không nhận khám vào khung giờ này. Vui lòng chọn khung giờ trong ca làm việc của bác sĩ.");
+                return "redirect:/appointment?doctorId=" + doctorId;
+            }
+
             // Tạo Booking object
             Booking booking = new Booking();
             booking.setUser(currentUser);

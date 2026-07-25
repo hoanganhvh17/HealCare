@@ -205,11 +205,12 @@
                         minute = /(rưỡi|ruoi)/.test(match[0] + tail.slice(0, 6)) ? 30 : 0;
                     }
 
-                    // "3 giờ chiều" -> 15:00. Ngoài ra phòng khám mở 07:30-20:30 nên giờ 1-6
-                    // chỉ có thể là buổi chiều, trừ khi khách nói rõ "sáng".
+                    // "3 giờ chiều" -> 15:00. Ngoài ra bệnh viện chỉ nhận khám trong giờ hành
+                    // chính 07:30-11:30 và 13:30-17:30, nên giờ 1-5 chỉ có thể là buổi chiều,
+                    // trừ khi khách nói rõ "sáng".
                     if (hour >= 1 && hour <= 11 && /^[^0-9]{0,10}(chiều|chieu|tối|đêm)/.test(tail)) {
                         hour += 12;
-                    } else if (hour >= 1 && hour <= 6 && !/sáng/.test(raw)) {
+                    } else if (hour >= 1 && hour <= 5 && !/sáng/.test(raw)) {
                         hour += 12;
                     }
 

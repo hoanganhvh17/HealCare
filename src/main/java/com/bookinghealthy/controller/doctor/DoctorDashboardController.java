@@ -192,60 +192,35 @@ public class DoctorDashboardController {
         return "redirect:/doctor/manage-bookings";
     }
 
-    // 4. QUẢN LÝ LỊCH TRỰC & GIỜ BẬN (Giữ nguyên)
-    @GetMapping("/schedule-register")
-    public String showScheduleRegister(@RequestParam(value = "selectedDate", required = false) LocalDate selectedDate, Model model, Authentication authentication) {
-        Doctor currentDoctor = getLoggedInDoctor(authentication);
-        if (selectedDate == null) selectedDate = LocalDate.now();
-        DayOfWeek dayOfWeek = selectedDate.getDayOfWeek();
-        List<Schedule> mySchedules = doctorService.getDoctorSchedules(currentDoctor.getId());
-        List<DoctorBlockTime> myBlockTimes = doctorBlockTimeService.getBlockedSlotsForDoctorAndDate(currentDoctor.getId(), selectedDate);
-        model.addAttribute("selectedDate", selectedDate);
-        model.addAttribute("dayOfWeek", dayOfWeek);
-        model.addAttribute("mySchedules", mySchedules);
-        model.addAttribute("myBlockTimes", myBlockTimes);
-        model.addAttribute("activePage", "schedule");
-        return "doctor/schedule-register";
-    }
-
-    @PostMapping("/schedule/create")
-    public String createSchedule(@RequestParam("dayOfWeek") String dayOfWeek, @RequestParam("session") String session, Authentication authentication, RedirectAttributes ra) {
-        Doctor currentDoctor = getLoggedInDoctor(authentication);
-        String error = doctorService.registerSchedule(currentDoctor, dayOfWeek, session);
-        if (error != null) ra.addFlashAttribute("errorMessage", error);
-        else ra.addFlashAttribute("successMessage", "Đăng ký lịch trực thành công!");
-        return "redirect:/doctor/schedule-register";
-    }
+    // 4. GIỜ BẬN ĐỘT XUẤT
+    // Việc quản lý ca làm việc / phiên trực / nghỉ phép đã chuyển sang
+    // DoctorWorkScheduleController (/doctor/work-schedule), nơi tách bạch ca khám trong
+    // giờ hành chính với phiên trực ngoài giờ. Ở đây chỉ giữ hai thao tác chặn giờ lẻ.
 
     @PostMapping("/schedule/block")
     public String blockSchedule(@RequestParam("blockDate") LocalDate blockDate, @RequestParam("startTime") LocalTime startTime, @RequestParam("endTime") LocalTime endTime, @RequestParam("reason") String reason, Authentication authentication, RedirectAttributes ra) {
         Doctor currentDoctor = getLoggedInDoctor(authentication);
         if (blockDate.isBefore(LocalDate.now())) {
             ra.addFlashAttribute("errorMessage", "Không thể chặn giờ trong quá khứ.");
-            ra.addAttribute("selectedDate", blockDate);
-            return "redirect:/doctor/schedule-register";
+            return "redirect:/doctor/work-schedule";
         }
         String error = doctorBlockTimeService.blockTime(currentDoctor, blockDate, startTime, endTime, reason);
         if (error != null) ra.addFlashAttribute("errorMessage", error);
         else ra.addFlashAttribute("successMessage", "Đã chặn khung giờ thành công!");
-        ra.addAttribute("selectedDate", blockDate);
-        return "redirect:/doctor/schedule-register";
-    }
-
-    @GetMapping("/schedule/delete/{id}")
-    public String deleteSchedule(@PathVariable("id") Long id, RedirectAttributes ra) {
-        doctorService.deleteSchedule(id);
-        ra.addFlashAttribute("successMessage", "Đã xóa lịch trực.");
-        return "redirect:/doctor/schedule-register";
+        return "redirect:/doctor/work-schedule";
     }
 
     @GetMapping("/schedule/unblock/{id}")
-    public String unblockSchedule(@PathVariable("id") Long id, @RequestParam("date") LocalDate date, RedirectAttributes ra) {
+    public String unblockSchedule(@PathVariable("id") Long id, RedirectAttributes ra) {
         doctorBlockTimeService.unblockTime(id);
         ra.addFlashAttribute("successMessage", "Đã gỡ chặn khung giờ.");
-        ra.addAttribute("selectedDate", date);
-        return "redirect:/doctor/schedule-register";
+        return "redirect:/doctor/work-schedule";
     }
+
+    // Không còn route xóa lẻ một ca khám: lịch khám gắn với từng tuần và chỉ sửa được cho
+    // TUẦN SAU qua bảng đăng ký ở /doctor/work-schedule. Xóa theo id sẽ đục thủng cả khóa
+    // tuần lẫn ràng buộc "mỗi ngày tối thiểu 1 ca".
+
     // === THÊM API ĐỂ TRẢ VỀ LỜI NHẮC NHỞ NHANH TRÊN DASHBOARD ===
     @GetMapping("/api/quick-review-advice")
     @ResponseBody

@@ -44,7 +44,9 @@ Speech runs **entirely in the browser** via the Web Speech API — no API key, n
 ## Picking the right time slot
 Slot labels are `"T5 24/07 (10:00 - 10:30)"`, so a requested time must be compared against the slot's **start** via `slotStartTime()` — never with `indexOf`. `"10:30"` is a substring of both `(10:00 - 10:30)` (its *end*) and `(10:30 - 11:00)`, and the earlier slot comes first in the list, so substring matching silently booked the patient 30 minutes early. The same rule applies to the free/busy check against `/api/bookings/booked-slots`, whose entries are bare `"HH:mm - HH:mm"` ranges.
 
-`normalizeTimeHint()` requires an explicit time marker (`h`, `:`, `giờ`, `rưỡi`) before treating a number as a time; a loose number in `"đặt lịch ngày 5/8"` is a date. It also resolves `"10 giờ rưỡi"` → `10:30` and afternoon phrasing (`"3 giờ chiều"` → `15:00`; hours 1–6 are PM unless the patient said "sáng", since the clinic opens at 07:30).
+`normalizeTimeHint()` requires an explicit time marker (`h`, `:`, `giờ`, `rưỡi`) before treating a number as a time; a loose number in `"đặt lịch ngày 5/8"` is a date. It also resolves `"10 giờ rưỡi"` → `10:30` and afternoon phrasing (`"3 giờ chiều"` → `15:00`; hours **1–5** are PM unless the patient said "sáng", since bookable hours are 07:30–11:30 and 13:30–17:30 — "6 giờ" is outside them either way).
+
+Section 1 of the prompt states the bookable hours and adds that **outside office hours only the on-call team is present and no appointment can be booked**. Keep that in step with `ALL_SLOTS` (see [booking-flow.md](booking-flow.md)) — if the model advertises hours the slot grid does not have, every such request dead-ends in the "khung giờ kín" branch.
 
 ## When the requested slot is full
 `fallback: true` on the handoff means the patient asked for a time they cannot have. That is **never** resolved silently:

@@ -12,10 +12,10 @@ import java.util.List;
  */
 public interface ReceptionService {
 
-    // Các mã buổi dùng cho bộ lọc (khớp với khung giờ chuẩn trong TimeSlotService)
+    // Các mã buổi dùng cho bộ lọc (khớp với khung giờ chuẩn trong TimeSlotService).
+    // Không có buổi tối: ngoài giờ hành chính là phiên trực, không nhận đặt khám.
     String SESSION_MORNING = "SANG";
     String SESSION_AFTERNOON = "CHIEU";
-    String SESSION_EVENING = "TOI";
     String SESSION_ALL_DAY = "CA_NGAY";
 
     /**

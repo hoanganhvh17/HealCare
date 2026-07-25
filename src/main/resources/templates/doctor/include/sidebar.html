@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <aside id="sidebar" class="sidebar d-flex flex-column" th:fragment="sidebar" style="background-color: #F8FAFC; border-right: 1px solid #E2E8F0; padding-top: 20px; z-index: 999;">
 
@@ -68,9 +69,17 @@
     </li>
 
     <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'schedule' ? 'active' : ''}" th:href="@{/doctor/schedule-register}">
-        <i class="bi bi-clipboard-check"></i>
-        <span>Đăng ký Lịch trực</span>
+      <a class="custom-nav-link" th:classappend="${activePage == 'work-schedule' ? 'active' : ''}" th:href="@{/doctor/work-schedule}">
+        <i class="bi bi-calendar-week"></i>
+        <span>Lịch làm việc &amp; Nghỉ phép</span>
+      </a>
+    </li>
+
+    <!-- Chỉ trưởng khoa mới thấy khu duyệt đơn của khoa -->
+    <li class="nav-item" sec:authorize="hasRole('HEAD_DOCTOR')">
+      <a class="custom-nav-link" th:href="@{/head/dashboard}">
+        <i class="bi bi-inbox"></i>
+        <span>Phê duyệt của khoa</span>
       </a>
     </li>
 

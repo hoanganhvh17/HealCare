@@ -25,13 +25,11 @@ public interface DoctorService {
     // Thêm hàm này
     List<Doctor> searchDoctors(String keyword, Long departmentId);
 
-    // === THÊM HÀM MỚI CHO MODULE LỊCH TRỰC ===
-    // Hàm này sẽ trả về String thông báo lỗi hoặc null nếu thành công
-    String registerSchedule(Doctor doctor, String dayOfWeekStr, String session);
-
-    // Hàm xóa lịch
-    void deleteSchedule(Long scheduleId);
-
-    // Lấy danh sách lịch đã đăng ký của Bác sĩ
+    /**
+     * Ca khám của bác sĩ trong TUẦN HIỆN TẠI — chỉ để hiển thị.
+     *
+     * Đăng ký / sửa ca khám không còn ở đây: lịch khám gắn với từng tuần và chỉ đăng ký được
+     * cho TUẦN SAU qua {@code StaffScheduleService.saveClinicTemplate}.
+     */
     List<Schedule> getDoctorSchedules(Long doctorId);
 }

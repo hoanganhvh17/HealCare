@@ -34,4 +34,10 @@ public class DoctorBlockTime {
     // Lý do chặn (Ví dụ: họp khẩn, bận cá nhân...)
     @Column(name = "reason", length = 255)
     private String reason;
+
+    // Đơn nghỉ đã sinh ra bản ghi chặn này (null = bác sĩ tự chặn tay).
+    // Nhờ nó, khi đơn nghỉ bị từ chối hoặc hủy thì gỡ đúng các khung giờ đã chặn,
+    // không đụng vào những khung bác sĩ tự chặn.
+    @Column(name = "leave_request_id")
+    private Long leaveRequestId;
 }

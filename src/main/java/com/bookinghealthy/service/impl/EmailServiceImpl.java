@@ -67,6 +67,36 @@ public class EmailServiceImpl implements EmailService {
             System.err.println("Lỗi gửi mail HTML + QR: " + e.getMessage());
         }
     }
+    /**
+     * Thông báo chung cho nhân viên (lịch làm việc, đơn nghỉ, đổi ca).
+     * Gửi bất đồng bộ như các hàm khác nên lỗi chỉ hiện ở log, không làm hỏng request.
+     */
+    @Async
+    @Override
+    public void sendStaffNotification(String toEmail, String subject, String title, String bodyHtml) {
+        if (toEmail == null || toEmail.isBlank()) {
+            return;
+        }
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+
+            org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+            context.setVariable("title", title);
+            context.setVariable("bodyContent", bodyHtml);
+
+            helper.setText(templateEngine.process("email/general-notification", context), true);
+            mailSender.send(mimeMessage);
+
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi mail thông báo nhân viên: " + e.getMessage());
+        }
+    }
+
     // === THÊM PHƯƠNG THỨC MỚI NÀY ===
     @Async
     @Override

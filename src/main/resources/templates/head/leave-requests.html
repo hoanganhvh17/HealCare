@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Duyệt đơn nghỉ')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{head/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Duyệt đơn nghỉ</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/head/dashboard}">Trưởng khoa</a></li>
+        <li class="breadcrumb-item active"
+            th:text="${headDepartment != null ? 'Khoa ' + headDepartment.name : 'Chưa gán khoa'}">Khoa Cấp cứu</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Bộ lọc trạng thái -->
+    <div class="ws-card mb-3">
+      <form method="get" th:action="@{/head/leave-requests}" class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold" for="statusFilter">Trạng thái</label>
+          <select class="form-select" name="status" id="statusFilter" onchange="this.form.submit()">
+            <option th:each="status : ${statuses}"
+                    th:value="${status.name()}"
+                    th:text="${status.label}"
+                    th:selected="${status == selectedStatus}"></option>
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <div th:if="${#lists.isEmpty(requests)}" class="ws-card ws-empty">
+      Không có đơn nào ở trạng thái này.
+    </div>
+
+    <!-- Mỗi đơn là một thẻ, kèm đủ dữ kiện để trưởng khoa quyết định -->
+    <div class="ws-card mb-3" th:each="leave : ${requests}">
+      <div class="row g-3">
+
+        <div class="col-lg-8">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="ws-status-chip"
+                  th:classappend="'ws-status-' + ${leave.status.name()}"
+                  th:text="${leave.status.label}">Đang chờ duyệt</span>
+            <span th:if="${leave.emergency}" class="badge text-bg-danger">
+              <i class="bi bi-exclamation-triangle-fill"></i> Báo bận đột xuất
+            </span>
+            <span class="ws-ago" th:text="${#temporals.format(leave.createdAt, 'dd/MM/yyyy HH:mm')}">24/10/2026 08:00</span>
+          </div>
+
+          <h5 class="fw-bold mb-1" th:text="${leave.user.fullName}">BS. Nguyễn Văn A</h5>
+
+          <dl class="row small mb-0">
+            <dt class="col-sm-3 text-muted">Loại nghỉ</dt>
+            <dd class="col-sm-9">
+              <span th:text="${leave.leaveType.label}">Phép năm</span>
+              <span th:if="${leave.subReason != null}"
+                    th:text="' — ' + ${leave.subReason.label} + ' (tối đa ' + ${leave.subReason.maxDays} + ' ngày)'"></span>
+            </dd>
+
+            <dt class="col-sm-3 text-muted">Khoảng nghỉ</dt>
+            <dd class="col-sm-9">
+              <span th:text="${#temporals.format(leave.startDate, 'dd/MM/yyyy')}">24/10/2026</span>
+              <span th:if="${leave.startDate != leave.endDate}"
+                    th:text="' - ' + ${#temporals.format(leave.endDate, 'dd/MM/yyyy')}"></span>
+              <span th:if="${leave.halfDaySession.halfDay}"
+                    th:text="' • ' + ${leave.halfDaySession.label}"></span>
+              — <strong th:text="${#numbers.formatDecimal(leave.totalDays, 1, 1)} + ' ngày'">2.0 ngày</strong>
+            </dd>
+
+            <dt class="col-sm-3 text-muted">Lý do</dt>
+            <dd class="col-sm-9" th:text="${leave.reason != null ? leave.reason : '—'}">Việc gia đình</dd>
+
+            <dt class="col-sm-3 text-muted">Phép năm còn lại</dt>
+            <dd class="col-sm-9">
+              <strong th:text="${remainingLeave[leave.id]}">9</strong> ngày
+              <span class="text-muted">(sau khi trừ các đơn đã duyệt)</span>
+            </dd>
+          </dl>
+
+          <!-- Cảnh báo lịch hẹn bị ảnh hưởng + đường dẫn sang công cụ của lễ tân -->
+          <div class="alert alert-warning small mt-3 mb-0"
+               th:if="${affectedBookings[leave.id] != null and affectedBookings[leave.id] > 0}">
+            <i class="bi bi-people-fill me-1"></i>
+            Trong khoảng nghỉ này có
+            <strong th:text="${affectedBookings[leave.id]}">4</strong>
+            lịch hẹn đã đặt. Duyệt đơn sẽ chặn khung giờ mới, nhưng các lịch đã đặt cần được
+            dời hoặc hủy thủ công.
+            <a th:href="@{/receptionist/schedule-change(date=${leave.startDate})}"
+               class="alert-link">Mở công cụ hủy / dời hàng loạt</a>
+          </div>
+        </div>
+
+        <!-- Khu ra quyết định -->
+        <div class="col-lg-4" th:if="${leave.status.name() == 'PENDING'}">
+          <div class="border-start ps-lg-3 h-100">
+            <label class="form-label fw-semibold small"
+                   th:for="'comment-' + ${leave.id}">Lời phê gửi nhân viên</label>
+            <!-- Ô này nằm NGOÀI hai form bên dưới để dùng chung cho cả duyệt lẫn từ chối;
+                 nội dung được chép vào input ẩn lúc submit (xem script cuối trang). -->
+            <textarea class="form-control mb-2" rows="3"
+                      th:id="'comment-' + ${leave.id}"
+                      th:attr="data-comment-for=${leave.id}"
+                      placeholder="Ví dụ: Chúc bác sĩ nghỉ ngơi tốt."></textarea>
+
+            <div class="d-flex gap-2">
+              <form th:action="@{/head/leave-requests/{id}/approve(id=${leave.id})}"
+                    method="post" class="flex-grow-1 ws-decision-form"
+                    th:attr="data-leave-id=${leave.id}">
+                <input type="hidden" name="comment" class="ws-comment-mirror">
+                <button type="submit" class="btn btn-success w-100">
+                  <i class="bi bi-check-lg"></i> Phê duyệt
+                </button>
+              </form>
+
+              <form th:action="@{/head/leave-requests/{id}/reject(id=${leave.id})}"
+                    method="post" class="ws-decision-form"
+                    th:attr="data-leave-id=${leave.id}">
+                <input type="hidden" name="comment" class="ws-comment-mirror">
+                <button type="submit" class="btn btn-outline-danger">
+                  <i class="bi bi-x-lg"></i> Từ chối
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Đơn đã có quyết định -->
+        <div class="col-lg-4" th:if="${leave.status.name() != 'PENDING'}">
+          <div class="border-start ps-lg-3 h-100">
+            <div class="small text-muted">Người duyệt</div>
+            <div class="fw-semibold"
+                 th:text="${leave.approver != null ? leave.approver.fullName : '—'}">Trưởng khoa</div>
+            <div class="ws-quote mt-2"
+                 th:if="${leave.approverComment != null and !leave.approverComment.isBlank()}"
+                 th:text="'“' + ${leave.approverComment} + '”'"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script>
+  // Ô lời phê nằm ngoài hai form quyết định (để dùng chung cho cả duyệt lẫn từ chối),
+  // nên phải chép nội dung vào input ẩn ngay trước khi submit.
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.ws-decision-form').forEach(function (form) {
+      form.addEventListener('submit', function () {
+        var leaveId = form.getAttribute('data-leave-id');
+        var textarea = document.querySelector('[data-comment-for="' + leaveId + '"]');
+        var hidden = form.querySelector('.ws-comment-mirror');
+        if (textarea && hidden) {
+          hidden.value = textarea.value;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -10,8 +10,10 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,7 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private DepartmentRepository departmentRepository;
     @Autowired private DoctorRepository doctorRepository;
     @Autowired private ScheduleRepository scheduleRepository;
+    @Autowired private StaffProfileRepository staffProfileRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -157,12 +160,13 @@ public class DataInitializer implements CommandLineRunner {
 
             List<Doctor> savedDoctors = doctorRepository.saveAll(doctorsToSave);
 
-            // 7. Tạo Lịch làm việc
-            Schedule s1 = new Schedule(null, savedDoctors.get(0), DayOfWeek.MONDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"));
-            Schedule s2 = new Schedule(null, savedDoctors.get(0), DayOfWeek.TUESDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"));
-            Schedule s3 = new Schedule(null, savedDoctors.get(0), DayOfWeek.THURSDAY, LocalTime.parse("14:00:00"), LocalTime.parse("16:00:00"));
-            Schedule s4 = new Schedule(null, savedDoctors.get(2), DayOfWeek.TUESDAY, LocalTime.parse("08:00:00"), LocalTime.parse("12:00:00"));
-            Schedule s5 = new Schedule(null, savedDoctors.get(2), DayOfWeek.TUESDAY, LocalTime.parse("13:30:00"), LocalTime.parse("16:30:00"));
+            // 7. Tạo Lịch làm việc. weekStart = null: lịch định kỳ mặc định, áp dụng cho mọi
+            // tuần bác sĩ chưa đăng ký riêng (xem Schedule.weekStart).
+            Schedule s1 = new Schedule(null, savedDoctors.get(0), DayOfWeek.MONDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"), null);
+            Schedule s2 = new Schedule(null, savedDoctors.get(0), DayOfWeek.TUESDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"), null);
+            Schedule s3 = new Schedule(null, savedDoctors.get(0), DayOfWeek.THURSDAY, LocalTime.parse("14:00:00"), LocalTime.parse("16:00:00"), null);
+            Schedule s4 = new Schedule(null, savedDoctors.get(2), DayOfWeek.TUESDAY, LocalTime.parse("08:00:00"), LocalTime.parse("12:00:00"), null);
+            Schedule s5 = new Schedule(null, savedDoctors.get(2), DayOfWeek.TUESDAY, LocalTime.parse("13:30:00"), LocalTime.parse("16:30:00"), null);
 
             scheduleRepository.saveAll(List.of(s1, s2, s3, s4, s5));
 
@@ -178,6 +182,125 @@ public class DataInitializer implements CommandLineRunner {
         // === BỔ SUNG 5 BÁC SĨ CHO MỖI CHUYÊN KHOA ===
         // Cũng chạy NGOÀI điều kiện "users rỗng" để áp dụng được cho DB đã có sẵn dữ liệu.
         ensureExtraDoctors();
+
+        // === HỒ SƠ NHÂN SỰ + TRƯỞNG KHOA ===
+        // Phải chạy SAU ensureExtraDoctors() để bao gồm cả các bác sĩ vừa được bổ sung.
+        ensureStaffProfiles();
+        ensureHeadDoctors();
+    }
+
+    /**
+     * Tạo hồ sơ nhân sự cho mọi bác sĩ và lễ tân chưa có (idempotent).
+     *
+     * Hồ sơ này quyết định số ngày phép năm theo BLLĐ 2019 Điều 113/114:
+     * - Khoa nặng nhọc, độc hại (xem {@link LeavePolicy#HEAVY_DEPARTMENTS}) -> 14 ngày
+     * - Còn lại -> 12 ngày
+     * - Cộng thêm 1 ngày cho mỗi 5 năm thâm niên
+     *
+     * Dữ liệu seed không có ngày vào làm nên suy từ experienceYears của bác sĩ.
+     */
+    private void ensureStaffProfiles() {
+        int created = 0;
+
+        for (Doctor doctor : doctorRepository.findAll()) {
+            User user = doctor.getUser();
+            if (user == null || staffProfileRepository.existsByUserId(user.getId())) {
+                continue;
+            }
+
+            int experience = (doctor.getExperienceYears() != null) ? doctor.getExperienceYears() : 0;
+            boolean heavy = doctor.getDepartment() != null
+                    && LeavePolicy.HEAVY_DEPARTMENTS.contains(doctor.getDepartment().getName());
+
+            StaffProfile profile = new StaffProfile();
+            profile.setUser(user);
+            profile.setHireDate(LocalDate.now().minusYears(experience));
+            profile.setWorkCondition(heavy ? WorkCondition.HEAVY : WorkCondition.NORMAL);
+            profile.setSocialInsuranceYears(experience);
+            profile.setCarriedOverDays(0);
+            staffProfileRepository.save(profile);
+            created++;
+        }
+
+        // Lễ tân: điều kiện lao động bình thường, chưa có thâm niên.
+        for (User staff : userRepository.findAll()) {
+            boolean isReceptionist = staff.getRoles() != null && staff.getRoles().stream()
+                    .anyMatch(role -> "ROLE_RECEPTIONIST".equals(role.getName()));
+
+            if (!isReceptionist || staffProfileRepository.existsByUserId(staff.getId())) {
+                continue;
+            }
+
+            StaffProfile profile = new StaffProfile();
+            profile.setUser(staff);
+            profile.setHireDate(LocalDate.now());
+            profile.setWorkCondition(WorkCondition.NORMAL);
+            profile.setSocialInsuranceYears(0);
+            profile.setCarriedOverDays(0);
+            staffProfileRepository.save(profile);
+            created++;
+        }
+
+        if (created > 0) {
+            System.out.println(">>> Đã tạo " + created + " hồ sơ nhân sự (ngày vào làm + điều kiện lao động).");
+        }
+    }
+
+    /**
+     * Tạo ROLE_HEAD_DOCTOR và gán trưởng khoa cho MỖI chuyên khoa (idempotent).
+     *
+     * Trưởng khoa là người duyệt đơn nghỉ và lịch trực của khoa mình. Họ GIỮ NGUYÊN
+     * ROLE_DOCTOR nên vẫn vào /doctor/dashboard như cũ, chỉ có thêm quyền vào /head/**.
+     *
+     * Chọn bác sĩ nhiều kinh nghiệm nhất trong khoa làm trưởng khoa.
+     */
+    private void ensureHeadDoctors() {
+        Role headRole = roleRepository.findByName("ROLE_HEAD_DOCTOR")
+                .orElseGet(() -> {
+                    Role role = new Role();
+                    role.setName("ROLE_HEAD_DOCTOR");
+                    System.out.println(">>> Tạo mới vai trò ROLE_HEAD_DOCTOR");
+                    return roleRepository.save(role);
+                });
+
+        int assigned = 0;
+        for (Department department : departmentRepository.findAll()) {
+            // Khoa đã có trưởng khoa thì bỏ qua — đây là điểm làm cho hàm chạy lại được.
+            if (!staffProfileRepository.findByHeadOfDepartmentId(department.getId()).isEmpty()) {
+                continue;
+            }
+
+            Doctor head = doctorRepository.findByDepartmentId(department.getId()).stream()
+                    .max(java.util.Comparator.comparing(
+                            doctor -> doctor.getExperienceYears() != null ? doctor.getExperienceYears() : 0))
+                    .orElse(null);
+
+            if (head == null || head.getUser() == null) {
+                continue;
+            }
+
+            User headUser = head.getUser();
+            Set<Role> roles = new HashSet<>(headUser.getRoles() != null ? headUser.getRoles() : Set.of());
+            roles.add(headRole);
+            headUser.setRoles(roles);
+            userRepository.save(headUser);
+
+            StaffProfile profile = staffProfileRepository.findByUserId(headUser.getId())
+                    .orElseGet(() -> {
+                        StaffProfile fresh = new StaffProfile();
+                        fresh.setUser(headUser);
+                        fresh.setHireDate(LocalDate.now());
+                        return fresh;
+                    });
+            profile.setHeadOfDepartment(department);
+            staffProfileRepository.save(profile);
+            assigned++;
+        }
+
+        if (assigned > 0) {
+            System.out.println(">>> Đã gán trưởng khoa cho " + assigned
+                    + " chuyên khoa (đăng nhập bằng chính tài khoản bác sĩ đó, mật khẩu 123456).");
+        }
     }
 
     /**
@@ -322,8 +445,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * 3 buổi trực mỗi tuần: vị trí lẻ trong khoa trực ca sáng, vị trí chẵn trực ca chiều
-     * (nằm trong khung giờ nhận lịch 07:30–20:30 của hệ thống).
+     * 3 ca khám mỗi tuần: vị trí lẻ trong khoa làm ca sáng, vị trí chẵn làm ca chiều
+     * (đều nằm trong giờ hành chính 07:30–11:30 và 13:30–17:30 — khung giờ nhận đặt khám).
      */
     private List<Schedule> buildSchedules(Doctor doctor, int position) {
         DayOfWeek[] days = SCHEDULE_DAYS[(position - 1) % SCHEDULE_DAYS.length];
@@ -332,7 +455,8 @@ public class DataInitializer implements CommandLineRunner {
 
         List<Schedule> schedules = new ArrayList<>();
         for (DayOfWeek day : days) {
-            schedules.add(new Schedule(null, doctor, day, start, end));
+            // weekStart = null: lịch định kỳ mặc định, dùng cho mọi tuần chưa đăng ký riêng.
+            schedules.add(new Schedule(null, doctor, day, start, end, null));
         }
         return schedules;
     }

@@ -19,6 +19,19 @@ public interface BookingService {
     Booking reserve(Booking booking);
     // (Chúng ta sẽ thêm các hàm find... sau)
 
+    /**
+     * Khung giờ có nằm trong ca làm việc (bảng Schedule) của bác sĩ trong ngày đó không.
+     * Bác sĩ CHƯA đăng ký lịch nào -> trả true (không giới hạn) để giữ hành vi cũ cho các
+     * bác sĩ seed chưa có lịch. Có lịch rồi thì chỉ giờ trong ca đã đăng ký mới đặt được.
+     */
+    boolean isSlotWithinWorkingHours(Long doctorId, java.time.LocalDate date, String timeSlot);
+
+    /**
+     * Trong danh sách khung giờ, những khung NẰM NGOÀI lịch làm việc của bác sĩ ngày đó.
+     * Dùng cho API booked-slots để gạch bỏ các buổi bác sĩ không nhận khám.
+     */
+    List<String> slotsOutsideWorkingHours(Long doctorId, java.time.LocalDate date, List<String> slots);
+
     // === THÊM 3 HÀM MỚI NÀY ===
     List<Booking> findAll();
     Optional<Booking> findById(Long id);

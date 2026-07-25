@@ -51,6 +51,14 @@
         <li class="nav-heading">Cá nhân</li>
 
         <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'work-schedule'} ? 'collapsed' : ''"
+               th:href="@{/receptionist/work-schedule}">
+                <i class="bi bi-calendar-week"></i>
+                <span>Lịch làm việc &amp; Nghỉ phép</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
             <a class="nav-link collapsed" th:href="@{/user/profile}">
                 <i class="bi bi-person"></i>
                 <span>Hồ sơ cá nhân</span>

@@ -12,7 +12,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,10 +49,10 @@ public class ScheduleInfoController {
         if (searchDate == null) {
             searchDate = LocalDate.now();
         }
-        DayOfWeek dayOfWeek = searchDate.getDayOfWeek();
 
-        // 1. Lấy tất cả lịch trong ngày
-        List<Schedule> schedules = scheduleRepository.findByDayOfWeek(dayOfWeek);
+        // 1. Lấy tất cả lịch CÓ HIỆU LỰC trong ngày. Lịch khám gắn với từng tuần nên phải
+        // hỏi theo ngày cụ thể, không phải theo thứ trong tuần chung chung.
+        List<Schedule> schedules = scheduleRepository.findEffectiveOn(searchDate);
 
         // 2. Lọc
         if (departmentId != null) {

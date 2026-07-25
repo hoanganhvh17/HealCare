@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Tìm người thay ca')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{__${sidebarFragment}__ :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Tìm người thay ca</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a th:href="@{{base}/work-schedule(base=${basePath})}">Lịch làm việc</a>
+        </li>
+        <li class="breadcrumb-item active">Tìm người thay ca</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${shift == null}" class="alert alert-warning">
+      Không tìm thấy ca làm việc này, hoặc ca không thuộc về anh/chị.
+    </div>
+
+    <div th:if="${shift != null}">
+
+      <!-- Ca cần thay -->
+      <div class="ws-card mb-3">
+        <div class="ws-panel-title">Ca cần người thay</div>
+
+        <div class="row g-3">
+          <div class="col-md-3">
+            <div class="text-muted small">Loại ca</div>
+            <div class="fw-semibold" th:text="${shift.shiftType.label}">Trực 16/24 giờ</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small">Ngày</div>
+            <div class="fw-semibold" th:text="${#temporals.format(shift.shiftDate, 'dd/MM/yyyy')}">18/10/2026</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small">Giờ</div>
+            <div class="fw-semibold">
+              <span th:text="${shift.startTime} + ' - ' + ${shift.endTime}">16:00 - 08:00</span>
+              <small th:if="${shift.overnight}" class="text-muted">(qua đêm)</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small">Khoa</div>
+            <div class="fw-semibold"
+                 th:text="${shift.department != null ? shift.department.name : '—'}">Cấp cứu</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danh sách đồng nghiệp đủ điều kiện -->
+      <div class="ws-card">
+        <div class="ws-panel-title">
+          Đồng nghiệp cùng khoa có thể nhận ca
+          (<span th:text="${#lists.size(candidates)}">3</span>)
+        </div>
+
+        <p class="small text-muted">
+          Danh sách đã loại những người đang nghỉ trong ngày đó, đang có ca trùng giờ,
+          hoặc chưa nghỉ đủ thời gian bắt buộc sau phiên trực gần nhất
+          (Quyết định 73/2011/QĐ-TTg, Điều 2 khoản 4).
+        </p>
+
+        <div th:if="${#lists.isEmpty(candidates)}" class="ws-empty">
+          Hiện không có đồng nghiệp nào trong khoa đủ điều kiện nhận ca này.
+          Anh/chị hãy báo trưởng khoa để được điều phối.
+        </div>
+
+        <div class="table-responsive" th:if="${!#lists.isEmpty(candidates)}">
+          <table class="table align-middle">
+            <thead>
+            <tr>
+              <th>Đồng nghiệp</th>
+              <th>Email</th>
+              <th>Điện thoại</th>
+              <th class="text-end">Gửi lời mời</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="candidate : ${candidates}">
+              <td class="fw-semibold" th:text="${candidate.fullName}">BS. Nguyễn Văn A</td>
+              <td th:text="${candidate.email}">a@meditrust.vn</td>
+              <td th:text="${candidate.phone != null ? candidate.phone : '—'}">0900000000</td>
+              <td class="text-end">
+                <form th:action="@{{base}/shift/cover/{id}(base=${basePath}, id=${shiftId})}" method="post">
+                  <input type="hidden" name="targetUserId" th:value="${candidate.id}">
+                  <input type="hidden" name="reason" class="ws-reason-mirror">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-send"></i> Nhờ người này
+                  </button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <!-- Mở lời mời cho cả khoa -->
+        <form th:action="@{{base}/shift/cover/{id}(base=${basePath}, id=${shiftId})}" method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="wsCoverReason">Lý do cần đổi ca</label>
+            <input type="text" class="form-control" name="reason" id="wsCoverReason"
+                   placeholder="Ví dụ: có việc gia đình đột xuất…">
+            <div class="form-text">Lý do này được gửi kèm trong email mời nhận ca.</div>
+          </div>
+
+          <button type="submit" class="ws-btn-primary">
+            <i class="bi bi-megaphone"></i> Mở lời mời cho cả khoa
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script>
+  // Lý do nhập ở ô chung được chép sang các form "Nhờ người này", để lời mời đích danh
+  // cũng mang theo lý do mà không phải nhập lại từng dòng.
+  document.addEventListener('DOMContentLoaded', function () {
+    var reasonInput = document.getElementById('wsCoverReason');
+    if (!reasonInput) return;
+
+    reasonInput.addEventListener('input', function () {
+      document.querySelectorAll('.ws-reason-mirror').forEach(function (hidden) {
+        hidden.value = reasonInput.value;
+      });
+    });
+  });
+</script>
+</body>
+</html>

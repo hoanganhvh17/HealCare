@@ -25,4 +25,9 @@ public interface DoctorBlockTimeRepository extends JpaRepository<DoctorBlockTime
             LocalTime newEndTime,
             LocalTime newStartTime
     );
+
+    // 4. Các khung giờ do một đơn nghỉ sinh ra — để gỡ lại khi đơn bị từ chối hoặc hủy.
+    List<DoctorBlockTime> findByLeaveRequestId(Long leaveRequestId);
+
+    void deleteByLeaveRequestId(Long leaveRequestId);
 }

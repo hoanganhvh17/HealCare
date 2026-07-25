@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Lịch trực của khoa')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{head/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Lịch trực của khoa</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/head/dashboard}">Trưởng khoa</a></li>
+        <li class="breadcrumb-item active"
+            th:text="${headDepartment != null ? 'Khoa ' + headDepartment.name : 'Chưa gán khoa'}">Khoa Cấp cứu</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Điều hướng theo tuần -->
+    <div class="ws-card mb-3">
+      <div class="ws-calendar-head mb-0">
+        <h2 class="ws-calendar-title">
+          Tuần <span th:text="${#temporals.format(weekStart, 'dd/MM')}">20/07</span>
+          - <span th:text="${#temporals.format(weekEnd, 'dd/MM/yyyy')}">26/07/2026</span>
+        </h2>
+
+        <div class="ws-nav">
+          <a th:href="@{/head/duty-roster(weekStart=${prevWeek})}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+          <a th:href="@{/head/duty-roster}" class="btn btn-sm btn-outline-secondary">Tuần này</a>
+          <a th:href="@{/head/duty-roster(weekStart=${nextWeek})}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cảnh báo ngày trống trực -->
+    <div class="ws-card ws-cover-card mb-3" th:if="${!#lists.isEmpty(uncoveredDates)}">
+      <div class="ws-cover-title">
+        <i class="bi bi-exclamation-triangle"></i> Ngày chưa có người trực trong tuần này
+      </div>
+      <p class="small text-muted mb-2">
+        Thông tư 32/2023/TT-BYT: phiên trực phải có đủ nhân lực, tối thiểu một bác sĩ,
+        để bảo đảm khám chữa bệnh liên tục 24/24 giờ.
+      </p>
+      <div class="d-flex flex-wrap gap-2">
+        <span th:each="date : ${uncoveredDates}" class="badge text-bg-danger"
+              th:text="${#temporals.format(date, 'dd/MM/yyyy')}">22/07/2026</span>
+      </div>
+    </div>
+
+    <!-- Danh sách phiên trực -->
+    <div class="ws-card">
+      <div class="ws-panel-title">
+        Phiên trực trong tuần (<span th:text="${#lists.size(dutyShifts)}">6</span>)
+      </div>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+          <tr>
+            <th>Ngày</th>
+            <th>Bác sĩ</th>
+            <th>Loại phiên trực</th>
+            <th>Giờ</th>
+            <th>Vị trí</th>
+            <th>Trạng thái</th>
+            <th class="text-end">Phê duyệt</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="shift : ${dutyShifts}">
+            <td th:text="${#temporals.format(shift.shiftDate, 'dd/MM/yyyy')}">22/07/2026</td>
+            <td class="fw-semibold" th:text="${shift.user.fullName}">BS. Nguyễn Văn A</td>
+            <td th:text="${shift.shiftType.label}">Trực 16/24 giờ</td>
+            <td>
+              <span th:text="${shift.startTime} + ' - ' + ${shift.endTime}">16:00 - 08:00</span>
+              <small th:if="${shift.overnight}" class="text-muted d-block">(qua đêm)</small>
+            </td>
+            <td th:text="${shift.dutyRole != null ? shift.dutyRole.label : '—'}">Trực lâm sàng</td>
+            <td>
+              <span class="ws-status-chip"
+                    th:classappend="'ws-status-' + ${shift.status.name()}"
+                    th:text="${shift.status.label}">Đang chờ duyệt</span>
+              <span th:if="${shift.needsCover}" class="ws-chip-cover d-block">
+                <i class="bi bi-arrow-repeat"></i> Cần thay ca
+              </span>
+            </td>
+
+            <td class="text-end" style="min-width: 230px;">
+              <div th:if="${shift.status.name() == 'PENDING'}" class="d-flex gap-1 justify-content-end">
+                <form th:action="@{/head/duty-roster/{id}/approve(id=${shift.id})}" method="post" class="d-flex gap-1">
+                  <input type="hidden" name="weekStart" th:value="${weekStart}">
+                  <input type="text" name="comment" class="form-control form-control-sm"
+                         placeholder="Ghi chú" style="width: 110px;">
+                  <button type="submit" class="btn btn-sm btn-success" title="Phê duyệt">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </form>
+                <form th:action="@{/head/duty-roster/{id}/reject(id=${shift.id})}" method="post">
+                  <input type="hidden" name="weekStart" th:value="${weekStart}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Từ chối">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+              </div>
+
+              <div th:if="${shift.status.name() != 'PENDING'}" class="small text-muted">
+                <span th:if="${shift.approver != null}" th:text="${shift.approver.fullName}">Trưởng khoa</span>
+                <span th:if="${shift.approver == null}">—</span>
+              </div>
+            </td>
+          </tr>
+
+          <tr th:if="${#lists.isEmpty(dutyShifts)}">
+            <td colspan="7" class="ws-empty">Tuần này chưa có phiên trực nào được đăng ký.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ws-legal-note mt-2">
+        <i class="bi bi-info-circle me-1"></i>
+        Duyệt phiên <strong>trực 24/24 giờ</strong> sẽ tự động tạo ngày nghỉ bù cho bác sĩ:
+        1 ngày với ngày thường và ngày nghỉ hằng tuần, 2 ngày với ngày lễ, Tết
+        (Quyết định 73/2011/QĐ-TTg, Điều 2 khoản 4). Trực 12/24 và 16/24 giờ được nghỉ
+        tối thiểu 12 giờ sau ca.
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

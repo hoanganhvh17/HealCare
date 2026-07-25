@@ -3,14 +3,20 @@
 ## Database
 **MySQL** must be running locally with a `bookinghealthy` schema. Hibernate runs with `ddl-auto=update`, so tables are auto-created and migrated on boot — there is no migration tool (Flyway/Liquibase). Entity changes take effect on restart.
 
+**Gotcha — renaming an `@Enumerated(EnumType.STRING)` value.** Hibernate 6 maps such a field to a **native MySQL `ENUM(...)` column** whose value list is fixed at table-creation time. `ddl-auto=update` **never rewrites that list**, so after you rename or remove an enum constant, inserting the new value fails with `Data truncated for column '…'` (surfaces as an HTTP 500). Fix it once by hand, e.g. `ALTER TABLE staff_shifts MODIFY COLUMN shift_type ENUM('CA_SANG','CA_CHIEU','TRUC_NGOAI_GIO','TRUC_12H_DEM','TRUC_24H','HOI_CHAN') NOT NULL;` — or drop the table and let it re-create. Adding a *new* constant to the end is safe; only renames/removals on an existing dev DB need this.
+
 ## Configuration file
 Connection settings, credentials, Gmail SMTP, Google/Facebook OAuth2 client secrets, and the OpenRouter AI key all live in [application.properties](src/main/resources/application.properties). The app listens on port **8090**.
 
 ## Seed data
 [DataInitializer.java](src/main/java/com/bookinghealthy/config/DataInitializer.java) is a `CommandLineRunner` that populates roles, users, 22 departments, doctors, and schedules — but **only when the `users` table is empty**. To re-seed that block, drop the schema and restart.
 
-Two blocks run **outside** that guard and are idempotent, so they also apply to an existing dev database:
+Four blocks run **outside** that guard and are idempotent, so they also apply to an existing dev database:
 - `ensureReceptionistAccount()` — `ROLE_RECEPTIONIST` + the `receptionist` account.
+- `ensureStaffProfiles()` — a `StaffProfile` for every doctor and receptionist: `hireDate = today − experienceYears`, `workCondition` = `HEAVY` for the departments in `LeavePolicy.HEAVY_DEPARTMENTS` (14 ngày phép) else `NORMAL` (12 ngày).
+- `ensureHeadDoctors()` — `ROLE_HEAD_DOCTOR` plus one trưởng khoa per department (the doctor with the highest `experienceYears`), recorded via `StaffProfile.headOfDepartment`. They **keep** `ROLE_DOCTOR`, so log in with their normal `bs_<slug>` / `123456` account and the "Phê duyệt của khoa" item appears in the doctor sidebar.
+
+  Both must run **after** `ensureExtraDoctors()` so the 110 seeded doctors are included.
 - `ensureExtraDoctors()` — 5 extra doctors for **every** department (22 × 5 = 110), with bio, degree, price, phone and 3 weekly `Schedule` rows each. The data table lives in [DoctorSeedData.java](src/main/java/com/bookinghealthy/config/DoctorSeedData.java) keyed by **department name**, so a renamed department silently skips its five doctors (a warning is printed). Username / email / avatar filename are all derived from the full name via `slugify()` (`Nguyễn Đức Toàn` → `bs_nguyenductoan`, `nguyenductoan@meditrust.vn`, `bs-nguyenductoan.jpg`), which is what makes re-running safe — the check is `existsByUsername`. The BCrypt hash is computed **once** and reused; encoding per doctor would add ~10s to every boot.
 
 Default logins: `admin`/`admin123`, `patient_tom`/`123456`, doctors such as `doctor_walter`/`123456`, and every seeded doctor with `bs_<slug>`/`123456`.

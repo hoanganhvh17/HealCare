@@ -5,10 +5,12 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.model.DoctorBlockTime;
+import com.bookinghealthy.model.Schedule;
 import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.repository.DoctorBlockTimeRepository;
 import com.bookinghealthy.repository.DoctorRepository;
+import com.bookinghealthy.repository.ScheduleRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
 import com.bookinghealthy.service.WalletService;
@@ -39,6 +41,9 @@ public class BookingServiceImpl implements BookingService {
 
     @Autowired
     private DoctorBlockTimeRepository doctorBlockTimeRepository;
+
+    @Autowired
+    private ScheduleRepository scheduleRepository;
 
     @Autowired
     private WalletService walletService;
@@ -93,6 +98,70 @@ public class BookingServiceImpl implements BookingService {
                 lock.unlock();
                 slotLocks.remove(slotKey, lock);
             }
+        }
+    }
+
+    // ===================== KIỂM TRA KHUNG GIỜ THEO LỊCH LÀM VIỆC =====================
+
+    @Override
+    public boolean isSlotWithinWorkingHours(Long doctorId, LocalDate date, String timeSlot) {
+        // Lịch khám gắn với từng TUẦN — phải lấy đúng lịch có hiệu lực của tuần chứa ngày này,
+        // không gộp lịch của mọi tuần lại với nhau.
+        List<Schedule> schedules = scheduleRepository.findEffective(doctorId, date);
+        // Bác sĩ chưa đăng ký lịch nào -> không giới hạn (giữ hành vi cũ cho dữ liệu seed).
+        if (schedules.isEmpty()) {
+            return true;
+        }
+        LocalTime[] bounds = parseSlotBounds(timeSlot);
+        if (bounds == null) {
+            return true;
+        }
+        return isWithinAnySchedule(schedules, date, bounds[0], bounds[1]);
+    }
+
+    @Override
+    public List<String> slotsOutsideWorkingHours(Long doctorId, LocalDate date, List<String> slots) {
+        List<Schedule> schedules = scheduleRepository.findEffective(doctorId, date);
+        List<String> outside = new java.util.ArrayList<>();
+        // Chưa đăng ký lịch -> không gạch bỏ khung nào.
+        if (schedules.isEmpty()) {
+            return outside;
+        }
+        for (String slot : slots) {
+            LocalTime[] bounds = parseSlotBounds(slot);
+            if (bounds != null && !isWithinAnySchedule(schedules, date, bounds[0], bounds[1])) {
+                outside.add(slot);
+            }
+        }
+        return outside;
+    }
+
+    /** Slot nằm trọn trong ít nhất một ca làm việc của bác sĩ đúng thứ trong tuần. */
+    private boolean isWithinAnySchedule(List<Schedule> schedules, LocalDate date,
+                                        LocalTime slotStart, LocalTime slotEnd) {
+        for (Schedule schedule : schedules) {
+            if (schedule.getDayOfWeek() == date.getDayOfWeek()
+                    && !slotStart.isBefore(schedule.getStartTime())
+                    && !slotEnd.isAfter(schedule.getEndTime())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** "07:30 - 08:00" -> [07:30, 08:00]; null nếu sai định dạng. */
+    private LocalTime[] parseSlotBounds(String timeSlot) {
+        if (timeSlot == null || !timeSlot.contains(" - ")) {
+            return null;
+        }
+        try {
+            String[] parts = timeSlot.split(" - ");
+            return new LocalTime[]{
+                    LocalTime.parse(parts[0].trim(), SLOT_TIME_FORMATTER),
+                    LocalTime.parse(parts[1].trim(), SLOT_TIME_FORMATTER)
+            };
+        } catch (Exception e) {
+            return null;
         }
     }
 

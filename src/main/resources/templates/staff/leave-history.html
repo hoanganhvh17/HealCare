@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Lịch sử nghỉ phép')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{__${sidebarFragment}__ :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Lịch sử nghỉ phép</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a th:href="@{{base}/work-schedule(base=${basePath})}">Lịch làm việc</a>
+        </li>
+        <li class="breadcrumb-item active">Lịch sử nghỉ phép</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <!-- Số dư phép, để đối chiếu với lịch sử bên dưới -->
+    <div class="ws-card mb-3">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="text-muted small">Phép năm còn lại</div>
+          <div class="ws-balance-number"
+               th:text="${#numbers.formatDecimal(balance.annualRemaining, 1, 1)}">9.0</div>
+          <div class="small text-muted">
+            trên <span th:text="${balance.annualQuota}">14</span> ngày
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Đã nghỉ phép năm</div>
+          <div class="ws-balance-number"
+               th:text="${#numbers.formatDecimal(balance.annualUsed, 1, 1)}">5.0</div>
+          <div class="small text-muted">ngày trong năm <span th:text="${balance.year}">2026</span></div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Nghỉ ốm còn lại</div>
+          <div class="ws-balance-number"
+               th:text="${#numbers.formatDecimal(balance.sickRemaining, 1, 1)}">30.0</div>
+          <div class="small text-muted">
+            trên <span th:text="${balance.sickQuota}">30</span> ngày
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Thâm niên</div>
+          <div class="ws-balance-number" th:text="${balance.yearsOfService}">7</div>
+          <div class="small text-muted">
+            năm, được cộng <span th:text="${balance.seniorityBonus}">1</span> ngày phép
+          </div>
+        </div>
+      </div>
+
+      <div class="ws-balance-legal mt-3" th:text="${balance.explanation}">Căn cứ pháp lý</div>
+    </div>
+
+    <div class="ws-card">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+          <tr>
+            <th>Ngày gửi</th>
+            <th>Loại nghỉ</th>
+            <th>Khoảng nghỉ</th>
+            <th class="text-center">Số ngày</th>
+            <th>Trạng thái</th>
+            <th>Người duyệt &amp; lời phê</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="leave : ${leaveRequests}">
+            <td th:text="${#temporals.format(leave.createdAt, 'dd/MM/yyyy HH:mm')}">24/10/2026 08:00</td>
+
+            <td>
+              <span th:text="${leave.leaveType.label}">Phép năm</span>
+              <span th:if="${leave.subReason != null}" class="d-block small text-muted"
+                    th:text="${leave.subReason.label}">Bản thân kết hôn</span>
+              <span th:if="${leave.emergency}" class="badge text-bg-danger">Đột xuất</span>
+            </td>
+
+            <td>
+              <span th:text="${#temporals.format(leave.startDate, 'dd/MM/yyyy')}">24/10/2026</span>
+              <span th:if="${leave.startDate != leave.endDate}"
+                    th:text="' - ' + ${#temporals.format(leave.endDate, 'dd/MM/yyyy')}"></span>
+              <span th:if="${leave.halfDaySession.halfDay}" class="d-block small text-muted"
+                    th:text="${leave.halfDaySession.label}">Nửa ngày (buổi sáng)</span>
+            </td>
+
+            <td class="text-center" th:text="${#numbers.formatDecimal(leave.totalDays, 1, 1)}">1.0</td>
+
+            <td>
+              <span class="ws-status-chip"
+                    th:classappend="'ws-status-' + ${leave.status.name()}"
+                    th:text="${leave.status.label}">Đã phê duyệt</span>
+            </td>
+
+            <td>
+              <span th:if="${leave.approver != null}" th:text="${leave.approver.fullName}">Trưởng khoa</span>
+              <span th:if="${leave.approver == null}" class="text-muted">—</span>
+              <div class="ws-quote" th:if="${leave.approverComment != null and !leave.approverComment.isBlank()}"
+                   th:text="'“' + ${leave.approverComment} + '”'"></div>
+            </td>
+          </tr>
+
+          <tr th:if="${#lists.isEmpty(leaveRequests)}">
+            <td colspan="6" class="ws-empty">Chưa có đơn nghỉ nào.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

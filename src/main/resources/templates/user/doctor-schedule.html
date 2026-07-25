@@ -170,10 +170,9 @@
             <table class="table schedule-table mb-0">
               <thead>
               <tr>
-                <th style="width: 25%; text-align: left; padding-left: 30px;">Thông tin Bác sĩ</th>
-                <th style="width: 25%;">Sáng</th>
-                <th style="width: 25%;">Chiều</th>
-                <th style="width: 25%;">Tối</th>
+                <th style="width: 34%; text-align: left; padding-left: 30px;">Thông tin Bác sĩ</th>
+                <th style="width: 33%;">Sáng (07:30 - 11:30)</th>
+                <th style="width: 33%;">Chiều (13:30 - 17:30)</th>
               </tr>
               </thead>
 
@@ -224,26 +223,13 @@
                   </div>
                 </td>
 
-                <td>
-                  <div class="d-flex flex-wrap gap-2">
-                    <th:block th:each="slot : ${entry.value}">
-                      <a th:if="${slot.session == 'Tối'}"
-                         th:href="@{/appointment(doctorId=${entry.key.id}, appointmentDate=${searchDate}, appointmentTime=${slot.time})}"
-                         class="time-slot-btn"
-                         th:classappend="${!slot.available ? 'disabled ' + slot.statusClass : ''}"
-                         th:title="${!slot.available ? (slot.statusClass == 'booked' ? 'Đã có người đặt' : 'Đã qua giờ') : 'Đặt lịch ngay'}">
-                        <span th:text="${slot.time}"></span>
-                      </a>
-                    </th:block>
-                  </div>
-                </td>
               </tr>
 
               <tr th:if="${doctorSlotsMap.isEmpty()}">
-                <td colspan="4" class="text-center py-5">
+                <td colspan="3" class="text-center py-5">
                   <div class="text-muted">
                     <i class="bi bi-calendar2-x display-4 mb-3 d-block opacity-50"></i>
-                    <h5>Không có lịch trực nào</h5>
+                    <h5>Không có ca khám nào</h5>
                     <p class="small">Vui lòng chọn ngày khác hoặc chuyên khoa khác.</p>
                   </div>
                 </td>

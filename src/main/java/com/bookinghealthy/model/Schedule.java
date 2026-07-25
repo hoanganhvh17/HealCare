@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
@@ -36,4 +37,18 @@ public class Schedule {
 
     @Column(nullable = false)
     private LocalTime endTime; // Giờ kết thúc (VD: 11:00)
+
+    /**
+     * TUẦN mà ca khám này áp dụng — luôn là ngày Thứ Hai của tuần đó
+     * ({@link com.bookinghealthy.config.LeavePolicy#weekStartOf}).
+     *
+     * Bác sĩ đăng ký ca khám cho TUẦN SAU, nên mỗi lần đăng ký sinh ra một bộ bản ghi gắn
+     * với đúng tuần đó. Nhờ vậy tuần hiện tại và các tuần đã qua KHÔNG bao giờ bị sửa —
+     * trước đây lịch chỉ có {@code dayOfWeek} nên lưu một lần là đổi cả quá khứ lẫn tương lai.
+     *
+     * {@code null} = lịch định kỳ mặc định (dữ liệu seed và lịch cũ trước khi tách theo tuần),
+     * dùng cho những tuần chưa có bất kỳ lần đăng ký nào.
+     */
+    @Column(name = "week_start")
+    private LocalDate weekStart;
 }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -94,7 +95,8 @@ public class DoctorController {
             model.addAttribute("treatedCount", "5k+"); // Fallback an toàn
         }
 
-        List<Schedule> schedules = scheduleRepository.findByDoctorId(id);
+        // Lịch làm việc hiển thị trên trang giới thiệu là lịch của TUẦN NÀY.
+        List<Schedule> schedules = scheduleRepository.findEffective(id, LocalDate.now());
         Map<String, List<String>> workingScheduleMap = new HashMap<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
 

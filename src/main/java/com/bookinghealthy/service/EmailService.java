@@ -30,6 +30,15 @@ public interface EmailService {
     void sendBookingRescheduled(Booking booking, String oldDoctorName,
                                 java.time.LocalDate oldDate, String oldTime);
 
+    /**
+     * Thông báo chung gửi cho nhân viên, dựng từ {@code templates/email/general-notification.html}.
+     * Dùng cho các sự kiện của lịch làm việc: đơn nghỉ được duyệt / bị từ chối,
+     * lời mời nhận ca, ca trực đã có người thay.
+     *
+     * @param bodyHtml phần thân, cho phép HTML (template render bằng th:utext)
+     */
+    void sendStaffNotification(String toEmail, String subject, String title, String bodyHtml);
+
     // === 3 HÀM MỚI CHO TUYỂN DỤNG ===
     void sendCandidateConfirmation(Candidate candidate); // Gửi cho Ứng viên (đã nộp xong)
     void sendNewCandidateNotification(Candidate candidate); // Gửi cho Admin (có người nộp)

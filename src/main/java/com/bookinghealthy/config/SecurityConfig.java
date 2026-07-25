@@ -85,6 +85,15 @@ public class SecurityConfig {
                         // --- 4b. PHÂN QUYỀN LỄ TÂN (BẮT BUỘC ROLE_RECEPTIONIST) ---
                         .requestMatchers("/receptionist/**").hasRole("RECEPTIONIST")
 
+                        // --- 4c. PHÂN QUYỀN TRƯỞNG KHOA (DUYỆT ĐƠN NGHỈ & LỊCH TRỰC) ---
+                        // Trưởng khoa vẫn giữ ROLE_DOCTOR nên successHandler bên dưới
+                        // không cần thêm nhánh: họ vào /doctor/dashboard như bác sĩ thường.
+                        .requestMatchers("/head/**").hasRole("HEAD_DOCTOR")
+
+                        // --- 4d. API LỊCH LÀM VIỆC (BÁC SĨ + LỄ TÂN DÙNG CHUNG) ---
+                        // Controller tự lọc dữ liệu theo người đang đăng nhập.
+                        .requestMatchers("/api/staff/**").authenticated()
+
                         // --- 5. CÁC TRANG CẦN ĐĂNG NHẬP (USER, DOCTOR, ADMIN đều được) ---
                         .requestMatchers(
                                 "/appointment",

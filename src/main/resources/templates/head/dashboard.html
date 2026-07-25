@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Tổng quan khoa')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{head/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Tổng quan khoa</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">Trưởng khoa</li>
+        <li class="breadcrumb-item active"
+            th:text="${headDepartment != null ? 'Khoa ' + headDepartment.name : 'Chưa gán khoa'}">Khoa Cấp cứu</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${errorMessage}" class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle me-1"></i> <span th:text="${errorMessage}"></span>
+    </div>
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${headDepartment != null}">
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <div class="ws-card">
+            <div class="text-muted small">Đơn nghỉ chờ duyệt</div>
+            <div class="ws-balance-number" th:text="${pendingLeaveCount}">3</div>
+            <div class="small text-danger" th:if="${emergencyCount > 0}">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <span th:text="${emergencyCount}">1</span> đơn báo bận đột xuất
+            </div>
+            <a th:href="@{/head/leave-requests}" class="ws-btn-outline">Xem và duyệt</a>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="ws-card">
+            <div class="text-muted small">Ca trực chờ phê duyệt</div>
+            <div class="ws-balance-number" th:text="${pendingShiftCount}">5</div>
+            <div class="small text-muted">Lịch trực phải được lãnh đạo phê duyệt</div>
+            <a th:href="@{/head/duty-roster}" class="ws-btn-outline">Xem lịch trực</a>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="ws-card" th:classappend="${!#lists.isEmpty(uncoveredDates)} ? 'ws-cover-card' : ''">
+            <div class="text-muted small">Ngày chưa có ai trực (7 ngày tới)</div>
+            <div class="ws-balance-number"
+                 th:classappend="${!#lists.isEmpty(uncoveredDates)} ? 'text-danger' : ''"
+                 th:text="${#lists.size(uncoveredDates)}">2</div>
+            <div class="small text-muted">
+              Thông tư 32/2023/TT-BYT yêu cầu mỗi phiên trực có tối thiểu một bác sĩ.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chốt lịch khám tuần sau cho khoa -->
+      <div class="ws-card mb-3">
+        <div class="ws-panel-title">Lịch khám tuần sau của khoa</div>
+        <p class="small text-muted mb-2">
+          Bác sĩ phải đăng ký lịch khám cho tuần sau (mỗi ngày tối thiểu 1 ca). Hệ thống tự nhắc
+          vào sáng Chủ nhật và tự xếp lịch cả tuần vào tối Chủ nhật cho ai chưa đăng ký. Anh/chị
+          cũng có thể nhắc hoặc chốt ngay.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <form th:action="@{/head/clinic/remind}" method="post">
+            <button type="submit" class="btn btn-outline-primary">
+              <i class="bi bi-bell"></i> Nhắc bác sĩ đăng ký
+            </button>
+          </form>
+          <form th:action="@{/head/clinic/finalize}" method="post"
+                onsubmit="return confirm('Tự xếp lịch khám cả tuần cho các bác sĩ chưa đăng ký?');">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-calendar2-check"></i> Chốt &amp; tự xếp lịch
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Cảnh báo ngày trống trực -->
+      <div class="ws-card mb-3" th:if="${!#lists.isEmpty(uncoveredDates)}">
+        <div class="ws-cover-title">
+          <i class="bi bi-exclamation-triangle"></i> Những ngày khoa chưa có người trực
+        </div>
+        <p class="small text-muted">
+          Khám chữa bệnh phải liên tục 24/24 giờ. Anh/chị hãy phân công bác sĩ trực cho các
+          ngày dưới đây.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <span th:each="date : ${uncoveredDates}" class="badge text-bg-danger"
+                th:text="${#temporals.format(date, 'EEEE dd/MM/yyyy')}">Thứ Tư 22/07/2026</span>
+        </div>
+      </div>
+
+      <!-- Đơn nghỉ mới nhất -->
+      <div class="ws-card">
+        <div class="ws-panel-title">Đơn nghỉ mới nhất đang chờ anh/chị</div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr>
+              <th>Nhân viên</th>
+              <th>Loại nghỉ</th>
+              <th>Khoảng nghỉ</th>
+              <th class="text-center">Số ngày</th>
+              <th class="text-end">Thao tác</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="leave : ${recentLeaves}">
+              <td class="fw-semibold" th:text="${leave.user.fullName}">BS. Nguyễn Văn A</td>
+              <td>
+                <span th:text="${leave.leaveType.label}">Phép năm</span>
+                <span th:if="${leave.emergency}" class="badge text-bg-danger">Đột xuất</span>
+              </td>
+              <td>
+                <span th:text="${#temporals.format(leave.startDate, 'dd/MM/yyyy')}">24/10/2026</span>
+                <span th:if="${leave.startDate != leave.endDate}"
+                      th:text="' - ' + ${#temporals.format(leave.endDate, 'dd/MM/yyyy')}"></span>
+              </td>
+              <td class="text-center" th:text="${#numbers.formatDecimal(leave.totalDays, 1, 1)}">2.0</td>
+              <td class="text-end">
+                <a th:href="@{/head/leave-requests}" class="btn btn-sm btn-outline-primary">Xử lý</a>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(recentLeaves)}">
+              <td colspan="5" class="ws-empty">Không có đơn nào đang chờ duyệt.</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+</body>
+</html>

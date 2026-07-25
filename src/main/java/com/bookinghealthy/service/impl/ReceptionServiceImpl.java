@@ -32,13 +32,12 @@ public class ReceptionServiceImpl implements ReceptionService {
 
     private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
-    // Biên các buổi, khớp với MORNING_SLOTS / AFTERNOON_SLOTS / EVENING_SLOTS của TimeSlotService
+    // Biên các buổi, khớp với MORNING_SLOTS / AFTERNOON_SLOTS của TimeSlotService.
+    // Chỉ có giờ hành chính: ngoài giờ là phiên trực, không nhận đặt khám.
     private static final LocalTime MORNING_START = LocalTime.of(7, 30);
     private static final LocalTime MORNING_END = LocalTime.of(11, 30);
     private static final LocalTime AFTERNOON_START = LocalTime.of(13, 30);
     private static final LocalTime AFTERNOON_END = LocalTime.of(17, 30);
-    private static final LocalTime EVENING_START = LocalTime.of(17, 30);
-    private static final LocalTime EVENING_END = LocalTime.of(20, 30);
 
     // ===================== 1. ĐỔI LỊCH HÀNG LOẠT =====================
 
@@ -133,8 +132,7 @@ public class ReceptionServiceImpl implements ReceptionService {
         switch (normalizeSession(session)) {
             case SESSION_MORNING -> { start = MORNING_START; end = MORNING_END; }
             case SESSION_AFTERNOON -> { start = AFTERNOON_START; end = AFTERNOON_END; }
-            case SESSION_EVENING -> { start = EVENING_START; end = EVENING_END; }
-            default -> { start = MORNING_START; end = EVENING_END; }
+            default -> { start = MORNING_START; end = AFTERNOON_END; }
         }
 
         String finalReason = (reason == null || reason.isBlank()) ? "Bác sĩ bận đột xuất" : reason;
@@ -222,7 +220,6 @@ public class ReceptionServiceImpl implements ReceptionService {
         return switch (normalized) {
             case SESSION_MORNING -> !slotStart.isBefore(MORNING_START) && slotStart.isBefore(MORNING_END);
             case SESSION_AFTERNOON -> !slotStart.isBefore(AFTERNOON_START) && slotStart.isBefore(AFTERNOON_END);
-            case SESSION_EVENING -> !slotStart.isBefore(EVENING_START) && !slotStart.isAfter(EVENING_END);
             default -> true;
         };
     }

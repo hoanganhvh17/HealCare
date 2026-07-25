@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Lịch Làm Việc & Nghỉ Phép')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+
+<!-- Sidebar chọn theo vai trò: controller truyền "doctor/include/sidebar"
+     hoặc "receptionist/include/sidebar" qua model. -->
+<th:block th:replace="~{__${sidebarFragment}__ :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <!-- ===================== ĐẦU TRANG ===================== -->
+  <div class="ws-page-head">
+    <h1>Lịch Làm Việc &amp; Nghỉ Phép</h1>
+
+    <div class="ws-tabs">
+      <button type="button" class="ws-tab active" data-ws-tab="week">Lịch tuần</button>
+      <button type="button" class="ws-tab" data-ws-tab="month">Lịch tháng</button>
+      <button type="button" class="ws-tab" data-ws-tab="duty">Trực của tôi</button>
+    </div>
+
+    <div class="ws-head-actions">
+      <button type="button" class="ws-icon-btn" id="wsSearchToggle" title="Tìm kiếm">
+        <i class="bi bi-search"></i>
+      </button>
+
+      <!-- Chuông thông báo -->
+      <div class="dropdown">
+        <button type="button" class="ws-icon-btn" data-bs-toggle="dropdown"
+                data-bs-auto-close="outside" title="Thông báo">
+          <i class="bi bi-bell"></i>
+          <span class="ws-badge-dot d-none" id="wsNotifDot"></span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-3" style="width: 340px; max-height: 420px; overflow-y: auto;">
+          <h6 class="fw-bold mb-2">
+            Thông báo <span class="text-muted small">(<span id="wsNotifCount">0</span>)</span>
+          </h6>
+          <div id="wsNotifList">
+            <div class="ws-empty">Đang tải…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Đăng ký ca khám theo tuần: chỉ bác sĩ mới mở khung giờ khám -->
+      <button type="button" class="ws-btn-primary" th:if="${isDoctor}"
+              data-bs-toggle="modal" data-bs-target="#wsClinicModal">
+        <i class="bi bi-calendar2-week"></i> Ca khám
+      </button>
+      <!-- Đăng ký phiên trực / hội chẩn -->
+      <button type="button" class="ws-btn-primary" data-bs-toggle="modal" data-bs-target="#wsShiftModal">
+        <i class="bi bi-plus-lg"></i> Đăng ký ca
+      </button>
+    </div>
+  </div>
+
+  <!-- Ô tìm kiếm, ẩn cho tới khi bấm kính lúp -->
+  <div class="mb-3 d-none" id="wsSearchBox">
+    <input type="text" class="form-control" id="wsSearchInput"
+           placeholder="Tìm theo tên ca, khoa, ghi chú…">
+  </div>
+
+  <!-- ===================== THÔNG BÁO KẾT QUẢ ===================== -->
+  <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <div th:if="${warningMessage}" class="alert alert-warning alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle me-1"></i> <span th:text="${warningMessage}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <!-- ===================== HÀNG THẺ ĐẦU (luôn hiển thị) ===================== -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <button type="button" class="ws-action-card h-100" data-bs-toggle="modal" data-bs-target="#wsLeaveModal">
+        <span class="ws-action-icon"><i class="bi bi-calendar2-x"></i></span>
+        <span>
+          <span class="ws-action-title">Đăng ký nghỉ phép</span>
+          <span class="ws-action-sub">Phép năm, ốm, việc riêng</span>
+        </span>
+        <span class="ws-action-arrow"><i class="bi bi-chevron-right"></i></span>
+      </button>
+    </div>
+    <div class="col-md-4">
+      <button type="button" class="ws-action-card ws-danger h-100" data-bs-toggle="modal" data-bs-target="#wsEmergencyModal">
+        <span class="ws-action-icon"><i class="bi bi-exclamation-triangle"></i></span>
+        <span>
+          <span class="ws-action-title">Báo bận đột xuất</span>
+          <span class="ws-action-sub">Khẩn cấp trong vòng 24h</span>
+        </span>
+        <span class="ws-action-arrow"><i class="bi bi-chevron-right"></i></span>
+      </button>
+    </div>
+    <div class="col-md-4">
+      <!-- Phép năm còn lại (bản gọn, luôn thấy ở đầu trang) -->
+      <div class="ws-card h-100 py-2">
+        <div class="d-flex align-items-center gap-3">
+          <div>
+            <div class="text-muted small">Phép năm còn lại</div>
+            <div>
+              <span class="ws-balance-number" th:text="${#numbers.formatDecimal(balance.annualRemaining, 1, 1)}">14,0</span>
+              <span class="text-muted">/ <span th:text="${balance.annualQuota}">14</span> ngày</span>
+            </div>
+          </div>
+          <div class="flex-grow-1">
+            <div class="ws-progress">
+              <span th:style="'width:' + ${balance.annualQuota > 0
+                        ? (balance.annualUsed.doubleValue() * 100 / balance.annualQuota) : 0} + '%'"></span>
+            </div>
+            <div class="small text-muted">
+              Nghỉ ốm còn <strong th:text="${#numbers.formatDecimal(balance.sickRemaining, 1, 1)}">30,0</strong>/<span
+                    th:text="${balance.sickQuota}">30</span> ngày
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- ===================== CỘT LỊCH (full-width, co giãn) ===================== -->
+    <div class="col-12 col-xxl-8">
+
+      <!-- Lưới lịch -->
+      <div class="ws-card" id="wsCalendarSection">
+        <div class="ws-calendar-head">
+          <h2 class="ws-calendar-title" id="wsCalendarTitle">Đang tải…</h2>
+
+          <div class="ws-segmented" id="wsSegmented">
+            <button type="button" data-ws-mode="day">Ngày</button>
+            <button type="button" data-ws-mode="week" class="active">Tuần</button>
+          </div>
+
+          <div class="ws-nav">
+            <button type="button" id="wsPrev" title="Kỳ trước"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" id="wsToday">Hôm nay</button>
+            <button type="button" id="wsNext" title="Kỳ sau"><i class="bi bi-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <!-- JS vẽ lưới tuần/ngày (theo giờ) hoặc lưới tháng (ô ngày) vào đây -->
+        <div id="wsCalendarBody"></div>
+
+        <div class="ws-legend">
+          <span><i style="background:#10B981"></i> Ca khám (giờ hành chính)</span>
+          <span><i style="background:#2563EB"></i> Phiên trực (ngoài giờ)</span>
+          <span><i style="background:#7C3AED"></i> Hội chẩn</span>
+          <span><i style="background:#94A3B8"></i> Nghỉ phép</span>
+          <span><i style="background:#DC2626"></i> Bận đột xuất</span>
+        </div>
+      </div>
+
+      <!-- Tab "Trực của tôi" -->
+      <div class="ws-card d-none" id="wsDutySection">
+        <h2 class="ws-calendar-title mb-3">Phiên trực của tôi</h2>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Loại phiên trực</th>
+              <th>Giờ</th>
+              <th>Vị trí trực</th>
+              <th>Trạng thái</th>
+              <th class="text-end">Thao tác</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="shift : ${dutyShifts}">
+              <td>
+                <span th:text="${#temporals.format(shift.shiftDate, 'dd/MM/yyyy')}">18/10/2026</span>
+                <span th:if="${shift.needsCover}" class="ws-chip-cover d-block">
+                  <i class="bi bi-arrow-repeat"></i> Cần thay ca
+                </span>
+              </td>
+              <td th:text="${shift.shiftType.label}">Trực ngoài giờ (14 giờ)</td>
+              <td>
+                <span th:text="${shift.startTime} + ' - ' + ${shift.endTime}">17:30 - 07:30</span>
+                <small th:if="${shift.overnight}" class="text-muted d-block">(qua đêm)</small>
+              </td>
+              <td th:text="${shift.dutyRole != null ? shift.dutyRole.label : '—'}">Trực lâm sàng</td>
+              <td>
+                <span class="ws-status-chip"
+                      th:classappend="'ws-status-' + ${shift.status.name()}"
+                      th:text="${shift.status.label}">Đang chờ duyệt</span>
+              </td>
+              <td class="text-end">
+                <a th:href="@{{base}/shift/cover/{id}(base=${basePath}, id=${shift.id})}"
+                   class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-people"></i> Tìm người thay
+                </a>
+                <form th:action="@{{base}/shift/cancel/{id}(base=${basePath}, id=${shift.id})}"
+                      method="post" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-danger"
+                          onclick="return confirm('Hủy phiên trực này?')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(dutyShifts)}">
+              <td colspan="6" class="ws-empty">Anh/chị chưa đăng ký phiên trực nào.</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="ws-legal-note">
+          <i class="bi bi-info-circle me-1"></i>
+          Trực là hoạt động <strong>ngoài giờ hành chính</strong>, ngày lễ, ngày nghỉ để bảo đảm
+          khám chữa bệnh liên tục 24/24 giờ (Thông tư 32/2023/TT-BYT). Phiên trực
+          <strong>không</strong> mở khung giờ đặt khám cho bệnh nhân. Sau trực 24/24 giờ,
+          anh/chị được nghỉ bù 1 ngày (2 ngày nếu là lễ, Tết) theo Quyết định 73/2011/QĐ-TTg.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CỘT PHẢI ===================== -->
+    <div class="col-12 col-xxl-4">
+
+      <!-- Trạng thái phê duyệt -->
+      <div class="ws-card mb-3">
+        <div class="ws-panel-title">
+          Trạng thái phê duyệt
+          <button type="button" class="ws-icon-btn" id="wsApprovalFilter"
+                  data-bs-toggle="collapse" data-bs-target="#wsApprovalFilterBox" title="Lọc">
+            <i class="bi bi-funnel"></i>
+          </button>
+        </div>
+
+        <div class="collapse mb-2" id="wsApprovalFilterBox">
+          <select class="form-select form-select-sm" id="wsApprovalStatusFilter">
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING">Đang chờ duyệt</option>
+            <option value="APPROVED">Đã phê duyệt</option>
+            <option value="REJECTED">Từ chối</option>
+            <option value="CANCELED">Đã hủy</option>
+          </select>
+        </div>
+
+        <div th:each="leave, iter : ${leaveRequests}" th:if="${iter.index < 4}"
+             class="ws-approval-item" th:attr="data-status=${leave.status.name()}">
+
+          <div class="ws-approval-head">
+            <span class="ws-status-chip"
+                  th:classappend="'ws-status-' + ${leave.status.name()}"
+                  th:text="${leave.status.label}">Đang chờ duyệt</span>
+            <span class="ws-ago" th:text="${#temporals.format(leave.createdAt, 'dd/MM HH:mm')}">24/10 08:00</span>
+          </div>
+
+          <div class="ws-approval-name">
+            <span th:text="${leave.leaveType.label}">Nghỉ ốm</span>
+            <span th:if="${leave.halfDaySession.halfDay}" class="text-muted">(Nửa ngày)</span>
+            <i th:if="${leave.emergency}" class="bi bi-exclamation-triangle-fill text-danger" title="Báo bận đột xuất"></i>
+          </div>
+
+          <div class="ws-approval-range">
+            <span th:text="${#temporals.format(leave.startDate, 'dd/MM/yyyy')}">24/10/2026</span>
+            <span th:if="${leave.startDate != leave.endDate}"
+                  th:text="' - ' + ${#temporals.format(leave.endDate, 'dd/MM/yyyy')}"></span>
+            <span th:if="${leave.halfDaySession.halfDay}"
+                  th:text="' • ' + ${leave.halfDaySession.startTime} + ' - ' + ${leave.halfDaySession.endTime}"></span>
+          </div>
+
+          <div class="ws-quote" th:if="${leave.approverComment != null and !leave.approverComment.isBlank()}">
+            “<span th:text="${leave.approverComment}"></span>”
+            <span th:if="${leave.approver != null}" th:text="' - ' + ${leave.approver.fullName}"></span>
+          </div>
+
+          <form th:if="${leave.cancelableByOwner}"
+                th:action="@{{base}/leave/cancel/{id}(base=${basePath}, id=${leave.id})}" method="post">
+            <button type="submit" class="ws-btn-outline"
+                    onclick="return confirm('Hủy yêu cầu nghỉ này?')">Hủy yêu cầu</button>
+          </form>
+        </div>
+
+        <div th:if="${#lists.isEmpty(leaveRequests)}" class="ws-empty">
+          Anh/chị chưa gửi đơn nghỉ nào.
+        </div>
+
+        <a th:href="@{{base}/leave-history(base=${basePath})}"
+           class="d-block text-center small fw-semibold mt-2" style="color:#006B63;">
+          Xem tất cả lịch sử
+        </a>
+      </div>
+
+      <!-- Cần người thay ca -->
+      <div class="ws-card ws-cover-card mb-3" th:if="${!#lists.isEmpty(shiftsNeedingCover)}">
+        <div class="ws-cover-title">
+          <i class="bi bi-arrow-repeat"></i>
+          Cần người thay ca (<span th:text="${#lists.size(shiftsNeedingCover)}">1</span>)
+        </div>
+
+        <p class="small text-muted">
+          Anh/chị có ca trực chưa có người thay thế. Ca vẫn thuộc về anh/chị cho tới khi
+          có đồng nghiệp nhận.
+        </p>
+
+        <div th:each="shift : ${shiftsNeedingCover}" class="ws-cover-shift">
+          <div class="ws-cover-when">
+            <span th:text="${#temporals.format(shift.shiftDate, 'dd/MM/yyyy')}">18/10/2026</span> •
+            <span th:text="${shift.startTime} + ' - ' + ${shift.endTime}">17:30 - 07:30</span>
+          </div>
+          <div class="ws-cover-what">
+            <span th:text="${shift.shiftType.label}">Trực ngoài giờ (14 giờ)</span>
+            <span th:if="${shift.department != null}" th:text="' - Khoa ' + ${shift.department.name}"></span>
+          </div>
+        </div>
+
+        <a th:href="@{{base}/shift/cover/{id}(base=${basePath}, id=${shiftsNeedingCover[0].id})}"
+           class="ws-btn-danger-outline">Tìm người thay thế</a>
+      </div>
+
+      <!-- Lời mời nhận ca từ đồng nghiệp -->
+      <div class="ws-card" th:if="${!#lists.isEmpty(coverInvitations)}">
+        <div class="ws-panel-title">Lời mời nhận ca</div>
+
+        <div th:each="invite : ${coverInvitations}" class="ws-cover-shift">
+          <div class="ws-cover-what" th:text="${invite.requester.fullName}">BS. Nguyễn Văn A</div>
+          <div class="ws-cover-when">
+            <span th:text="${invite.shift.shiftType.label}">Trực đêm 12/24 giờ</span> •
+            <span th:text="${#temporals.format(invite.shift.shiftDate, 'dd/MM/yyyy')}">20/10/2026</span>
+          </div>
+          <div class="small text-muted mt-1" th:if="${invite.reason != null}" th:text="${invite.reason}"></div>
+
+          <div class="d-flex gap-2 mt-2">
+            <form th:action="@{{base}/cover/accept/{id}(base=${basePath}, id=${invite.id})}"
+                  method="post" class="flex-grow-1">
+              <button type="submit" class="btn btn-sm btn-success w-100">Nhận ca</button>
+            </form>
+            <form th:action="@{{base}/cover/decline/{id}(base=${basePath}, id=${invite.id})}" method="post">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Từ chối</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ĐĂNG KÝ CA KHÁM THEO TUẦN ===================== -->
+  <div class="modal fade" id="wsClinicModal" tabindex="-1" th:if="${isDoctor}">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <form class="modal-content" th:action="@{{base}/clinic/save(base=${basePath})}" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            Đăng ký lịch khám tuần sau
+            <span class="text-muted fs-6"
+                  th:text="'(' + ${#temporals.format(nextWeekStart, 'dd/MM')} + ' - ' + ${#temporals.format(nextWeekEnd, 'dd/MM/yyyy')} + ')'">
+              (28/07 - 03/08/2026)</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Hết hạn chốt lịch: chỉ còn xem, mọi ô tích bị khóa -->
+          <div th:unless="${clinicOpen}" class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-lock me-1"></i>
+            Đã quá hạn chốt lịch (<span th:text="${clinicDeadline}">Chủ nhật 22:00</span>).
+            Lịch tuần sau đã công bố cho bệnh nhân đặt — anh/chị liên hệ trưởng khoa nếu cần điều chỉnh.
+          </div>
+
+          <div th:if="${clinicOpen and registeredNextWeek}" class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle me-1"></i>
+            Anh/chị đã đăng ký lịch khám cho tuần sau. Có thể chỉnh lại và lưu bên dưới.
+          </div>
+
+          <p class="small text-muted">
+            Tích các buổi anh/chị nhận khám cho <strong>tuần sau</strong> rồi lưu
+            <strong>một lần</strong>. Bệnh viện yêu cầu <strong>mỗi ngày tối thiểu 1 ca</strong>;
+            nếu đến <span th:text="${clinicDeadline}">Chủ nhật 22:00</span> anh/chị chưa đăng ký,
+            hệ thống sẽ tự xếp lịch cả tuần.
+          </p>
+
+          <div class="alert alert-light border py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Bảng này <strong>chỉ áp dụng cho tuần sau</strong>. Lịch
+            <strong>tuần hiện tại</strong>
+            (<span th:text="${#temporals.format(currentWeekStart, 'dd/MM')} + ' - ' + ${#temporals.format(currentWeekStart.plusDays(6), 'dd/MM')}">21/07 - 27/07</span>)
+            và các tuần đã qua đã chốt, không sửa được ở đây.
+          </div>
+
+          <div class="table-responsive">
+            <table class="ws-week-picker">
+              <thead>
+              <tr>
+                <th style="text-align:left;">Buổi</th>
+                <th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                <th class="text-danger">T7</th><th class="text-danger">CN</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr>
+                <th class="ws-session-sang">
+                  <i class="bi bi-brightness-high"></i> Ca sáng
+                  <div class="small text-muted fw-normal">07:30 – 11:30</div>
+                </th>
+                <td th:each="d : ${weekDays}">
+                  <input type="checkbox" name="morningDays" data-session="morning"
+                         th:value="${d.name()}" th:checked="${clinicMorningDays.contains(d.name())}"
+                         th:disabled="${!clinicOpen}">
+                </td>
+              </tr>
+              <tr>
+                <th class="ws-session-chieu">
+                  <i class="bi bi-brightness-alt-high"></i> Ca chiều
+                  <div class="small text-muted fw-normal">13:30 – 17:30</div>
+                </th>
+                <td th:each="d : ${weekDays}">
+                  <input type="checkbox" name="afternoonDays" data-session="afternoon"
+                         th:value="${d.name()}" th:checked="${clinicAfternoonDays.contains(d.name())}"
+                         th:disabled="${!clinicOpen}">
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3" th:if="${clinicOpen}">
+            <button type="button" class="ws-quick-toggle" data-ws-clinic-all="morning" data-ws-check="true">
+              Chọn cả tuần (sáng)
+            </button>
+            <button type="button" class="ws-quick-toggle" data-ws-clinic-all="afternoon" data-ws-check="true">
+              Chọn cả tuần (chiều)
+            </button>
+            <button type="button" class="ws-quick-toggle" data-ws-clinic-all="morning" data-ws-check="false">
+              Bỏ hết sáng
+            </button>
+            <button type="button" class="ws-quick-toggle" data-ws-clinic-all="afternoon" data-ws-check="false">
+              Bỏ hết chiều
+            </button>
+          </div>
+
+          <div class="ws-legal-note mt-3">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Mỗi ngày phải có tối thiểu 1 ca.</strong> Bỏ tích một buổi sẽ gỡ khung giờ
+            đó khỏi trang đặt lịch <strong>của tuần sau</strong>; nếu buổi đó đã có bệnh nhân đặt,
+            hãy nhờ lễ tân dời/hủy trước.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="ws-btn-primary" th:if="${clinicOpen}">Lưu lịch khám tuần</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ĐĂNG KÝ PHIÊN TRỰC / HỘI CHẨN ===================== -->
+  <div class="modal fade" id="wsShiftModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" th:action="@{{base}/shift/register(base=${basePath})}" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">Đăng ký phiên trực / hội chẩn</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="wsShiftType">Loại ca</label>
+            <select class="form-select" name="shiftType" id="wsShiftType" required>
+              <option th:each="type : ${dutyShiftTypes}"
+                      th:value="${type.name()}"
+                      th:text="${type.label} + ' (' + ${type.defaultStart} + ' - ' + ${type.defaultEnd} + ')'"
+                      th:attr="data-duty=${type.duty},
+                               data-hint=${type.duty
+                                 ? 'Phiên trực ' + type.durationHours + ' giờ, ngoài giờ hành chính. Cần trưởng khoa phê duyệt và KHÔNG mở khung giờ đặt khám.'
+                                 : 'Hội chẩn / họp chuyên môn — có mặt tại viện nhưng không nhận bệnh nhân đặt lịch.'}">
+              </option>
+            </select>
+            <div class="form-text" id="wsShiftHint"></div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="wsShiftDate">Ngày bắt đầu</label>
+              <input type="date" class="form-control" name="shiftDate" id="wsShiftDate" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="wsRepeatWeeks">Lặp lại hằng tuần</label>
+              <select class="form-select" name="repeatWeeks" id="wsRepeatWeeks">
+                <option value="1" selected>Chỉ ngày này</option>
+                <option value="2">2 tuần liền</option>
+                <option value="4">4 tuần liền</option>
+                <option value="8">8 tuần liền</option>
+                <option value="12">12 tuần liền</option>
+              </select>
+              <div class="form-text">Đăng ký cùng thứ cho nhiều tuần một lần.</div>
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3 d-none" id="wsDutyRoleBox">
+            <label class="form-label fw-semibold" for="wsDutyRole">Vị trí trực</label>
+            <select class="form-select" name="dutyRole" id="wsDutyRole">
+              <option th:each="role : ${dutyRoles}" th:value="${role.name()}" th:text="${role.label}"></option>
+            </select>
+            <div class="form-text">Theo Thông tư 32/2023/TT-BYT.</div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label class="form-label fw-semibold" for="wsShiftNote">Ghi chú</label>
+            <input type="text" class="form-control" name="note" id="wsShiftNote"
+                   placeholder="Ví dụ: trực thay đồng nghiệp, phòng 3…">
+          </div>
+
+          <div class="ws-legal-note">
+            <i class="bi bi-info-circle me-1"></i>
+            Trực 24/24 giờ chỉ đăng ký được cho <strong>ngày nghỉ hằng tuần hoặc ngày lễ</strong>.
+            Ngày thường hãy chọn trực ngoài giờ hoặc trực đêm để không lấn giờ hành chính.
+            Lịch trực nên đăng ký trước ít nhất 7 ngày.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="ws-btn-primary">Đăng ký</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ĐĂNG KÝ NGHỈ PHÉP ===================== -->
+  <div class="modal fade" id="wsLeaveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" th:action="@{{base}/leave/submit(base=${basePath})}" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">Đăng ký nghỉ phép</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="wsLeaveType">Loại nghỉ</label>
+            <select class="form-select" name="leaveType" id="wsLeaveType" required>
+              <option th:each="type : ${leaveTypes}" th:value="${type.name()}" th:text="${type.label}"></option>
+            </select>
+          </div>
+
+          <div class="mb-3 d-none" id="wsSubReasonBox">
+            <label class="form-label fw-semibold" for="wsSubReason">Trường hợp cụ thể</label>
+            <select class="form-select" name="subReason" id="wsSubReason">
+              <option value="">-- Chọn trường hợp --</option>
+              <option th:each="reason : ${personalReasons}"
+                      th:value="${reason.name()}"
+                      th:text="${reason.label} + ' — tối đa ' + ${reason.maxDays} + ' ngày'
+                               + (${reason.paid} ? ' (hưởng lương)' : ' (không lương)')"></option>
+            </select>
+            <div class="form-text">Bộ luật Lao động 2019, Điều 115.</div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="wsLeaveStart">Từ ngày</label>
+              <input type="date" class="form-control" name="startDate" id="wsLeaveStart" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="wsLeaveEnd">Đến ngày</label>
+              <input type="date" class="form-control" name="endDate" id="wsLeaveEnd" required>
+            </div>
+          </div>
+
+          <div class="mb-3 d-none" id="wsHalfDayBox">
+            <label class="form-label fw-semibold" for="wsHalfDay">Thời lượng</label>
+            <select class="form-select" name="halfDaySession" id="wsHalfDay">
+              <option th:each="option : ${halfDayOptions}"
+                      th:value="${option.name()}" th:text="${option.label}"></option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="wsLeaveReason">Lý do</label>
+            <textarea class="form-control" name="reason" id="wsLeaveReason" rows="2"
+                      placeholder="Mô tả ngắn gọn lý do nghỉ"></textarea>
+          </div>
+
+          <div class="ws-legal-note">
+            <i class="bi bi-info-circle me-1"></i>
+            Anh/chị còn
+            <strong th:text="${#numbers.formatDecimal(balance.annualRemaining, 1, 1)}">14,0</strong>
+            ngày phép năm trên tổng <strong th:text="${balance.annualQuota}">14</strong> ngày.
+            <span th:text="${balance.explanation}"></span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="ws-btn-primary">Gửi đơn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: BÁO BẬN ĐỘT XUẤT ===================== -->
+  <div class="modal fade" id="wsEmergencyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" th:action="@{{base}/leave/submit(base=${basePath})}" method="post">
+        <input type="hidden" name="emergency" value="true">
+        <input type="hidden" name="leaveType" value="OM_DAU">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-danger">
+            <i class="bi bi-exclamation-triangle me-1"></i> Báo bận đột xuất
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="alert alert-danger small mb-3">
+            Khung giờ khám của anh/chị sẽ bị chặn <strong>ngay lập tức</strong> để không có
+            bệnh nhân mới đặt vào. Đơn vẫn chuyển tới trưởng khoa để phê duyệt sau.
+            Các lịch hẹn <strong>đã đặt</strong> cần lễ tân liên hệ dời hoặc hủy.
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="wsEmgStart">Từ ngày</label>
+              <input type="date" class="form-control" name="startDate" id="wsEmgStart" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="wsEmgEnd">Đến ngày</label>
+              <input type="date" class="form-control" name="endDate" id="wsEmgEnd" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="wsEmgSession">Thời lượng</label>
+            <select class="form-select" name="halfDaySession" id="wsEmgSession">
+              <option th:each="option : ${halfDayOptions}"
+                      th:value="${option.name()}" th:text="${option.label}"></option>
+            </select>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold" for="wsEmgReason">Lý do</label>
+            <input type="text" class="form-control" name="reason" id="wsEmgReason"
+                   placeholder="Ví dụ: ốm đột ngột, việc gia đình khẩn cấp…" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="btn btn-danger">Gửi báo bận</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: CHI TIẾT SỰ KIỆN ===================== -->
+  <div class="modal fade" id="wsEventModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="wsEventTitle">Chi tiết ca</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <dl class="row mb-0 small">
+            <dt class="col-4 text-muted">Khoa</dt>
+            <dd class="col-8" id="wsEventSubtitle">—</dd>
+            <dt class="col-4 text-muted">Thời gian</dt>
+            <dd class="col-8" id="wsEventWhen">—</dd>
+            <dt class="col-4 text-muted">Trạng thái</dt>
+            <dd class="col-8" id="wsEventStatus">—</dd>
+            <dt class="col-4 text-muted">Ghi chú</dt>
+            <dd class="col-8" id="wsEventNote">—</dd>
+          </dl>
+        </div>
+
+        <div class="modal-footer">
+          <a href="#" class="btn btn-outline-secondary d-none" id="wsEventCoverLink">
+            <i class="bi bi-people"></i> Xin người thay ca
+          </a>
+          <form method="post" class="d-none" id="wsEventCancelForm">
+            <button type="submit" class="btn btn-outline-danger"
+                    onclick="return confirm('Hủy ca này?')">
+              <i class="bi bi-trash"></i> Hủy ca
+            </button>
+          </form>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script th:inline="javascript">
+  // Tiền tố URL theo vai trò, dùng khi JS dựng link hủy ca / tìm người thay.
+  window.WS_BASE_PATH = /*[[${basePath}]]*/ '/doctor';
+</script>
+<script th:src="@{/assets/js/work-schedule.js}"></script>
+
+<script>
+  // Lọc danh sách "Trạng thái phê duyệt" ngay tại trình duyệt (icon phễu).
+  document.addEventListener('DOMContentLoaded', function () {
+    var filter = document.getElementById('wsApprovalStatusFilter');
+    if (!filter) return;
+
+    filter.addEventListener('change', function () {
+      document.querySelectorAll('.ws-approval-item').forEach(function (item) {
+        var matches = !filter.value || item.getAttribute('data-status') === filter.value;
+        item.classList.toggle('d-none', !matches);
+      });
+    });
+  });
+</script>
+</body>
+</html>

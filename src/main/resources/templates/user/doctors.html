@@ -379,10 +379,10 @@
 
     // --- HÀM TÍNH LỊCH TRỐNG (LỌC THEO THỜI GIAN) ---
     async function loadAllSchedules() {
+      // Chỉ giờ hành chính — ngoài giờ là phiên trực, không nhận đặt khám
       const allTimeSlots = [
         "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
-        "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
-        "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+        "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
       ];
 
       // Xác định ngày cần kiểm tra dựa vào Dropdown Thời gian
@@ -434,11 +434,12 @@
             }
           }
 
-          // Render ra DOM hoặc Ẩn thẻ nếu kín lịch
+          // Bác sĩ LUÔN hiển thị trong danh sách. Nếu ngày đang xem hết chỗ thì báo rõ,
+          // để khách vẫn thấy bác sĩ và bấm "Đặt lịch ngay" chọn ngày khác — không ẩn thẻ.
           container.innerHTML = '';
-          if (availableSlots.length > 0) {
-            wrapper.style.display = 'block'; // Hiển thị card
+          wrapper.style.display = 'block';
 
+          if (availableSlots.length > 0) {
             const slotsToShow = availableSlots.slice(0, 3);
             slotsToShow.forEach(slot => {
               const span = document.createElement('span');
@@ -455,8 +456,7 @@
               container.appendChild(extraSpan);
             }
           } else {
-            // NẾU KÍN LỊCH -> ẨN LUÔN BÁC SĨ NÀY KHỎI DANH SÁCH (Chức năng Lọc)
-            wrapper.style.display = 'none';
+            container.innerHTML = '<span class="text-muted small"><i class="bi bi-calendar-x me-1"></i>Hết lịch trống, hãy chọn ngày khác</span>';
           }
 
         } catch (err) {
