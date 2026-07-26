@@ -48,13 +48,33 @@ Slot labels are `"T5 24/07 (10:00 - 10:30)"`, so a requested time must be compar
 
 Section 1 of the prompt states the bookable hours and adds that **outside office hours only the on-call team is present and no appointment can be booked**. Keep that in step with `ALL_SLOTS` (see [booking-flow.md](booking-flow.md)) — if the model advertises hours the slot grid does not have, every such request dead-ends in the "khung giờ kín" branch.
 
-## When the requested slot is full
-`fallback: true` on the handoff means the patient asked for a time they cannot have. That is **never** resolved silently:
+## When the requested slot cannot be booked
+`fallback: true` on the handoff means the patient asked for something they cannot have. That is **never** resolved silently:
 
-- The auto-redirect is skipped entirely — the chat renders `buildSlotFullHtml()` instead of the "mở trang đặt lịch" card, and the voice layer asks an open question rather than a yes/no one (so `awaitingConfirm` stays `null` and the answer goes back to the model).
-- Options come from `GET /api/chat/slot-alternatives?departmentId=&date=&time=&doctorId=`, which returns `sameTimeDoctors` (same department, free at that **exact** slot) and `otherTimes` (the requested doctor's nearest free slots). It applies the same filters as the doctor-list endpoint — past times, bookings, `DoctorBlockTime`, other sessions' soft locks — but **takes no soft lock of its own**, since asking the patient is not claiming a slot.
+- The auto-redirect is skipped entirely — the chat renders `buildSlotFullHtml()` instead of the "mở trang đặt lịch" card, and the voice layer asks an open question rather than a yes/no one (`awaitingConfirm` is always `null` here, so the answer goes back to the model — including when there are no options left, where the handoff carries **no slot at all** and a "vâng" would otherwise confirm an empty booking).
+- Options come from `GET /api/chat/slot-alternatives?departmentId=&date=[&time=][&session=][&doctorId=]`, returning `sameTimeDoctors` (same department, free at what the patient asked for) and `otherTimes` (the requested doctor's nearest free slots). It applies the same filters as the doctor-list endpoint — past times, **off-duty**, bookings, `DoctorBlockTime`, other sessions' soft locks — but **takes no soft lock of its own**, since asking the patient is not claiming a slot.
+- **`reason` + `reasonText` say WHY**, and are the point of the endpoint. `reason` is one of `OFF_DUTY` / `BOOKED` / `BLOCKED` / `HELD` / `PAST` / `OUTSIDE_HOURS` / `FREE`; `reasonText` is the ready-made Vietnamese sentence used by **both** the chat card and the spoken line. `OFF_DUTY` deliberately outranks `BOOKED` — "hôm đó bác sĩ chỉ khám 13:30 - 17:30" is more useful than "khung này có người đặt". `reasonText` is written in the **machine formats** `T3 28/07` and `13:30 - 17:30` so `MediTrustVoice.humanizeSchedule()` speaks it correctly; do not add a separate speech variant. Without this the assistant could only ever say "đã kín lịch", which was simply wrong when the doctor was off duty.
+- `slotBlockReason()` returns the reason and `isSlotFree()` is derived from it, so the filter and the explanation can never disagree.
+- `requestedDoctorWorkingRanges` is the complement of the off-duty set, adjacent slots merged (the lunch break splits it naturally). **Display only — never invert it into a whitelist:** a doctor with no `Schedule` rows has an empty off-duty set, which would turn "unrestricted" into "nothing allowed".
+- **`otherTimes` may be on a different day.** When the doctor is off for the whole requested day, the scan moves to their nearest working day within 7 days, so every entry carries its own `date` and `slotLabel`. Every consumer must use `item.date`, not the handoff's date — otherwise the button books the right time on the wrong day. Only one day is ever emitted, so `distance` (minutes) stays meaningful.
 - `sameTimeDoctors` is ranked by `nearbyLoad` (that doctor's bookings within `NEARBY_MINUTES` of the requested time), then `dayLoad`. Fewest first, so the patient waits least at the clinic. Both surfaces must state the **reason** out loud ("em gợi ý anh/chị bác sĩ này vì quanh giờ đó chỉ có 1 ca…") — a bare name gives the patient nothing to choose on.
 - If the endpoint reports `requestedDoctorFree`, the fallback was an artifact of the doctor-list preview returning only 4 slots of the nearest day; the handoff is rebuilt at the exact requested slot and is no longer a fallback.
+
+## `resolveBookingHandoff` must never guess
+`selectedDoctor.availableSlots` is only a **4-slot preview of the nearest day** (`AiController` stops at the first day with any opening). It is decoration for the doctor cards and is never the basis of a decision. The function has exactly three branches, and only confirms `fallback: false` when what the patient asked for was actually honoured:
+
+- **Time stated** → verify against `/api/bookings/booked-slots` via `isSlotBookable()` (the only schedule-aware source). Free → confirm that exact slot; taken → alternatives.
+- **Session and/or date stated** → ask `/slot-alternatives`; it returns the earliest free slot *within that session on that date* or the reason it cannot.
+- **Nothing stated** → pick the preview's first slot, **re-verify it** (the preview can be 3 minutes stale via the soft-lock TTL), and mark `suggested: true`.
+
+`suggested` changes the wording, and that is the whole point: the card says *"Em xin phép chọn giúp anh/chị khung giờ trống sớm nhất [trong buổi sáng]"*, never *"khung giờ anh/chị vừa chọn"*. **That sentence may only appear when the patient actually chose a clock time.** Naming a *session* is not choosing a time, so branch 2 is `suggested` too. The voice layer mirrors it.
+
+**The model's `booking_target` is the lowest-priority source for time and date, because it invents both.** Observed: for "sáng thứ 3" it filled `appointment_time` with `"09:00 - 11:00"`, and it dated Tuesday as 29/07 when Tuesday was the 28th. So:
+
+- **Time** — `normalizeTimeHint(userText)` first; if the patient named only a *session*, the model's time is **discarded entirely** (otherwise an invented clock time blanks `requestedSession` and the session request is lost).
+- **Date** — the patient's own sentence, then `lastHandoffDate` (already resolved and shown to the patient), and only then the model's date. A correction turn ("đổi sang buổi chiều") carries no date, and borrowing the model's hallucinated one moved the booking to another day.
+
+An empty preview must **not** abort the handoff — a doctor off all week produces one, and returning `null` there would be the same silence in a new costume. It falls through to the alternatives path so the patient is told why.
 
 ### Answering the offer
 The offered options exist only in `pendingAlternatives` in the browser — **the model never saw them**, so it cannot resolve "hướng 1" on its own and used to just re-ask. Two mechanisms close that:
@@ -65,7 +85,22 @@ The offered options exist only in `pendingAlternatives` in the browser — **the
 Ordinals map to *directions*, not list positions, and a direction is only offered when its list is non-empty — with no `sameTimeDoctors`, "hướng 1" means the time change.
 
 ## The assistant cannot see the schedule
-`AiService` has no access to bookings, so prompt section **5B forbids the model from claiming a slot is recorded, held, or booked**. It only says it is checking; the frontend prints the real answer underneath. Before that rule the model would open with "em đã ghi nhận giờ khám 10 giờ 30" and the availability card directly under it said the opposite. Section **5C** bans the boilerplate that came with it — asking "anh/chị có muốn chọn bác sĩ cụ thể không ạ?" when the doctor cards render anyway, re-asking what the patient already said, and more than one question per turn.
+`AiService` has no access to bookings **or to `Schedule`**, so prompt section **5B forbids the model from claiming a slot is recorded, held, or booked, and from claiming a doctor works on a given day/session**. The frontend prints the real answer underneath.
+
+5B also forbids the model from **narrating that it is checking** ("em kiểm tra khung giờ 10 giờ 30 giúp anh/chị ngay ạ") and from **naming any time or date at all** when talking about availability. That phrasing used to be mandated, but every number in it is invented — the model announced "9:00 - 11:00" for "sáng" and "ngày 29 tháng 7" for a Tuesday that was the 28th, and the card underneath then showed something else. The patient does not need a progress report, only the result; the reply is now one short number-free sentence. Before that rule the model would open with "em đã ghi nhận giờ khám 10 giờ 30" and the availability card directly under it said the opposite. 5B also bans the *evasions* of that rule ("em đã ghi nhận **yêu cầu**", "em đã cập nhật", "em đã chuyển sang") — the model reached for those once the literal phrasing was banned. Section **5C** bans the boilerplate that came with it — asking "anh/chị có muốn chọn bác sĩ cụ thể không ạ?" when the doctor cards render anyway, re-asking what the patient already said, and more than one question per turn.
+
+Section 1 states office hours for the **whole clinic** and then says explicitly that each doctor only works their own registered shifts, because the model kept treating "mở cửa cả 7 ngày" as "bác sĩ này khám cả 7 ngày".
+
+**`buildTodayBlock()` injects today's date** ("Hôm nay là Thứ Bảy, ngày 2026-07-26") at the end of the system prompt. Without it the model has no clock at all, so asking it to resolve "thứ ba" into `appointment_date` produced invented dates. The browser's `extractDateHint` still wins whenever it parses a date (see below) — the block only covers phrasings the parser misses.
+
+## The patient may name a session, not a time
+"sáng thứ ba" carries a weekday **and** a session but no clock time, and neither was parsed before: `normalizeTimeHint` deliberately ignores "sáng", and `extractDateHint` only knew hôm nay / ngày mai / `d/m`. Both were empty, so the handoff borrowed the previous turn's date and silently confirmed an unrelated slot.
+
+- `extractDateHint` now resolves weekday names (`thứ ba` / `thứ 3` / `t3`, `chủ nhật` / `cn`) plus `tuần sau`. When the named weekday **is today**, it stays today unless that session has already elapsed (sáng after 11:30, chiều after 17:30), in which case it rolls forward a week.
+- `extractSessionHint` returns `morning` / `afternoon` / `evening`, and is only consulted when no clock time was parsed. `evening` is refused locally with the `OUTSIDE_HOURS` sentence. It checks **chiều/tối before sáng**, because "đổi sang buổi chiều" contains both cues and the patient means the later one.
+- **Never put bare `sang` or `toi` in that word list.** `sang` is an extremely common preposition ("đổi **sang** buổi chiều", "chuyển **sang** chiều mai"), so matching it as unaccented "sáng" asked the server for the *opposite* session — the doctor worked mornings, so the request was silently confirmed at 07:30 when the patient had asked for the afternoon. `toi` collides with "tôi". Unaccented input is served by the unambiguous `buoi sang` / `buoi toi` instead.
+- **Session → slot mapping lives on the server**, not here. The browser sends the word `morning`; `/api/chat/slot-alternatives` decides which slots that covers. This is deliberate — mapping it client-side would make `ai-chat.js` a 12th declaration of the slot grid (see `/skills/sync-slot-grid`).
+- Both use **space-padded substring matching, never `\b`** — JS word boundaries are ASCII-only, so `\bđêm\b` can never match (see coding-conventions.md). That idiom matches whole words only, so any alias added to these lists must not be a word that occurs in ordinary Vietnamese sentences.
 
 `lastHandoffDate` remembers the date of the last resolved handoff, because a correction turn ("đổi thành 10h30") carries no date and without one the real slot list cannot be queried. It is only reused when the model omits the date and the remembered date is not in the past.
 

@@ -424,17 +424,15 @@
             return;
         }
 
-        // Khung giờ khách xin đã kín: báo NGAY từ đầu và đưa hướng thay thế.
-        // KHÔNG đọc lại câu của model ở đây — model không nhìn thấy lịch trực nên nó hay
+        // Không đặt được khung giờ khách xin: báo NGAY từ đầu, kèm LÝ DO, rồi đưa hướng thay thế.
+        // KHÔNG đọc lại câu của model ở đây — model không nhìn thấy lịch làm việc nên nó hay
         // nói "em đã ghi nhận giờ khám" rồi mâu thuẫn ngay với thực tế.
         if (payload.bookingHandoff && payload.bookingHandoff.fallback) {
-            var alt = payload.bookingHandoff.alternatives || {};
-            var hasOptions = (alt.sameTimeDoctors && alt.sameTimeDoctors.length)
-                || (alt.otherTimes && alt.otherTimes.length);
-
-            // Còn hướng thay thế thì đây là câu hỏi MỞ ("đổi bác sĩ hay đổi giờ"),
-            // câu trả lời phải chuyển cho AI chứ không phải parseYesNo.
-            awaitingConfirm = hasOptions ? null : payload.bookingHandoff;
+            // Nhánh này LUÔN là câu hỏi MỞ ("đổi bác sĩ hay đổi giờ ạ?", "tìm bác sĩ khác nhé?"),
+            // nên câu trả lời phải chuyển cho AI chứ không đưa vào parseYesNo. Nhất là khi hết
+            // hướng thay thế: handoff lúc đó KHÔNG có khung giờ nào, để khách "vâng" một cái là
+            // confirmBooking() điều hướng sang một lịch hẹn trống rỗng.
+            awaitingConfirm = null;
             say(describeSlotFull(payload.bookingHandoff), function () { startListening(); });
             return;
         }
@@ -446,8 +444,12 @@
                 || (payload.bookingHandoff.doctor && payload.bookingHandoff.doctor.fullName)
                 || 'bác sĩ';
             var slot = V().humanizeSchedule(payload.bookingHandoff.selectedSlotLabel || '');
-            var question = 'Em đặt lịch với ' + doctorName + ', ' + slot
-                + '. Anh/chị xác nhận giúp em nhé?';
+            // Khách chưa nêu giờ nào mà hệ thống tự chọn giúp thì phải nói rõ là EM xếp, y như
+            // thẻ chat — nói "em đặt lịch ... anh/chị xác nhận" là ngầm bảo khách đã chọn giờ đó.
+            var question = payload.bookingHandoff.suggested
+                ? 'Em xếp giúp anh/chị ' + slot + ' với ' + doctorName
+                    + ', là khung trống sớm nhất ạ. Anh/chị thấy được không ạ?'
+                : 'Em đặt lịch với ' + doctorName + ', ' + slot + '. Anh/chị xác nhận giúp em nhé?';
 
             say(spoken + ' ' + question, function () { startListening(); });
             return;
@@ -463,29 +465,37 @@
         return 'quanh giờ đó bác sĩ có ' + nearbyLoad + ' ca khám';
     }
 
-    /** Câu đọc khi khung giờ khách xin đã kín: nói thật, rồi đưa đúng hai hướng chọn. */
+    /**
+     * Câu đọc khi không đặt được khung giờ khách xin: nói thật LÝ DO, rồi đưa đúng hai hướng chọn.
+     *
+     * Lý do lấy nguyên văn `reasonText` do server dựng — chuỗi đó cố ý viết theo định dạng máy
+     * ("T3 28/07", "13:30 - 17:30") nên humanizeSchedule đọc thành lời được, khỏi cần bản riêng.
+     */
     function describeSlotFull(handoff) {
         var alt = handoff.alternatives || {};
         var wanted = V().humanizeSchedule(handoff.requestedTime || '');
         var sameTime = alt.sameTimeDoctors || [];
         var otherTimes = alt.otherTimes || [];
 
-        var text = 'Dạ khung giờ ' + wanted + ' đã kín lịch rồi ạ. ';
+        var text = alt.reasonText
+            ? 'Dạ ' + V().humanizeSchedule(alt.reasonText) + ' '
+            : 'Dạ khung giờ ' + wanted + ' đã kín lịch rồi ạ. ';
 
         if (sameTime.length > 0) {
             text += 'Em gợi ý anh/chị bác sĩ ' + sameTime[0].fullName
-                + ' cùng chuyên khoa, vẫn còn trống đúng ' + wanted
+                + ' cùng chuyên khoa, còn nhận ' + V().humanizeSchedule(sameTime[0].slotLabel || wanted)
                 + ', vì ' + describeLoadVoice(sameTime[0].nearbyLoad) + '. ';
         }
         if (otherTimes.length > 0) {
+            // slotLabel có kèm thứ/ngày: gợi ý có thể đã phải rơi sang ngày khác vì hôm khách xin
+            // bác sĩ nghỉ. Đọc mỗi giờ mà giấu ngày là khách đến sai hôm.
             text += 'Hoặc anh/chị giữ bác sĩ ' + (alt.requestedDoctorName || handoff.doctorName || 'hiện tại')
-                + ' và dời sang ' + V().humanizeSchedule(otherTimes[0].slot) + '. ';
+                + ' và dời sang ' + V().humanizeSchedule(otherTimes[0].slotLabel || otherTimes[0].slot) + '. ';
         }
 
         if (sameTime.length === 0 && otherTimes.length === 0) {
-            return text + 'Khung giờ gần nhất còn trống là '
-                + V().humanizeSchedule(handoff.selectedSlotLabel || '')
-                + ' với bác sĩ ' + (handoff.doctorName || '') + '. Anh/chị dùng khung giờ này nhé?';
+            return text + 'Em chưa tìm được khung giờ nào thay thế trong tuần này ạ. '
+                + 'Anh/chị muốn em tìm bác sĩ khác cùng chuyên khoa không ạ?';
         }
         return text + 'Anh/chị chọn hướng nào ạ?';
     }

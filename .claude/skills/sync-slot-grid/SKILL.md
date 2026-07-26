@@ -45,7 +45,13 @@ Java) và nhãn chỉ hiện giờ bắt đầu. `id` theo dạng `t_HHmm`.
 
 ### 5. Lớp AI (nếu không sửa, model quảng cáo giờ mà lưới không có → mọi yêu cầu rơi vào nhánh "khung giờ kín")
 - [ ] [AiService.java:59-60](../../../src/main/java/com/bookinghealthy/service/AiService.java#L59-L60) — mục 1 của prompt nêu giờ khám và câu "ngoài giờ chỉ có kíp trực"
-- [ ] [ai-chat.js:209](../../../src/main/resources/static/assets/js/ai-chat.js#L209) — `normalizeTimeHint()` suy luận giờ 1–5 là buổi chiều **dựa trên** khoảng giờ hành chính hiện tại
+- [ ] [ai-chat.js](../../../src/main/resources/static/assets/js/ai-chat.js) — `normalizeTimeHint()` suy luận giờ 1–5 là buổi chiều **dựa trên** khoảng giờ hành chính hiện tại; và ngay dưới nó `sessionAlreadyPassed()` mốc "sáng hết sau 11:30 / chiều hết sau 17:30"
+- [ ] [AiController.java](../../../src/main/java/com/bookinghealthy/controller/api/AiController.java) — `OUTSIDE_HOURS_TEXT` (câu báo cho khách xin giờ ngoài lưới) phải khớp giờ mới
+
+> Ánh xạ **buổi → khung giờ** (`sessionOf` / `slotsOfSession` trong `AiController`) cố ý chỉ dựa vào
+> mốc `LocalTime.NOON`, không liệt kê lại lưới, nên **không phải** một nơi khai báo nữa. `extractSessionHint()`
+> ở `ai-chat.js` cũng chỉ trả về chữ `morning`/`afternoon` và không biết gì về giờ — giữ nguyên như vậy,
+> đừng map buổi ra giờ ở phía trình duyệt kẻo lưới có thêm nơi khai báo thứ 12.
 
 ## Sau khi sửa
 

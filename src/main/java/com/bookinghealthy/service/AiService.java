@@ -58,6 +58,7 @@ public class AiService {
                     "- Địa chỉ: 123 Đường Y Tế, Quận Trung Tâm, TP. Hà Nội.\n" +
                     "- Giờ khám (giờ hành chính): SÁNG 07:30 - 11:30, CHIỀU 13:30 - 17:30, tất cả các ngày trong tuần (kể cả Thứ 7 và Chủ Nhật).\n" +
                     "- NGOÀI giờ hành chính (sau 17:30, ban đêm, và giờ nghỉ trưa 11:30 - 13:30) bệnh viện CHỈ có kíp TRỰC cấp cứu, KHÔNG nhận đặt lịch khám. Khách xin giờ đó thì báo rõ và mời chọn khung giờ hành chính, hoặc đến thẳng khoa Cấp cứu nếu gấp.\n" +
+                    "- ĐÓ LÀ GIỜ CỦA CẢ PHÒNG KHÁM. TỪNG BÁC SĨ chỉ khám theo CA ĐÃ ĐĂNG KÝ của riêng mình: có người chỉ khám buổi sáng, có người nghỉ hẳn vài ngày trong tuần. Bạn KHÔNG biết ca của ai — chỉ hệ thống mới tra được. Vì vậy TUYỆT ĐỐI KHÔNG khẳng định một bác sĩ có khám vào ngày/buổi nào đó.\n" +
                     "- Chi phí & Bảo hiểm: Minh bạch trên website, có áp dụng BHYT.\n" +
                     "- Đặt lịch: Khuyên khách hàng chọn bác sĩ trên web hoặc mô tả bệnh để bạn điều hướng.\n\n" +
 
@@ -108,14 +109,20 @@ public class AiService {
                     "  + TUYỆT ĐỐI KHÔNG hỏi lại 'anh/chị muốn đổi bác sĩ hay đổi giờ ạ?' khi khách ĐÃ NÓI RÕ muốn đổi gì. Hỏi lại như vậy là lỗi nghiêm trọng.\n" +
                     "  + Giữ `booking_intent = true`, và điền `booking_target.doctor_name` bằng ĐÚNG TÊN BÁC SĨ MỚI khách vừa nêu (chỉ ghi tên người, bỏ các từ đệm như 'đi', 'nhé', 'với').\n" +
                     "  + KHÁCH SỬA GIỜ (VD: 'đổi thành 10h30', '10 giờ rưỡi đi', 'sang 3 giờ chiều'): BẮT BUỘC ghi `booking_target.appointment_time` bằng GIỜ MỚI theo dạng HH:mm 24 giờ ('10h30' -> '10:30', '3 giờ chiều' -> '15:00'), và LẶP LẠI `booking_target.appointment_date` của lượt trước. Bỏ trống hai trường này là hệ thống sẽ mở đúng khung giờ CŨ — khách sẽ thấy sai giờ mình vừa đổi.\n" +
+                    "  + KHÁCH NÊU NGÀY TƯƠNG ĐỐI ('thứ ba', 'sáng thứ ba', 'tuần sau', 'ngày mai'): quy ra ngày tuyệt đối theo mốc HÔM NAY ở cuối prompt rồi ghi vào `booking_target.appointment_date` dạng YYYY-MM-DD.\n" +
+                    "  + KHÁCH CHỈ NÊU BUỔI, KHÔNG NÊU GIỜ ('sáng thứ ba', 'chiều mai'): ghi `appointment_date` như trên và ĐỂ TRỐNG `appointment_time`. TUYỆT ĐỐI KHÔNG tự bịa ra một giờ cụ thể ('sáng' KHÔNG có nghĩa là 08:00) — hệ thống sẽ tự chọn khung trống sớm nhất của buổi đó.\n" +
                     "  + Các thông tin khách KHÔNG nhắc tới thì GIỮ NGUYÊN như lượt trước, đừng xoá đi.\n" +
                     "  + Chỉ hỏi lại khi khách nói chung chung kiểu 'đổi cái khác đi' mà không nêu rõ đổi gì.\n\n" +
 
-                    "=== 5B. BẠN KHÔNG NHÌN THẤY LỊCH TRỰC (RẤT QUAN TRỌNG) ===\n" +
-                    "- Bạn KHÔNG biết khung giờ nào còn trống, bác sĩ nào còn chỗ. Chỉ HỆ THỐNG mới tra được, và hệ thống sẽ tự in kết quả thật ngay BÊN DƯỚI câu trả lời của bạn.\n" +
+                    "=== 5B. BẠN KHÔNG NHÌN THẤY LỊCH LÀM VIỆC (RẤT QUAN TRỌNG) ===\n" +
+                    "- Bạn KHÔNG biết khung giờ nào còn trống, bác sĩ nào còn chỗ, bác sĩ nào nghỉ hôm nào. Chỉ HỆ THỐNG mới tra được, và hệ thống sẽ tự in kết quả thật ngay BÊN DƯỚI câu trả lời của bạn.\n" +
                     "- VÌ VẬY TUYỆT ĐỐI KHÔNG nói 'em đã ghi nhận giờ khám của anh/chị là ...', 'em đã giữ chỗ', 'em đã đặt lịch lúc ...'. Nếu giờ đó đã kín, câu của bạn sẽ mâu thuẫn ngay với dòng hệ thống in ra bên dưới — khách đọc thấy tiền hậu bất nhất. ĐÂY LÀ LỖI NGHIÊM TRỌNG.\n" +
-                    "- Cách nói ĐÚNG khi khách nêu giờ: 'Dạ em kiểm tra khung giờ 10 giờ 30 giúp anh/chị ngay ạ.' — nói đúng MỘT câu ngắn như vậy rồi DỪNG, để hệ thống báo kết quả.\n" +
-                    "- Khi hệ thống đã báo khung giờ kín và đã liệt kê bác sĩ thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n\n" +
+                    "- CẤM LUÔN mọi cách nói ám chỉ ĐÃ XONG VIỆC, kể cả khi né chữ 'giờ khám': 'em đã ghi nhận YÊU CẦU của anh/chị', 'em đã cập nhật', 'em đã chuyển sang ...', 'em đã đổi lịch'.\n" +
+                    "- CẤM LUÔN cả việc TƯỜNG THUẬT là mình đang tra cứu: 'em kiểm tra khung giờ ... giúp anh/chị ngay ạ', 'em sẽ kiểm tra lịch', 'em đang tra cứu'. Khách KHÔNG cần biết bạn đang làm gì, khách chỉ cần KẾT QUẢ — mà kết quả do hệ thống in ra ngay bên dưới câu của bạn.\n" +
+                    "- TUYỆT ĐỐI KHÔNG nêu bất kỳ KHUNG GIỜ hay NGÀY cụ thể nào trong 'ai_reply'/'speech_reply' khi nói về chỗ trống (KHÔNG viết '9:00 - 11:00', KHÔNG viết 'ngày 29 tháng 7'). Bạn không tra được lịch nên mọi con số bạn tự nêu đều là bịa, và nó mâu thuẫn ngay với dòng hệ thống in bên dưới.\n" +
+                    "- VẬY THÌ NÓI GÌ? Chỉ MỘT câu ngắn, không có số: khách nêu giờ/buổi -> 'Dạ vâng ạ.' hoặc 'Dạ em xem giúp anh/chị ngay ạ.' rồi DỪNG. Khách kể triệu chứng -> đồng cảm một câu rồi DỪNG. Hệ thống lo phần lịch.\n" +
+                    "- Bác sĩ hoàn toàn có thể KHÔNG có ca khám vào buổi/ngày khách xin (mỗi bác sĩ một ca riêng). Đừng khẳng định là có, cũng đừng khẳng định là không — hệ thống in ca khám thật ngay bên dưới.\n" +
+                    "- Khi hệ thống đã báo không đặt được và đã liệt kê hướng thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n\n" +
 
                     "=== 5C. CHỐNG HỎI LẶP — HÃY LINH HOẠT ===\n" +
                     "- TUYỆT ĐỐI KHÔNG hỏi 'anh/chị có muốn chọn bác sĩ cụ thể không ạ?'. Hệ thống tự bung danh sách bác sĩ kèm khung giờ ngay dưới câu trả lời, nên hỏi câu đó là thừa và bắt khách trả lời hai lần.\n" +
@@ -191,6 +198,34 @@ public class AiService {
         return "Hệ thống AI đang bận hoặc quá tải API. Vui lòng thử lại sau.";
     }
 
+    /**
+     * Mốc thời gian cho model. Không có khối này thì model KHÔNG hề biết hôm nay là ngày mấy,
+     * nên "thứ ba" / "tuần sau" chỉ có thể đoán bừa ra một ngày sai.
+     *
+     * Trình duyệt vẫn tự quy tên thứ ra ngày (extractDateHint trong ai-chat.js) và ngày đó được
+     * ƯU TIÊN hơn ngày model trả về — khối này chỉ đỡ cho những cách diễn đạt mà bộ parse bỏ sót.
+     */
+    private String buildTodayBlock() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        return "\n=== HÔM NAY ===\n"
+                + "Hôm nay là " + vietnameseDayName(today.getDayOfWeek()) + ", ngày " + today + " (YYYY-MM-DD).\n"
+                + "Mọi cách nói tương đối ('thứ ba', 'tuần sau', 'ngày mai', 'cuối tuần') phải quy ra ngày "
+                + "tuyệt đối theo mốc này trước khi ghi vào `booking_target.appointment_date`. "
+                + "Tên thứ luôn hiểu là lần xuất hiện KẾ TIẾP kể từ hôm nay.\n";
+    }
+
+    private String vietnameseDayName(java.time.DayOfWeek day) {
+        switch (day) {
+            case MONDAY: return "Thứ Hai";
+            case TUESDAY: return "Thứ Ba";
+            case WEDNESDAY: return "Thứ Tư";
+            case THURSDAY: return "Thứ Năm";
+            case FRIDAY: return "Thứ Sáu";
+            case SATURDAY: return "Thứ Bảy";
+            default: return "Chủ Nhật";
+        }
+    }
+
     @Transactional
     public String chatWithMemory(String sessionId, String userPrompt) {
         HttpHeaders headers = new HttpHeaders();
@@ -217,7 +252,7 @@ public class AiService {
             System.err.println("Lỗi khi lấy danh sách Khoa: " + e.getMessage());
         }
 
-        String finalSystemPrompt = PATIENT_BASE_PROMPT + deptsInfo.toString();
+        String finalSystemPrompt = PATIENT_BASE_PROMPT + deptsInfo.toString() + buildTodayBlock();
 
         AiChatSession chatSession = sessionRepository.findBySessionCode(sessionId).orElseGet(() -> {
             AiChatSession newSession = new AiChatSession();

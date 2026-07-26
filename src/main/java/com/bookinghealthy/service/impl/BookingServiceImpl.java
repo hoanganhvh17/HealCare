@@ -413,6 +413,16 @@ public class BookingServiceImpl implements BookingService {
                 throw new IllegalStateException("Bác sĩ đã khóa khung giờ " + newTime + ", vui lòng chọn giờ khác.");
             }
 
+            // Khung giờ phải nằm trong ca khám bác sĩ đã đăng ký. Giao diện /user/booking/edit đã
+            // gạch sẵn các khung ngoài ca (qua booked-slots), nhưng POST thẳng thì vẫn lọt — đúng
+            // lỗ hổng đã bịt cho processAppointment, chỗ này bị sót.
+            if (!isSlotWithinWorkingHours(newDoctor.getId(), newDate, newTime)) {
+                throw new IllegalStateException(
+                        "Bác sĩ không nhận khám vào khung giờ " + newTime + " ngày "
+                                + newDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                                + ", vui lòng chọn khung giờ khác.");
+            }
+
             booking.setDoctor(newDoctor);
             booking.setAppointmentDate(newDate);
             booking.setAppointmentTime(newTime);

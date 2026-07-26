@@ -13,6 +13,8 @@ Slot buttons are also hardcoded in `user/appointment.html`, `user/booking-edit.h
 
 **`Schedule` is per-week, not a global weekly template.** Each row carries a `weekStart` (Monday), and doctors register only for next week — so the same weekday can have different hours in different weeks. Every read of a doctor's working hours must go through `ScheduleRepository.findEffective(doctorId, date)` (or `findEffectiveOn(date)` for all doctors on one day), never `findByDoctorId`, which mixes every week together. See [supporting-subsystems.md](supporting-subsystems.md) for the resolution order and the registration lock.
 
+**The AI endpoints honour `Schedule` too.** `AiController` used to rebuild the slot filter itself and skip the table outright, so the assistant offered slots the doctor was not working and the patient hit a greyed-out slot on `/appointment`. Both `/api/chat/doctors/department/{id}` and `/api/chat/slot-alternatives` now inject `BookingService` and call `slotsOutsideWorkingHours` **once per (doctor, day)**, never per slot. Reuse that path for any new slot-producing code — a fourth private copy of the working-hours comparison is what caused the bug. The off-duty check also sits **before** the soft-lock block, so the AI no longer takes 3-minute holds on slots that can never become bookings.
+
 `BookingController.processAppointment` enforces the same rule server-side via `BookingService.isSlotWithinWorkingHours` before reserving — a crafted POST for an off-hours slot is rejected, not just hidden.
 
 Because approved leave auto-generates `DoctorBlockTime` rows, a doctor on leave disappears from availability everywhere — booking pages, `booked-slots`, and the AI slot-alternatives endpoint — with no extra code in any of them.
@@ -40,6 +42,8 @@ Note this lock is in-process only; it does not protect against double-booking ac
 `whyCannotCancel(booking)` and `whyCannotReschedule(booking)` on `BookingService` are the **single source of truth** for what a patient may still do — each returns `null` when allowed, otherwise the Vietnamese reason shown to the patient. `whyCannotReschedule` delegates to `whyCannotCancel` and adds the reschedule quota on top, so the two can never drift apart.
 
 `ProfileController` calls both to disable the buttons *and* print the reason under the card, and calls `whyCannotCancel` again in `/user/cancel-booking/{id}`; `UserBookingEditController` calls `whyCannotReschedule` on both GET and POST. The UI can therefore never disagree with the server.
+
+`rescheduleByUser` additionally re-checks `isSlotWithinWorkingHours` inside the slot lock, mirroring `BookingController.processAppointment` — the edit page greys out off-duty slots via `booked-slots`, but a crafted POST used to slip straight through into a session the doctor does not work.
 
 The patient's booking list on `/user/profile` is split by `ProfileController` into `upcomingBookings` (still PENDING/CONFIRMED and not yet started, nearest first) and `pastBookings` (everything else, newest first) — `findByUser` itself has no `ORDER BY`, so never render it unsorted.
 
