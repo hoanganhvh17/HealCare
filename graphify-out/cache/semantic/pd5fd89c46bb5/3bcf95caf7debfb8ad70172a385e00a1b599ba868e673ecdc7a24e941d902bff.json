@@ -1,0 +1,1 @@
+{"nodes": [{"id": "src_main_resources_templates_error_500_page", "label": "Error page 500 (L\u1ed7i h\u1ec7 th\u1ed1ng, Thymeleaf-wired)", "file_type": "document", "source_file": "src/main/resources/templates/error/500.html", "source_location": "line 19-34", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

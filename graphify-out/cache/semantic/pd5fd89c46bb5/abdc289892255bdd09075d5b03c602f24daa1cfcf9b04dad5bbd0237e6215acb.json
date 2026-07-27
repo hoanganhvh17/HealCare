@@ -1,0 +1,1 @@
+{"nodes": [{"id": "src_main_resources_templates_admin_include_footer_footer", "label": "Admin footer fragment (vendor script bundle)", "file_type": "code", "source_file": "src/main/resources/templates/admin/include/footer.html", "source_location": "L5-L27", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

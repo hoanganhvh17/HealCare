@@ -1,0 +1,1507 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1784694871.9169955,
+    "ast_hash": "a9363b0f8c895380f86a26544bfb67f3",
+    "semantic_hash": "a9363b0f8c895380f86a26544bfb67f3"
+  },
+  "pom.xml": {
+    "mtime": 1784702309.825429,
+    "ast_hash": "c72f7e7b593c54a923de412635c4b567",
+    "semantic_hash": "c72f7e7b593c54a923de412635c4b567"
+  },
+  "src/main/java/com/bookinghealthy/BookingHealthyApplication.java": {
+    "mtime": 1784608880.0825286,
+    "ast_hash": "ba0334953e23aac2396345ab5394a237",
+    "semantic_hash": "ba0334953e23aac2396345ab5394a237"
+  },
+  "src/main/java/com/bookinghealthy/config/AppConfig.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "1c65dc96d5b6c7ed6ca77d3f4f30262b",
+    "semantic_hash": "1c65dc96d5b6c7ed6ca77d3f4f30262b"
+  },
+  "src/main/java/com/bookinghealthy/config/DataInitializer.java": {
+    "mtime": 1784952067.511495,
+    "ast_hash": "b78f370e76901cb8d2bed1497829835c",
+    "semantic_hash": "b78f370e76901cb8d2bed1497829835c"
+  },
+  "src/main/java/com/bookinghealthy/config/DoctorSeedData.java": {
+    "mtime": 1784803249.879154,
+    "ast_hash": "e59ddc6fef671f4530d928a9be34302c",
+    "semantic_hash": "e59ddc6fef671f4530d928a9be34302c"
+  },
+  "src/main/java/com/bookinghealthy/config/LeavePolicy.java": {
+    "mtime": 1784951834.552803,
+    "ast_hash": "2438dabe455e27257651d629fe00d8d8",
+    "semantic_hash": "2438dabe455e27257651d629fe00d8d8"
+  },
+  "src/main/java/com/bookinghealthy/config/MvcConfig.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e1778738747c60a3815f602478f1df04",
+    "semantic_hash": "e1778738747c60a3815f602478f1df04"
+  },
+  "src/main/java/com/bookinghealthy/config/SchedulerConfig.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e360fc45b4b0879df8b266aa838c5552",
+    "semantic_hash": "e360fc45b4b0879df8b266aa838c5552"
+  },
+  "src/main/java/com/bookinghealthy/config/SecurityConfig.java": {
+    "mtime": 1784866045.3015757,
+    "ast_hash": "76b33d7de111e4ab1fc4e7301f94ff1a",
+    "semantic_hash": "76b33d7de111e4ab1fc4e7301f94ff1a"
+  },
+  "src/main/java/com/bookinghealthy/config/VNPayConfig.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4ae8de29b356798fb21c07699850cbcf",
+    "semantic_hash": "4ae8de29b356798fb21c07699850cbcf"
+  },
+  "src/main/java/com/bookinghealthy/config/WebConfig.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "bd8e06a5f9ca074c3177b1bbf0bd968a",
+    "semantic_hash": "bd8e06a5f9ca074c3177b1bbf0bd968a"
+  },
+  "src/main/java/com/bookinghealthy/controller/AuthController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0c542556f5d69aefd52c986a940c3c79",
+    "semantic_hash": "0c542556f5d69aefd52c986a940c3c79"
+  },
+  "src/main/java/com/bookinghealthy/controller/DoctorAssistantController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "688eb0858671f848fdf20ce365bb0df3",
+    "semantic_hash": "688eb0858671f848fdf20ce365bb0df3"
+  },
+  "src/main/java/com/bookinghealthy/controller/UserController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "abfbfb598a28cb03255fb664aa55b508",
+    "semantic_hash": "abfbfb598a28cb03255fb664aa55b508"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminBookingController.java": {
+    "mtime": 1784694359.4559138,
+    "ast_hash": "0b63dd96cd6190cc497cec693eefc2ab",
+    "semantic_hash": "0b63dd96cd6190cc497cec693eefc2ab"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminCandidateController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ca53ce3e3c0e6aaa090b13ceba268512",
+    "semantic_hash": "ca53ce3e3c0e6aaa090b13ceba268512"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a6073a4fc058f970c6b5eb3aa60c6654",
+    "semantic_hash": "a6073a4fc058f970c6b5eb3aa60c6654"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminDepartmentController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "d59d0f736d453a575916c56f89abe86c",
+    "semantic_hash": "d59d0f736d453a575916c56f89abe86c"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminDoctorController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "6cf8e3c9008a06ed29c89bcccb7cfbd5",
+    "semantic_hash": "6cf8e3c9008a06ed29c89bcccb7cfbd5"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminJobController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "5727c34201db44de420a57e6391354ad",
+    "semantic_hash": "5727c34201db44de420a57e6391354ad"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminMedicalRecordController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "3426e8fe074440e656d611e1caad8405",
+    "semantic_hash": "3426e8fe074440e656d611e1caad8405"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminPostController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f026fbe7b4c7c29cd0396f01bb55dec5",
+    "semantic_hash": "f026fbe7b4c7c29cd0396f01bb55dec5"
+  },
+  "src/main/java/com/bookinghealthy/controller/admin/AdminServiceController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c8c166eaddb6a2cb46519dbf6e5b0f84",
+    "semantic_hash": "c8c166eaddb6a2cb46519dbf6e5b0f84"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/AdminAiController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "213c2fb43df1dbe3d2c26765b6a6b261",
+    "semantic_hash": "213c2fb43df1dbe3d2c26765b6a6b261"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/AiController.java": {
+    "mtime": 1785035881.0235622,
+    "ast_hash": "35621fd9827f6b255cdc698c789ee51f",
+    "semantic_hash": "35621fd9827f6b255cdc698c789ee51f"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/BookingApi.java": {
+    "mtime": 1784883483.487663,
+    "ast_hash": "d0d812eb1ed1a99ed1c383afc408dfee",
+    "semantic_hash": "d0d812eb1ed1a99ed1c383afc408dfee"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/DashboardApiController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2b16ec49c2f1079562c62ddcde685576",
+    "semantic_hash": "2b16ec49c2f1079562c62ddcde685576"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/DoctorAiController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "598c506773ccef44965072cecd7d7efa",
+    "semantic_hash": "598c506773ccef44965072cecd7d7efa"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/DoctorApiController.java": {
+    "mtime": 1784604265.6966364,
+    "ast_hash": "fe7ede0c8f2ffd573a76fad8a37a3bf5",
+    "semantic_hash": "fe7ede0c8f2ffd573a76fad8a37a3bf5"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/NewsApiController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4a57e62476e00ac20058a901f5040313",
+    "semantic_hash": "4a57e62476e00ac20058a901f5040313"
+  },
+  "src/main/java/com/bookinghealthy/controller/api/StaffScheduleApiController.java": {
+    "mtime": 1784952261.1550286,
+    "ast_hash": "5169f5dc6b27ec2ce53754ced2bb9f7c",
+    "semantic_hash": "5169f5dc6b27ec2ce53754ced2bb9f7c"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorBookingManagerController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "117f22b9b61a39ee865c7a2c90bd1d2b",
+    "semantic_hash": "117f22b9b61a39ee865c7a2c90bd1d2b"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorBookingRequestController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "65890ced7a75536ca8cf48b5d751dc94",
+    "semantic_hash": "65890ced7a75536ca8cf48b5d751dc94"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorDashboardController.java": {
+    "mtime": 1784951923.1606123,
+    "ast_hash": "73f992bbfd5a54d33ca7d0352f0bec09",
+    "semantic_hash": "73f992bbfd5a54d33ca7d0352f0bec09"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorExaminationController.java": {
+    "mtime": 1784695505.126824,
+    "ast_hash": "a55ea7715225ce08d098675a6f53dddd",
+    "semantic_hash": "a55ea7715225ce08d098675a6f53dddd"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorMedicalRecordController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "1561eb07f4b0825b7269fdefabac9bd7",
+    "semantic_hash": "1561eb07f4b0825b7269fdefabac9bd7"
+  },
+  "src/main/java/com/bookinghealthy/controller/doctor/DoctorWorkScheduleController.java": {
+    "mtime": 1784866157.1319065,
+    "ast_hash": "2e3df37180a5bfc8041b82b37b1afff9",
+    "semantic_hash": "2e3df37180a5bfc8041b82b37b1afff9"
+  },
+  "src/main/java/com/bookinghealthy/controller/head/HeadApprovalController.java": {
+    "mtime": 1784950388.5941696,
+    "ast_hash": "fbca3a9d52e54009049e5ed05183ba00",
+    "semantic_hash": "fbca3a9d52e54009049e5ed05183ba00"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistBookingController.java": {
+    "mtime": 1784695144.5254505,
+    "ast_hash": "7431a95deb8dfeef984f186bdca95843",
+    "semantic_hash": "7431a95deb8dfeef984f186bdca95843"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistDashboardController.java": {
+    "mtime": 1784695128.820326,
+    "ast_hash": "51e9cc047721eb0f5d28b857f47e9c9e",
+    "semantic_hash": "51e9cc047721eb0f5d28b857f47e9c9e"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistPrintController.java": {
+    "mtime": 1784696315.7319944,
+    "ast_hash": "d065db475262923c4a9642aefee7a33d",
+    "semantic_hash": "d065db475262923c4a9642aefee7a33d"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistQueueController.java": {
+    "mtime": 1784695189.8370893,
+    "ast_hash": "35b872f36bfab85a49c5698b73dc200e",
+    "semantic_hash": "35b872f36bfab85a49c5698b73dc200e"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistScheduleChangeController.java": {
+    "mtime": 1784703905.7067833,
+    "ast_hash": "5a47582459a4c77466f304e339be3da2",
+    "semantic_hash": "5a47582459a4c77466f304e339be3da2"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistWalkInController.java": {
+    "mtime": 1784695218.9738207,
+    "ast_hash": "7d51c9c83704ef2ca02ff23700df5548",
+    "semantic_hash": "7d51c9c83704ef2ca02ff23700df5548"
+  },
+  "src/main/java/com/bookinghealthy/controller/receptionist/ReceptionistWorkScheduleController.java": {
+    "mtime": 1784866162.4223175,
+    "ast_hash": "071b1184e29535a5ba0eea2315dce9ce",
+    "semantic_hash": "071b1184e29535a5ba0eea2315dce9ce"
+  },
+  "src/main/java/com/bookinghealthy/controller/staff/StaffWorkScheduleController.java": {
+    "mtime": 1784952175.2004647,
+    "ast_hash": "a168694f5fd516a6ee119dc3638e51e8",
+    "semantic_hash": "a168694f5fd516a6ee119dc3638e51e8"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/BookingController.java": {
+    "mtime": 1784883495.1095068,
+    "ast_hash": "40bb888588e62dc2114f54c419b5ea9f",
+    "semantic_hash": "40bb888588e62dc2114f54c419b5ea9f"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/CareerController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4eedd1de66dd93cd6e0b36796890b337",
+    "semantic_hash": "4eedd1de66dd93cd6e0b36796890b337"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/DepartmentController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "adc972154d236bcd68b9f8a7c16d8399",
+    "semantic_hash": "adc972154d236bcd68b9f8a7c16d8399"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/DoctorController.java": {
+    "mtime": 1784952111.8030808,
+    "ast_hash": "964d41e044d716b079896231b1a01e49",
+    "semantic_hash": "964d41e044d716b079896231b1a01e49"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/HomeController.java": {
+    "mtime": 1782094391.0421183,
+    "ast_hash": "e46aee1b5c04bc7deb18f9cbfe843592",
+    "semantic_hash": "e46aee1b5c04bc7deb18f9cbfe843592"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/NewsController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "dcaa29109deeb518ac9a41767e1dd20c",
+    "semantic_hash": "dcaa29109deeb518ac9a41767e1dd20c"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/PaymentController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ee9d5685a175dac2ffaefcefd0fa52f0",
+    "semantic_hash": "ee9d5685a175dac2ffaefcefd0fa52f0"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/ProfileController.java": {
+    "mtime": 1784775582.3787684,
+    "ast_hash": "03fdf70b348c5da2d7fc5232b972a479",
+    "semantic_hash": "03fdf70b348c5da2d7fc5232b972a479"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/ScheduleInfoController.java": {
+    "mtime": 1784952046.829112,
+    "ast_hash": "ca51618f9452c62173420f8325dcd523",
+    "semantic_hash": "ca51618f9452c62173420f8325dcd523"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/ServiceController.java": {
+    "mtime": 1782286003.0673656,
+    "ast_hash": "e3d237435c2957d825e032b3ab955cd5",
+    "semantic_hash": "e3d237435c2957d825e032b3ab955cd5"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/UserBookingEditController.java": {
+    "mtime": 1784773616.565444,
+    "ast_hash": "07590015ae6d856974ce7e9bf3d716bb",
+    "semantic_hash": "07590015ae6d856974ce7e9bf3d716bb"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/UserMedicalRecordController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "da2223f95f3d76fda158f7899dc420e5",
+    "semantic_hash": "da2223f95f3d76fda158f7899dc420e5"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/UserReviewController.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "de95b997eff1e7327d0bbef6fd06e8c5",
+    "semantic_hash": "de95b997eff1e7327d0bbef6fd06e8c5"
+  },
+  "src/main/java/com/bookinghealthy/controller/user/VietQRController.java": {
+    "mtime": 1782095625.1696794,
+    "ast_hash": "febe10fec654a33597e02714e42275fb",
+    "semantic_hash": "febe10fec654a33597e02714e42275fb"
+  },
+  "src/main/java/com/bookinghealthy/dto/AdminDashboardSummaryDTO.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "d07b935b9b6a746d476e137e9eb409bf",
+    "semantic_hash": "d07b935b9b6a746d476e137e9eb409bf"
+  },
+  "src/main/java/com/bookinghealthy/dto/BulkResultDTO.java": {
+    "mtime": 1784694274.5190713,
+    "ast_hash": "bbe7ce14950d00689c3c9f5b02c5ba83",
+    "semantic_hash": "bbe7ce14950d00689c3c9f5b02c5ba83"
+  },
+  "src/main/java/com/bookinghealthy/dto/ChangePasswordDTO.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2aad1e07af58a1879d89dbe8c878285c",
+    "semantic_hash": "2aad1e07af58a1879d89dbe8c878285c"
+  },
+  "src/main/java/com/bookinghealthy/dto/DailyBookingStatsDTO.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f791ad8b4c2899c555b5733c9392e772",
+    "semantic_hash": "f791ad8b4c2899c555b5733c9392e772"
+  },
+  "src/main/java/com/bookinghealthy/dto/DoctorDTO.java": {
+    "mtime": 1782281401.2714574,
+    "ast_hash": "4e59c9ce386b3861fc0fb1867def7c8a",
+    "semantic_hash": "4e59c9ce386b3861fc0fb1867def7c8a"
+  },
+  "src/main/java/com/bookinghealthy/dto/LeaveBalanceDTO.java": {
+    "mtime": 1784865570.3099022,
+    "ast_hash": "8136d99a16cb4374352ddd317bdafe1a",
+    "semantic_hash": "8136d99a16cb4374352ddd317bdafe1a"
+  },
+  "src/main/java/com/bookinghealthy/dto/LeaveRequestDTO.java": {
+    "mtime": 1784865590.8992827,
+    "ast_hash": "378e8b561592185470bdc0e7983c09c5",
+    "semantic_hash": "378e8b561592185470bdc0e7983c09c5"
+  },
+  "src/main/java/com/bookinghealthy/dto/RegisterDTO.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "689d8ed4d2f5aa1acdeb7ba4689d9232",
+    "semantic_hash": "689d8ed4d2f5aa1acdeb7ba4689d9232"
+  },
+  "src/main/java/com/bookinghealthy/dto/RescheduleRequestDTO.java": {
+    "mtime": 1784773240.7655494,
+    "ast_hash": "dd845b18403335edacbbc8c9bb7d2dc5",
+    "semantic_hash": "dd845b18403335edacbbc8c9bb7d2dc5"
+  },
+  "src/main/java/com/bookinghealthy/dto/ScheduleEventDTO.java": {
+    "mtime": 1784865582.2830184,
+    "ast_hash": "0d170909e2d0a13d2b42fd935e897097",
+    "semantic_hash": "0d170909e2d0a13d2b42fd935e897097"
+  },
+  "src/main/java/com/bookinghealthy/dto/ShiftRegisterResultDTO.java": {
+    "mtime": 1784865597.9553287,
+    "ast_hash": "e7572434468ad16c047c66ed35df2a45",
+    "semantic_hash": "e7572434468ad16c047c66ed35df2a45"
+  },
+  "src/main/java/com/bookinghealthy/dto/UpdateProfileDTO.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c583ab39a98a610388a6318de39aefbf",
+    "semantic_hash": "c583ab39a98a610388a6318de39aefbf"
+  },
+  "src/main/java/com/bookinghealthy/dto/ai/AiMessage.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cfd45bbdbfebf64e5704c0bde2cf2e6b",
+    "semantic_hash": "cfd45bbdbfebf64e5704c0bde2cf2e6b"
+  },
+  "src/main/java/com/bookinghealthy/dto/ai/AiRequest.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cbc9a496b16b2a8002d2196366037b7f",
+    "semantic_hash": "cbc9a496b16b2a8002d2196366037b7f"
+  },
+  "src/main/java/com/bookinghealthy/dto/ai/AiResponse.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c52ca4502c7b727b73f4cf8434c7e75f",
+    "semantic_hash": "c52ca4502c7b727b73f4cf8434c7e75f"
+  },
+  "src/main/java/com/bookinghealthy/dto/ai/ChatRequest.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cac67a2573b231f1ee3fc09c26715c5f",
+    "semantic_hash": "cac67a2573b231f1ee3fc09c26715c5f"
+  },
+  "src/main/java/com/bookinghealthy/model/AiChatSession.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cc622d3531ebdab8d7b8ec5b1050f38e",
+    "semantic_hash": "cc622d3531ebdab8d7b8ec5b1050f38e"
+  },
+  "src/main/java/com/bookinghealthy/model/AiRule.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "506f7bc21aea166bd1b72b2882d63713",
+    "semantic_hash": "506f7bc21aea166bd1b72b2882d63713"
+  },
+  "src/main/java/com/bookinghealthy/model/Allergy.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4eb99ee47cf66c5adc623430e858e5b0",
+    "semantic_hash": "4eb99ee47cf66c5adc623430e858e5b0"
+  },
+  "src/main/java/com/bookinghealthy/model/ApprovalStatus.java": {
+    "mtime": 1784865282.2145736,
+    "ast_hash": "19fadfbe9a62d5c5c8a767a97931a161",
+    "semantic_hash": "19fadfbe9a62d5c5c8a767a97931a161"
+  },
+  "src/main/java/com/bookinghealthy/model/AuthProvider.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "dec95c165d9dd8280b9fe028f2b9755d",
+    "semantic_hash": "dec95c165d9dd8280b9fe028f2b9755d"
+  },
+  "src/main/java/com/bookinghealthy/model/Booking.java": {
+    "mtime": 1784773233.5094116,
+    "ast_hash": "2db672288e13688e74eb1ef82b3029a3",
+    "semantic_hash": "2db672288e13688e74eb1ef82b3029a3"
+  },
+  "src/main/java/com/bookinghealthy/model/BookingStatus.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "92ade49f3ca18efa1c4c2a14337ed0b9",
+    "semantic_hash": "92ade49f3ca18efa1c4c2a14337ed0b9"
+  },
+  "src/main/java/com/bookinghealthy/model/Candidate.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f741a0a6a9b36d80cf4c415db60a2bfd",
+    "semantic_hash": "f741a0a6a9b36d80cf4c415db60a2bfd"
+  },
+  "src/main/java/com/bookinghealthy/model/CandidateStatus.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ca2adb39371cbf96b24fa060e6c43f8c",
+    "semantic_hash": "ca2adb39371cbf96b24fa060e6c43f8c"
+  },
+  "src/main/java/com/bookinghealthy/model/Department.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c0e0dc8758320a9d3491c19dda917641",
+    "semantic_hash": "c0e0dc8758320a9d3491c19dda917641"
+  },
+  "src/main/java/com/bookinghealthy/model/Doctor.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a5aa114a83ecedf00ddeb9c0eae790c8",
+    "semantic_hash": "a5aa114a83ecedf00ddeb9c0eae790c8"
+  },
+  "src/main/java/com/bookinghealthy/model/DoctorBlockTime.java": {
+    "mtime": 1784865425.8885605,
+    "ast_hash": "e15af96356110bc0ad86772e5f9a7cb9",
+    "semantic_hash": "e15af96356110bc0ad86772e5f9a7cb9"
+  },
+  "src/main/java/com/bookinghealthy/model/DutyRole.java": {
+    "mtime": 1784865306.178635,
+    "ast_hash": "83e8c6cd8a4212f23b63bfedfbcf2f48",
+    "semantic_hash": "83e8c6cd8a4212f23b63bfedfbcf2f48"
+  },
+  "src/main/java/com/bookinghealthy/model/HalfDaySession.java": {
+    "mtime": 1784865347.107536,
+    "ast_hash": "ad8d6b3f76b00fb69c532efb8e17bb8c",
+    "semantic_hash": "ad8d6b3f76b00fb69c532efb8e17bb8c"
+  },
+  "src/main/java/com/bookinghealthy/model/JobPosting.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "85c4227fb939c1d7cafeb513f5d2d7bb",
+    "semantic_hash": "85c4227fb939c1d7cafeb513f5d2d7bb"
+  },
+  "src/main/java/com/bookinghealthy/model/LeaveRequest.java": {
+    "mtime": 1784865408.946642,
+    "ast_hash": "81eda8b294117b1994aa0d9ff0f4a696",
+    "semantic_hash": "81eda8b294117b1994aa0d9ff0f4a696"
+  },
+  "src/main/java/com/bookinghealthy/model/LeaveType.java": {
+    "mtime": 1784865331.1403105,
+    "ast_hash": "2899e0cde4589b259c6ea6464c2eaef9",
+    "semantic_hash": "2899e0cde4589b259c6ea6464c2eaef9"
+  },
+  "src/main/java/com/bookinghealthy/model/MedicalAddendum.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "096e50f8293f3489782d5f32926bba59",
+    "semantic_hash": "096e50f8293f3489782d5f32926bba59"
+  },
+  "src/main/java/com/bookinghealthy/model/MedicalAttachment.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2b4e444b5a04d86b0a6cb06824e42aed",
+    "semantic_hash": "2b4e444b5a04d86b0a6cb06824e42aed"
+  },
+  "src/main/java/com/bookinghealthy/model/MedicalRecord.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "12397225f1bfa557c81cd4206fd61a61",
+    "semantic_hash": "12397225f1bfa557c81cd4206fd61a61"
+  },
+  "src/main/java/com/bookinghealthy/model/MedicalRecordStatus.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "7612a35d64942981d1560eda55f03a15",
+    "semantic_hash": "7612a35d64942981d1560eda55f03a15"
+  },
+  "src/main/java/com/bookinghealthy/model/PersonalLeaveReason.java": {
+    "mtime": 1784865340.0762146,
+    "ast_hash": "65a8270e41d78c19d5730204cc31a38e",
+    "semantic_hash": "65a8270e41d78c19d5730204cc31a38e"
+  },
+  "src/main/java/com/bookinghealthy/model/Post.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "317ec36a85b31daa6d8d0109e2ebb154",
+    "semantic_hash": "317ec36a85b31daa6d8d0109e2ebb154"
+  },
+  "src/main/java/com/bookinghealthy/model/PrescriptionItem.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "aa5ed2a0c293446b76bfa3b3c88795b1",
+    "semantic_hash": "aa5ed2a0c293446b76bfa3b3c88795b1"
+  },
+  "src/main/java/com/bookinghealthy/model/Review.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "530a33bc1df206857e306b4f6e8b26d3",
+    "semantic_hash": "530a33bc1df206857e306b4f6e8b26d3"
+  },
+  "src/main/java/com/bookinghealthy/model/Role.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "40564752bddf2e9cfa69ac687d6c8439",
+    "semantic_hash": "40564752bddf2e9cfa69ac687d6c8439"
+  },
+  "src/main/java/com/bookinghealthy/model/Schedule.java": {
+    "mtime": 1784951820.9276447,
+    "ast_hash": "8b101dde8046c40d986b946cffb491d9",
+    "semantic_hash": "8b101dde8046c40d986b946cffb491d9"
+  },
+  "src/main/java/com/bookinghealthy/model/Service.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "896f12a844b59cce40767552d689119f",
+    "semantic_hash": "896f12a844b59cce40767552d689119f"
+  },
+  "src/main/java/com/bookinghealthy/model/ShiftCoverRequest.java": {
+    "mtime": 1784865416.4029894,
+    "ast_hash": "e48b3803dc4074dfaf1e894131fffa95",
+    "semantic_hash": "e48b3803dc4074dfaf1e894131fffa95"
+  },
+  "src/main/java/com/bookinghealthy/model/ShiftType.java": {
+    "mtime": 1784867538.8323276,
+    "ast_hash": "cadec78143b74a57ad65371efeaa5de9",
+    "semantic_hash": "cadec78143b74a57ad65371efeaa5de9"
+  },
+  "src/main/java/com/bookinghealthy/model/StaffProfile.java": {
+    "mtime": 1784950108.4994802,
+    "ast_hash": "5d44ea0a3ab92b76267485d40bc4f275",
+    "semantic_hash": "5d44ea0a3ab92b76267485d40bc4f275"
+  },
+  "src/main/java/com/bookinghealthy/model/StaffShift.java": {
+    "mtime": 1784865387.4560626,
+    "ast_hash": "db965dd0a16ac9112b22f22556d11fe1",
+    "semantic_hash": "db965dd0a16ac9112b22f22556d11fe1"
+  },
+  "src/main/java/com/bookinghealthy/model/TransactionType.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "45dc851f64f4648a0c4b773e828a433e",
+    "semantic_hash": "45dc851f64f4648a0c4b773e828a433e"
+  },
+  "src/main/java/com/bookinghealthy/model/User.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ad394b6db0eae503644e275671bc20d0",
+    "semantic_hash": "ad394b6db0eae503644e275671bc20d0"
+  },
+  "src/main/java/com/bookinghealthy/model/VitalSign.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "5c52d463a05929b60dc396eb77276260",
+    "semantic_hash": "5c52d463a05929b60dc396eb77276260"
+  },
+  "src/main/java/com/bookinghealthy/model/WalletTransaction.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "36570d819c37728fa7b1a968d24afff6",
+    "semantic_hash": "36570d819c37728fa7b1a968d24afff6"
+  },
+  "src/main/java/com/bookinghealthy/model/WorkCondition.java": {
+    "mtime": 1784865353.020138,
+    "ast_hash": "9e931a062bc94c7556167a40fc9aa836",
+    "semantic_hash": "9e931a062bc94c7556167a40fc9aa836"
+  },
+  "src/main/java/com/bookinghealthy/repository/AiChatSessionRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e9008b3f65bd12d1c164080ebd90080f",
+    "semantic_hash": "e9008b3f65bd12d1c164080ebd90080f"
+  },
+  "src/main/java/com/bookinghealthy/repository/AiRuleRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0e21c0bfaced5e0b0b22e20167f7a110",
+    "semantic_hash": "0e21c0bfaced5e0b0b22e20167f7a110"
+  },
+  "src/main/java/com/bookinghealthy/repository/AllergyRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "d30ccb9ef7d038a4f242f8ca7f447ff4",
+    "semantic_hash": "d30ccb9ef7d038a4f242f8ca7f447ff4"
+  },
+  "src/main/java/com/bookinghealthy/repository/BookingRepository.java": {
+    "mtime": 1784529139.122922,
+    "ast_hash": "c86c771d0abc9983aa189299eb9b6c9b",
+    "semantic_hash": "c86c771d0abc9983aa189299eb9b6c9b"
+  },
+  "src/main/java/com/bookinghealthy/repository/CandidateRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "8e7f55aaebc040a379bca7a1ad4ced95",
+    "semantic_hash": "8e7f55aaebc040a379bca7a1ad4ced95"
+  },
+  "src/main/java/com/bookinghealthy/repository/DepartmentRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "901dab2694f5cd1d979ffa94b525a762",
+    "semantic_hash": "901dab2694f5cd1d979ffa94b525a762"
+  },
+  "src/main/java/com/bookinghealthy/repository/DoctorBlockTimeRepository.java": {
+    "mtime": 1784865437.952783,
+    "ast_hash": "fe28b82cafcbd525e1c3028ec8f8332c",
+    "semantic_hash": "fe28b82cafcbd525e1c3028ec8f8332c"
+  },
+  "src/main/java/com/bookinghealthy/repository/DoctorRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "b05e9840af71b4789784697dc700f19d",
+    "semantic_hash": "b05e9840af71b4789784697dc700f19d"
+  },
+  "src/main/java/com/bookinghealthy/repository/JobPostingRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "b0b7367ca9a1520c4924003e6a3adbf3",
+    "semantic_hash": "b0b7367ca9a1520c4924003e6a3adbf3"
+  },
+  "src/main/java/com/bookinghealthy/repository/LeaveRequestRepository.java": {
+    "mtime": 1784865481.7959604,
+    "ast_hash": "d60d46ccb2c077a24ab3a1dbbb975520",
+    "semantic_hash": "d60d46ccb2c077a24ab3a1dbbb975520"
+  },
+  "src/main/java/com/bookinghealthy/repository/MedicalAddendumRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e0b420c6afee8fa9c04e8a461bdc4cac",
+    "semantic_hash": "e0b420c6afee8fa9c04e8a461bdc4cac"
+  },
+  "src/main/java/com/bookinghealthy/repository/MedicalAttachmentRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "864544b9ac30d95b9e5cd2a8d434cfb7",
+    "semantic_hash": "864544b9ac30d95b9e5cd2a8d434cfb7"
+  },
+  "src/main/java/com/bookinghealthy/repository/MedicalRecordRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "dc8a7f9b2fb3b085950f0ab195a12b99",
+    "semantic_hash": "dc8a7f9b2fb3b085950f0ab195a12b99"
+  },
+  "src/main/java/com/bookinghealthy/repository/PostRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "09ff63a3fd338597ad779db6420bdfc7",
+    "semantic_hash": "09ff63a3fd338597ad779db6420bdfc7"
+  },
+  "src/main/java/com/bookinghealthy/repository/PrescriptionItemRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "1ded7b1ec0c6e4da3a3c6b7647e0b9ac",
+    "semantic_hash": "1ded7b1ec0c6e4da3a3c6b7647e0b9ac"
+  },
+  "src/main/java/com/bookinghealthy/repository/ReviewRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0a7a0297616304ad9eddaf3496e3163b",
+    "semantic_hash": "0a7a0297616304ad9eddaf3496e3163b"
+  },
+  "src/main/java/com/bookinghealthy/repository/RoleRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "95d135fa2a7fcd49b5e7d83e5062cac2",
+    "semantic_hash": "95d135fa2a7fcd49b5e7d83e5062cac2"
+  },
+  "src/main/java/com/bookinghealthy/repository/ScheduleRepository.java": {
+    "mtime": 1784951865.2690108,
+    "ast_hash": "f0a0aada4100783a3ecd83297540aaf2",
+    "semantic_hash": "f0a0aada4100783a3ecd83297540aaf2"
+  },
+  "src/main/java/com/bookinghealthy/repository/ServiceRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f4e4ed4124622b9f26226a2e7249f3a1",
+    "semantic_hash": "f4e4ed4124622b9f26226a2e7249f3a1"
+  },
+  "src/main/java/com/bookinghealthy/repository/ShiftCoverRequestRepository.java": {
+    "mtime": 1784865492.013844,
+    "ast_hash": "73902e8dcba632d53e9e4fa37eff0721",
+    "semantic_hash": "73902e8dcba632d53e9e4fa37eff0721"
+  },
+  "src/main/java/com/bookinghealthy/repository/StaffProfileRepository.java": {
+    "mtime": 1784865445.1568663,
+    "ast_hash": "1e4aad3781e7a3b6cdffd30b191b9a09",
+    "semantic_hash": "1e4aad3781e7a3b6cdffd30b191b9a09"
+  },
+  "src/main/java/com/bookinghealthy/repository/StaffShiftRepository.java": {
+    "mtime": 1784867554.2721646,
+    "ast_hash": "5f21f855c80bd9caa037edab2e6d5e71",
+    "semantic_hash": "5f21f855c80bd9caa037edab2e6d5e71"
+  },
+  "src/main/java/com/bookinghealthy/repository/UserRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "df6a247a853543760f230bcdf372d514",
+    "semantic_hash": "df6a247a853543760f230bcdf372d514"
+  },
+  "src/main/java/com/bookinghealthy/repository/VitalSignRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "707bec0142963adf5a42aa14ba9a5929",
+    "semantic_hash": "707bec0142963adf5a42aa14ba9a5929"
+  },
+  "src/main/java/com/bookinghealthy/repository/WalletTransactionRepository.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "09ee4c529f1abb3598efe5c1874f2aa8",
+    "semantic_hash": "09ee4c529f1abb3598efe5c1874f2aa8"
+  },
+  "src/main/java/com/bookinghealthy/security/CustomOAuth2User.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "acbb3ef8bfefd4599d689fcf80fa8983",
+    "semantic_hash": "acbb3ef8bfefd4599d689fcf80fa8983"
+  },
+  "src/main/java/com/bookinghealthy/security/CustomUserDetails.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2cc234d1025b471e8e96e87384c6ba70",
+    "semantic_hash": "2cc234d1025b471e8e96e87384c6ba70"
+  },
+  "src/main/java/com/bookinghealthy/security/OAuth2LoginSuccessHandler.java": {
+    "mtime": 1784694179.2599893,
+    "ast_hash": "7891f44d20fa16f63b7eb1bbf867eedf",
+    "semantic_hash": "7891f44d20fa16f63b7eb1bbf867eedf"
+  },
+  "src/main/java/com/bookinghealthy/security/userinfo/FacebookOAuth2UserInfo.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4787ff9ab07c821e7e93aebea4d7fb66",
+    "semantic_hash": "4787ff9ab07c821e7e93aebea4d7fb66"
+  },
+  "src/main/java/com/bookinghealthy/security/userinfo/GoogleOAuth2UserInfo.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "58f8e41996ee2e95cfc464c136473768",
+    "semantic_hash": "58f8e41996ee2e95cfc464c136473768"
+  },
+  "src/main/java/com/bookinghealthy/security/userinfo/OAuth2UserInfo.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "80633318bca175ee9e6766147caa0173",
+    "semantic_hash": "80633318bca175ee9e6766147caa0173"
+  },
+  "src/main/java/com/bookinghealthy/service/AdminDashboardService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0c0e168936470cec0be3d7f0b493241e",
+    "semantic_hash": "0c0e168936470cec0be3d7f0b493241e"
+  },
+  "src/main/java/com/bookinghealthy/service/AiService.java": {
+    "mtime": 1785050184.4889376,
+    "ast_hash": "c9c162d458c5a845d65d8cf792410546",
+    "semantic_hash": "c9c162d458c5a845d65d8cf792410546"
+  },
+  "src/main/java/com/bookinghealthy/service/AuthService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ef7310154d8bc6a019ec8dbe2b28c84a",
+    "semantic_hash": "ef7310154d8bc6a019ec8dbe2b28c84a"
+  },
+  "src/main/java/com/bookinghealthy/service/BookingService.java": {
+    "mtime": 1784883420.7668514,
+    "ast_hash": "162d2950deb73fc4a04ce5cf504b5f49",
+    "semantic_hash": "162d2950deb73fc4a04ce5cf504b5f49"
+  },
+  "src/main/java/com/bookinghealthy/service/CurrentUserService.java": {
+    "mtime": 1784866087.483324,
+    "ast_hash": "debbcdb892c2456c32570cf28ed7a671",
+    "semantic_hash": "debbcdb892c2456c32570cf28ed7a671"
+  },
+  "src/main/java/com/bookinghealthy/service/CustomOAuth2UserService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0705d369f73eac93f734401f5413bec5",
+    "semantic_hash": "0705d369f73eac93f734401f5413bec5"
+  },
+  "src/main/java/com/bookinghealthy/service/CustomUserDetailsService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cf8b4d6e67d4dd404ae30399326c62ba",
+    "semantic_hash": "cf8b4d6e67d4dd404ae30399326c62ba"
+  },
+  "src/main/java/com/bookinghealthy/service/DepartmentService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "15824f060c5af1ba390cae0090c9ee28",
+    "semantic_hash": "15824f060c5af1ba390cae0090c9ee28"
+  },
+  "src/main/java/com/bookinghealthy/service/DoctorAssistantService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0f701b43d01036644eb2718ad50914b7",
+    "semantic_hash": "0f701b43d01036644eb2718ad50914b7"
+  },
+  "src/main/java/com/bookinghealthy/service/DoctorBlockTimeService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "46c27d0bf6f9562f35b6a0575d72a19e",
+    "semantic_hash": "46c27d0bf6f9562f35b6a0575d72a19e"
+  },
+  "src/main/java/com/bookinghealthy/service/DoctorService.java": {
+    "mtime": 1784951913.7760186,
+    "ast_hash": "f39c7c43fc7d6e5f4e09aaf99f8531a2",
+    "semantic_hash": "f39c7c43fc7d6e5f4e09aaf99f8531a2"
+  },
+  "src/main/java/com/bookinghealthy/service/EmailService.java": {
+    "mtime": 1784865637.4634297,
+    "ast_hash": "03b65f6d1e97ff64e61ff3ffda85ac66",
+    "semantic_hash": "03b65f6d1e97ff64e61ff3ffda85ac66"
+  },
+  "src/main/java/com/bookinghealthy/service/GlobalHelper.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "3366b4123e49a128e392cd112a0d35b1",
+    "semantic_hash": "3366b4123e49a128e392cd112a0d35b1"
+  },
+  "src/main/java/com/bookinghealthy/service/ImageService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "26eecc1d3f890651e1e61c5ec3a2e8cf",
+    "semantic_hash": "26eecc1d3f890651e1e61c5ec3a2e8cf"
+  },
+  "src/main/java/com/bookinghealthy/service/JobPostingService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a19922cb26b9e97c6f01ac9efc5ba4d6",
+    "semantic_hash": "a19922cb26b9e97c6f01ac9efc5ba4d6"
+  },
+  "src/main/java/com/bookinghealthy/service/LeaveService.java": {
+    "mtime": 1784865617.1475172,
+    "ast_hash": "4bab0f0760812e7f6ce85c1e85a17163",
+    "semantic_hash": "4bab0f0760812e7f6ce85c1e85a17163"
+  },
+  "src/main/java/com/bookinghealthy/service/MedicalRecordService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a3e383e0d918a60d171d4126fbe68018",
+    "semantic_hash": "a3e383e0d918a60d171d4126fbe68018"
+  },
+  "src/main/java/com/bookinghealthy/service/PaymentService.java": {
+    "mtime": 1784529153.877513,
+    "ast_hash": "afe7fc9b65bcbd38cceafc9a5d67af06",
+    "semantic_hash": "afe7fc9b65bcbd38cceafc9a5d67af06"
+  },
+  "src/main/java/com/bookinghealthy/service/PdfExportService.java": {
+    "mtime": 1784695000.1319034,
+    "ast_hash": "5829c2d7c5687c060536a3fcd302b2e8",
+    "semantic_hash": "5829c2d7c5687c060536a3fcd302b2e8"
+  },
+  "src/main/java/com/bookinghealthy/service/PostService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f35719f75b24c65c3c4ce6fc21fd2b13",
+    "semantic_hash": "f35719f75b24c65c3c4ce6fc21fd2b13"
+  },
+  "src/main/java/com/bookinghealthy/service/ProfileService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "0b6a1aebe6a3b658800d1107e719831b",
+    "semantic_hash": "0b6a1aebe6a3b658800d1107e719831b"
+  },
+  "src/main/java/com/bookinghealthy/service/ReceptionService.java": {
+    "mtime": 1784865138.7081127,
+    "ast_hash": "c9850dcf6e893e9eec49d4a0d4c49f86",
+    "semantic_hash": "c9850dcf6e893e9eec49d4a0d4c49f86"
+  },
+  "src/main/java/com/bookinghealthy/service/ReviewService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "11856dd51359186535a1f91195884b1c",
+    "semantic_hash": "11856dd51359186535a1f91195884b1c"
+  },
+  "src/main/java/com/bookinghealthy/service/ServiceService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "02ded0b2e5f2485580379ee25b5a0f84",
+    "semantic_hash": "02ded0b2e5f2485580379ee25b5a0f84"
+  },
+  "src/main/java/com/bookinghealthy/service/ShiftCoverService.java": {
+    "mtime": 1784865901.6243143,
+    "ast_hash": "aa1e6b3b49200e7744262a1b8a8bd7e3",
+    "semantic_hash": "aa1e6b3b49200e7744262a1b8a8bd7e3"
+  },
+  "src/main/java/com/bookinghealthy/service/StaffScheduleService.java": {
+    "mtime": 1784952166.260924,
+    "ast_hash": "4f36727bda6212626c1b989de2c8500f",
+    "semantic_hash": "4f36727bda6212626c1b989de2c8500f"
+  },
+  "src/main/java/com/bookinghealthy/service/TimeSlotService.java": {
+    "mtime": 1784865131.100994,
+    "ast_hash": "ee541e823c6025bc685d937ecf3505bf",
+    "semantic_hash": "ee541e823c6025bc685d937ecf3505bf"
+  },
+  "src/main/java/com/bookinghealthy/service/UserService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e336c82f1c8b51b29ea85b09dfb6891f",
+    "semantic_hash": "e336c82f1c8b51b29ea85b09dfb6891f"
+  },
+  "src/main/java/com/bookinghealthy/service/WalletService.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "6a05ea579c9d8e083c8663a0f63782c3",
+    "semantic_hash": "6a05ea579c9d8e083c8663a0f63782c3"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/BookingServiceImpl.java": {
+    "mtime": 1785036593.885203,
+    "ast_hash": "3f61598057669ae8c589012bf2eeb67e",
+    "semantic_hash": "3f61598057669ae8c589012bf2eeb67e"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/DepartmentServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "dca68e3a6c21f5f9ba6ea6f38fbf3258",
+    "semantic_hash": "dca68e3a6c21f5f9ba6ea6f38fbf3258"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/DoctorBlockTimeServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "029e48e1971d4c349851c752a77c4f4f",
+    "semantic_hash": "029e48e1971d4c349851c752a77c4f4f"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/DoctorServiceImpl.java": {
+    "mtime": 1784951907.4502,
+    "ast_hash": "bde30e26de1983f6952d5f4d2237aedd",
+    "semantic_hash": "bde30e26de1983f6952d5f4d2237aedd"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/EmailServiceImpl.java": {
+    "mtime": 1784865646.4130325,
+    "ast_hash": "46eeb31a572452517401e242083a7425",
+    "semantic_hash": "46eeb31a572452517401e242083a7425"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/JobPostingServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "8d473085a28e04708addcbe4e197de68",
+    "semantic_hash": "8d473085a28e04708addcbe4e197de68"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/LeaveServiceImpl.java": {
+    "mtime": 1784865735.587777,
+    "ast_hash": "2c67cf16d2e73b59060af466f36a6ce0",
+    "semantic_hash": "2c67cf16d2e73b59060af466f36a6ce0"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/MedicalRecordServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4a0366aa9caf48440bd015c8f2295377",
+    "semantic_hash": "4a0366aa9caf48440bd015c8f2295377"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/PdfExportServiceImpl.java": {
+    "mtime": 1784699927.1863592,
+    "ast_hash": "0c89d60ea9323eb2cf2600cc2ab33414",
+    "semantic_hash": "0c89d60ea9323eb2cf2600cc2ab33414"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/PostServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f36895b6e729b78b6652dfe517500e9e",
+    "semantic_hash": "f36895b6e729b78b6652dfe517500e9e"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/ProfileServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a2edca7b49e3e41faeeab1715a337d9e",
+    "semantic_hash": "a2edca7b49e3e41faeeab1715a337d9e"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/ReceptionServiceImpl.java": {
+    "mtime": 1784865155.425362,
+    "ast_hash": "dda70a760ca769a9e1ea71123ed9b60e",
+    "semantic_hash": "dda70a760ca769a9e1ea71123ed9b60e"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/ReviewServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "81d6953fa76bfe325b7fce0a83351c7d",
+    "semantic_hash": "81d6953fa76bfe325b7fce0a83351c7d"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/ServiceServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "9676eb0e670200824bdcc69f7473ff46",
+    "semantic_hash": "9676eb0e670200824bdcc69f7473ff46"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/ShiftCoverServiceImpl.java": {
+    "mtime": 1784865944.9772627,
+    "ast_hash": "fd21d2b36e9225547e871c4ee2363b3c",
+    "semantic_hash": "fd21d2b36e9225547e871c4ee2363b3c"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/StaffScheduleServiceImpl.java": {
+    "mtime": 1784952169.385672,
+    "ast_hash": "97cfc464016da35e5f732c603bfe1259",
+    "semantic_hash": "97cfc464016da35e5f732c603bfe1259"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/UserServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "ac492b7114b7bbd1d554ec3b0092c831",
+    "semantic_hash": "ac492b7114b7bbd1d554ec3b0092c831"
+  },
+  "src/main/java/com/bookinghealthy/service/impl/WalletServiceImpl.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "930ffa8faf8db035895adda2ff6aa523",
+    "semantic_hash": "930ffa8faf8db035895adda2ff6aa523"
+  },
+  "src/main/java/com/bookinghealthy/task/BookingCleanupTask.java": {
+    "mtime": 1784529157.1840677,
+    "ast_hash": "64756c0c7ef7ee71532eb196cebd0e80",
+    "semantic_hash": "64756c0c7ef7ee71532eb196cebd0e80"
+  },
+  "src/main/java/com/bookinghealthy/task/ClinicRegistrationTask.java": {
+    "mtime": 1784950310.5548244,
+    "ast_hash": "1d0c47e23b116f2894e44a5f0f86f860",
+    "semantic_hash": "1d0c47e23b116f2894e44a5f0f86f860"
+  },
+  "src/main/java/com/bookinghealthy/task/MedicalNewsTask.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "31da9fdbfb9e33ae48d00e9bb2e92e84",
+    "semantic_hash": "31da9fdbfb9e33ae48d00e9bb2e92e84"
+  },
+  "src/main/java/com/bookinghealthy/util/QRCodeGenerator.java": {
+    "mtime": 1781099863.0,
+    "ast_hash": "695fba1bb13f620033dda3aec2a94f41",
+    "semantic_hash": "695fba1bb13f620033dda3aec2a94f41"
+  },
+  "src/main/resources/static/assets-admin/js/admin-ai-chat.js": {
+    "mtime": 1784778625.5196133,
+    "ast_hash": "43d4c056504a32da66c22aa2eb8adfd6",
+    "semantic_hash": "43d4c056504a32da66c22aa2eb8adfd6"
+  },
+  "src/main/resources/static/assets-admin/js/ai-chat-doctor.js": {
+    "mtime": 1784778618.205074,
+    "ast_hash": "424276bbe3149ebb02576d8f659501c4",
+    "semantic_hash": "424276bbe3149ebb02576d8f659501c4"
+  },
+  "src/main/resources/static/assets-admin/js/doctor-ai-chat.js": {
+    "mtime": 1781099863.0,
+    "ast_hash": "69187c21a34d587614011bc5e36efab4",
+    "semantic_hash": "69187c21a34d587614011bc5e36efab4"
+  },
+  "src/main/resources/static/assets-admin/js/main.js": {
+    "mtime": 1781099863.0,
+    "ast_hash": "468b91e272edcd1eeed8bc516a3c6343",
+    "semantic_hash": "468b91e272edcd1eeed8bc516a3c6343"
+  },
+  "src/main/resources/static/assets/js/ai-chat.js": {
+    "mtime": 1785050159.3061275,
+    "ast_hash": "921f81d2934d57411c51888b799980c5",
+    "semantic_hash": "921f81d2934d57411c51888b799980c5"
+  },
+  "src/main/resources/static/assets/js/main.js": {
+    "mtime": 1781099863.0,
+    "ast_hash": "1604fe073c8c54d7edbdf8a64ee19271",
+    "semantic_hash": "1604fe073c8c54d7edbdf8a64ee19271"
+  },
+  "src/main/resources/static/assets/js/meditrust-voice-call.js": {
+    "mtime": 1785036453.8427694,
+    "ast_hash": "d7164c75f10b42b806b1a0e4bba9d5b9",
+    "semantic_hash": "d7164c75f10b42b806b1a0e4bba9d5b9"
+  },
+  "src/main/resources/static/assets/js/meditrust-voice.js": {
+    "mtime": 1784781737.4018543,
+    "ast_hash": "f5b9fb0d16b4de3cc451fe1081ef7cef",
+    "semantic_hash": "f5b9fb0d16b4de3cc451fe1081ef7cef"
+  },
+  "src/main/resources/static/assets/js/work-schedule.js": {
+    "mtime": 1784952242.541481,
+    "ast_hash": "7cad95353c7f6f0f6418155b24045c84",
+    "semantic_hash": "7cad95353c7f6f0f6418155b24045c84"
+  },
+  ".claude/rules/ai-assistant.md": {
+    "mtime": 1785050586.9998393,
+    "ast_hash": "a7c7df2129489b06a36d75de7af8df54",
+    "semantic_hash": "a7c7df2129489b06a36d75de7af8df54"
+  },
+  ".claude/rules/authentication-and-roles.md": {
+    "mtime": 1784867036.8266368,
+    "ast_hash": "1cb81f9cce7a70d06f0dd58ea821eb30",
+    "semantic_hash": "1cb81f9cce7a70d06f0dd58ea821eb30"
+  },
+  ".claude/rules/booking-flow.md": {
+    "mtime": 1785046793.8901093,
+    "ast_hash": "426551c496b9d6a87032d137588483a0",
+    "semantic_hash": "426551c496b9d6a87032d137588483a0"
+  },
+  ".claude/rules/build-and-run.md": {
+    "mtime": 1784699301.366604,
+    "ast_hash": "812653daa339dd88a0840bba4ea69ec9",
+    "semantic_hash": "812653daa339dd88a0840bba4ea69ec9"
+  },
+  ".claude/rules/code-structure.md": {
+    "mtime": 1784952721.0749314,
+    "ast_hash": "1fe8cca36329bc51018eda5ff82390fb",
+    "semantic_hash": "1fe8cca36329bc51018eda5ff82390fb"
+  },
+  ".claude/rules/coding-conventions.md": {
+    "mtime": 1784779552.488443,
+    "ast_hash": "c221e59883e6cfb87db5cdec288584d3",
+    "semantic_hash": "c221e59883e6cfb87db5cdec288584d3"
+  },
+  ".claude/rules/environment-setup.md": {
+    "mtime": 1784878460.5210013,
+    "ast_hash": "9edbdd407aef6a4374f20d421b094723",
+    "semantic_hash": "9edbdd407aef6a4374f20d421b094723"
+  },
+  ".claude/rules/medical-records.md": {
+    "mtime": 1784691080.8810775,
+    "ast_hash": "297ffa5c2c2b8fdebd75d6c9259a3828",
+    "semantic_hash": "297ffa5c2c2b8fdebd75d6c9259a3828"
+  },
+  ".claude/rules/progress-log.md": {
+    "mtime": 1785050599.8589938,
+    "ast_hash": "c6e33bd0ef5f8aff08bd289d04caaffc",
+    "semantic_hash": "c6e33bd0ef5f8aff08bd289d04caaffc"
+  },
+  ".claude/rules/project-overview.md": {
+    "mtime": 1784691024.8939438,
+    "ast_hash": "1bdb812c95aa8289f7776767055b15b3",
+    "semantic_hash": "1bdb812c95aa8289f7776767055b15b3"
+  },
+  ".claude/rules/supporting-subsystems.md": {
+    "mtime": 1784952606.4032934,
+    "ast_hash": "352651841266e691d44659ede1f85f61",
+    "semantic_hash": "352651841266e691d44659ede1f85f61"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784776147.687325,
+    "ast_hash": "3dcecc07b626755d805973b7adc9a067",
+    "semantic_hash": "3dcecc07b626755d805973b7adc9a067"
+  },
+  "src/main/resources/templates/admin/doctor-form-edit.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "3909046832b74917cdfbe0438c4f8449",
+    "semantic_hash": "3909046832b74917cdfbe0438c4f8449"
+  },
+  "src/main/resources/templates/admin/doctor-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "177d76cc6797740dabaddb68b2427083",
+    "semantic_hash": "177d76cc6797740dabaddb68b2427083"
+  },
+  "src/main/resources/templates/admin/doctor-list.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "20294cc75ed05b29314f3d7f383ab8c2",
+    "semantic_hash": "20294cc75ed05b29314f3d7f383ab8c2"
+  },
+  "src/main/resources/templates/admin/include/ai-chat.html": {
+    "mtime": 1784778602.214023,
+    "ast_hash": "8dc8382f08cfe6aa899bdd529bc81f5a",
+    "semantic_hash": "8dc8382f08cfe6aa899bdd529bc81f5a"
+  },
+  "src/main/resources/templates/admin/include/footer.html": {
+    "mtime": 1782095918.9341033,
+    "ast_hash": "cc483f50fcdf9c0aed126ffcd6670f71",
+    "semantic_hash": "cc483f50fcdf9c0aed126ffcd6670f71"
+  },
+  "src/main/resources/templates/admin/include/header.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "08861836215f985c5e61f1da9d7e8574",
+    "semantic_hash": "08861836215f985c5e61f1da9d7e8574"
+  },
+  "src/main/resources/templates/admin/include/sidebar.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "fb9de1776646e2649e461b07f9736bb0",
+    "semantic_hash": "fb9de1776646e2649e461b07f9736bb0"
+  },
+  "src/main/resources/templates/admin/job-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "45d86d0704dfacff1d89e9af46ff7a0c",
+    "semantic_hash": "45d86d0704dfacff1d89e9af46ff7a0c"
+  },
+  "src/main/resources/templates/admin/job-list.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "895d15b4e5c607b4f178b540da6fb3f5",
+    "semantic_hash": "895d15b4e5c607b4f178b540da6fb3f5"
+  },
+  "src/main/resources/templates/admin/manage-user.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "28b3e43bd06324a65eff493ee6d81923",
+    "semantic_hash": "28b3e43bd06324a65eff493ee6d81923"
+  },
+  "src/main/resources/templates/admin/medical-record-list.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4b1f1e0d8d61b6b8f4fe9925d300f260",
+    "semantic_hash": "4b1f1e0d8d61b6b8f4fe9925d300f260"
+  },
+  "src/main/resources/templates/admin/post-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f24c0ea2f100e437a26ad1105cc0c7d6",
+    "semantic_hash": "f24c0ea2f100e437a26ad1105cc0c7d6"
+  },
+  "src/main/resources/templates/admin/post-list.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a8fa5854a071ba296dfdbd9156e22b80",
+    "semantic_hash": "a8fa5854a071ba296dfdbd9156e22b80"
+  },
+  "src/main/resources/templates/admin/service-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2669bc52990a1a97815e08bf517793d5",
+    "semantic_hash": "2669bc52990a1a97815e08bf517793d5"
+  },
+  "src/main/resources/templates/admin/service-list.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "889ffc983caf27b9727500443db3b26f",
+    "semantic_hash": "889ffc983caf27b9727500443db3b26f"
+  },
+  "src/main/resources/templates/admin/user-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "a5936e264954d05a19d67458c3419dbd",
+    "semantic_hash": "a5936e264954d05a19d67458c3419dbd"
+  },
+  "src/main/resources/templates/auth/login.html": {
+    "mtime": 1782097212.702073,
+    "ast_hash": "b6145ed705140a26f5e6c3602eff1384",
+    "semantic_hash": "b6145ed705140a26f5e6c3602eff1384"
+  },
+  "src/main/resources/templates/auth/register.html": {
+    "mtime": 1782097333.596553,
+    "ast_hash": "1bd0d89d1d40354ad90e02608d008bd0",
+    "semantic_hash": "1bd0d89d1d40354ad90e02608d008bd0"
+  },
+  "src/main/resources/templates/doctor/booking-manager.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2f38559e61b754232127157ec8b2c943",
+    "semantic_hash": "2f38559e61b754232127157ec8b2c943"
+  },
+  "src/main/resources/templates/doctor/booking-requests.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "5c2b2a77568d4d8483b1e2bb92afd106",
+    "semantic_hash": "5c2b2a77568d4d8483b1e2bb92afd106"
+  },
+  "src/main/resources/templates/doctor/dashboard.html": {
+    "mtime": 1784866765.9739108,
+    "ast_hash": "7ac8e4aa912ab6a35dcda9b9b36d6c4d",
+    "semantic_hash": "7ac8e4aa912ab6a35dcda9b9b36d6c4d"
+  },
+  "src/main/resources/templates/doctor/examination-list.html": {
+    "mtime": 1784695521.2381487,
+    "ast_hash": "e86fa195b35ba8ad32ac2e85f3bedac6",
+    "semantic_hash": "e86fa195b35ba8ad32ac2e85f3bedac6"
+  },
+  "src/main/resources/templates/doctor/include/ai-chat-doctor.html": {
+    "mtime": 1784778596.1195624,
+    "ast_hash": "efb6f2be17a7284c3145d793d6cd6b61",
+    "semantic_hash": "efb6f2be17a7284c3145d793d6cd6b61"
+  },
+  "src/main/resources/templates/doctor/include/ai-chat.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "8b6b8be4938544bb2b54a5b39295f4dc",
+    "semantic_hash": "8b6b8be4938544bb2b54a5b39295f4dc"
+  },
+  "src/main/resources/templates/doctor/include/footer.html": {
+    "mtime": 1782095942.137139,
+    "ast_hash": "63a8e425efad9f37a7b2c9c26d4e25ee",
+    "semantic_hash": "63a8e425efad9f37a7b2c9c26d4e25ee"
+  },
+  "src/main/resources/templates/doctor/include/header.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2de4e04464a5d0dd81dac5e660f08fd6",
+    "semantic_hash": "2de4e04464a5d0dd81dac5e660f08fd6"
+  },
+  "src/main/resources/templates/doctor/include/sidebar.html": {
+    "mtime": 1784866743.3962781,
+    "ast_hash": "2392ab7a11b387700602e370a4a01f3b",
+    "semantic_hash": "2392ab7a11b387700602e370a4a01f3b"
+  },
+  "src/main/resources/templates/doctor/medical-record-form.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "b2abc70c310a2dc868210f57c19bc9c7",
+    "semantic_hash": "b2abc70c310a2dc868210f57c19bc9c7"
+  },
+  "src/main/resources/templates/doctor/patient-records.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "49ed2d523afcccb2042d72e9cb80fec2",
+    "semantic_hash": "49ed2d523afcccb2042d72e9cb80fec2"
+  },
+  "src/main/resources/templates/email/booking-cancellation.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "f16bf058717eabbf0d3ce4cee94deb54",
+    "semantic_hash": "f16bf058717eabbf0d3ce4cee94deb54"
+  },
+  "src/main/resources/templates/email/booking-confirmation.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "2ea619b17737dabb156ca1cb03329302",
+    "semantic_hash": "2ea619b17737dabb156ca1cb03329302"
+  },
+  "src/main/resources/templates/email/booking-doctor-change.html": {
+    "mtime": 1784703800.8770678,
+    "ast_hash": "a888be6546294a864103551c9ac66af1",
+    "semantic_hash": "a888be6546294a864103551c9ac66af1"
+  },
+  "src/main/resources/templates/email/booking-rescheduled.html": {
+    "mtime": 1784773399.158022,
+    "ast_hash": "b0c301e42adda64132c31398d729b71b",
+    "semantic_hash": "b0c301e42adda64132c31398d729b71b"
+  },
+  "src/main/resources/templates/email/candidate-confirmation.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "fb301126768bcd28950f42981c6ce4f2",
+    "semantic_hash": "fb301126768bcd28950f42981c6ce4f2"
+  },
+  "src/main/resources/templates/email/general-notification.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "23145ec89985e66eb82a4d266994010a",
+    "semantic_hash": "23145ec89985e66eb82a4d266994010a"
+  },
+  "src/main/resources/templates/error/403.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "40bf72b95eed726cec83dc49f345b10d",
+    "semantic_hash": "40bf72b95eed726cec83dc49f345b10d"
+  },
+  "src/main/resources/templates/error/404.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e3133bcb3b58e91994d721295c476c0c",
+    "semantic_hash": "e3133bcb3b58e91994d721295c476c0c"
+  },
+  "src/main/resources/templates/error/500.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "fb6d381a7bb2f78fca8ba128afcdecfb",
+    "semantic_hash": "fb6d381a7bb2f78fca8ba128afcdecfb"
+  },
+  "src/main/resources/templates/head/dashboard.html": {
+    "mtime": 1784950454.8598797,
+    "ast_hash": "2c0a432b3ffadef7a8a0a619f376e68c",
+    "semantic_hash": "2c0a432b3ffadef7a8a0a619f376e68c"
+  },
+  "src/main/resources/templates/head/duty-roster.html": {
+    "mtime": 1784866723.9463603,
+    "ast_hash": "b853bbf680c285ab243315bb53a51cc1",
+    "semantic_hash": "b853bbf680c285ab243315bb53a51cc1"
+  },
+  "src/main/resources/templates/head/include/sidebar.html": {
+    "mtime": 1784866617.386474,
+    "ast_hash": "6643a46fe1233bd159e82e104fe22964",
+    "semantic_hash": "6643a46fe1233bd159e82e104fe22964"
+  },
+  "src/main/resources/templates/head/leave-requests.html": {
+    "mtime": 1784866691.871499,
+    "ast_hash": "0a6632911cd8b3dabf3ee603af9ebb49",
+    "semantic_hash": "0a6632911cd8b3dabf3ee603af9ebb49"
+  },
+  "src/main/resources/templates/receptionist/booking-list.html": {
+    "mtime": 1784696324.1273408,
+    "ast_hash": "ae5464a43da5da60a42b6ad14f905d32",
+    "semantic_hash": "ae5464a43da5da60a42b6ad14f905d32"
+  },
+  "src/main/resources/templates/receptionist/dashboard.html": {
+    "mtime": 1784695467.4384863,
+    "ast_hash": "653bbeb3737b2f4c69c4b429960a279f",
+    "semantic_hash": "653bbeb3737b2f4c69c4b429960a279f"
+  },
+  "src/main/resources/templates/receptionist/include/footer.html": {
+    "mtime": 1784695285.30903,
+    "ast_hash": "54454eb959f25284b12acb14a23f1953",
+    "semantic_hash": "54454eb959f25284b12acb14a23f1953"
+  },
+  "src/main/resources/templates/receptionist/include/header.html": {
+    "mtime": 1784695265.522602,
+    "ast_hash": "ca5df0f7102c7691844fb448b1c791cd",
+    "semantic_hash": "ca5df0f7102c7691844fb448b1c791cd"
+  },
+  "src/main/resources/templates/receptionist/include/sidebar.html": {
+    "mtime": 1784866748.8620384,
+    "ast_hash": "a102c8f1a9975a4aed3bfe637aa498d2",
+    "semantic_hash": "a102c8f1a9975a4aed3bfe637aa498d2"
+  },
+  "src/main/resources/templates/receptionist/queue.html": {
+    "mtime": 1784695375.3696678,
+    "ast_hash": "23f7822da5543245df7d7175afd9503d",
+    "semantic_hash": "23f7822da5543245df7d7175afd9503d"
+  },
+  "src/main/resources/templates/receptionist/schedule-change.html": {
+    "mtime": 1784865233.1871338,
+    "ast_hash": "d9d0b50e11dbfcc44ead0f79445ec670",
+    "semantic_hash": "d9d0b50e11dbfcc44ead0f79445ec670"
+  },
+  "src/main/resources/templates/receptionist/walk-in-form.html": {
+    "mtime": 1784865206.0318253,
+    "ast_hash": "27ceac96f56cbf3f127c9c2f4bc6e1f8",
+    "semantic_hash": "27ceac96f56cbf3f127c9c2f4bc6e1f8"
+  },
+  "src/main/resources/templates/staff/leave-history.html": {
+    "mtime": 1784866576.4780514,
+    "ast_hash": "7fae3e84f9bfb5068d1b41c56096e4fa",
+    "semantic_hash": "7fae3e84f9bfb5068d1b41c56096e4fa"
+  },
+  "src/main/resources/templates/staff/shift-cover.html": {
+    "mtime": 1784866605.8592746,
+    "ast_hash": "105e64009db39d903ea10e664cc6c018",
+    "semantic_hash": "105e64009db39d903ea10e664cc6c018"
+  },
+  "src/main/resources/templates/staff/work-schedule.html": {
+    "mtime": 1784952216.704965,
+    "ast_hash": "2b8e4060e1dd4c299a401c165897730f",
+    "semantic_hash": "2b8e4060e1dd4c299a401c165897730f"
+  },
+  "src/main/resources/templates/user/about.html": {
+    "mtime": 1784619896.8404899,
+    "ast_hash": "56d0e56883620852b6394284e79448a4",
+    "semantic_hash": "56d0e56883620852b6394284e79448a4"
+  },
+  "src/main/resources/templates/user/appointment.html": {
+    "mtime": 1784865184.3233738,
+    "ast_hash": "49e2c6725b5ca54a5537d6c8185676fe",
+    "semantic_hash": "49e2c6725b5ca54a5537d6c8185676fe"
+  },
+  "src/main/resources/templates/user/booking-edit.html": {
+    "mtime": 1784865189.9740481,
+    "ast_hash": "ccef221da2261a7f036b304ebc38c80d",
+    "semantic_hash": "ccef221da2261a7f036b304ebc38c80d"
+  },
+  "src/main/resources/templates/user/career-details.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "fe2e52c7a0cf1133edcde313c68c11be",
+    "semantic_hash": "fe2e52c7a0cf1133edcde313c68c11be"
+  },
+  "src/main/resources/templates/user/careers.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "4fb72883abcb331d951a36abeaa55a71",
+    "semantic_hash": "4fb72883abcb331d951a36abeaa55a71"
+  },
+  "src/main/resources/templates/user/checkout-qr.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "bb055245921152dc542b2a4143620068",
+    "semantic_hash": "bb055245921152dc542b2a4143620068"
+  },
+  "src/main/resources/templates/user/contact.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "b038492779b38c03ad59b8947a975459",
+    "semantic_hash": "b038492779b38c03ad59b8947a975459"
+  },
+  "src/main/resources/templates/user/department-details.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "9a9654a34f7f51cd37c8e41c5abd9269",
+    "semantic_hash": "9a9654a34f7f51cd37c8e41c5abd9269"
+  },
+  "src/main/resources/templates/user/departments.html": {
+    "mtime": 1784618753.3000185,
+    "ast_hash": "0170f27667bbb49e41487705f13fbf16",
+    "semantic_hash": "0170f27667bbb49e41487705f13fbf16"
+  },
+  "src/main/resources/templates/user/doctor-details.html": {
+    "mtime": 1785028712.3749552,
+    "ast_hash": "93694a19585cae2058d1c05ff217f654",
+    "semantic_hash": "93694a19585cae2058d1c05ff217f654"
+  },
+  "src/main/resources/templates/user/doctor-schedule.html": {
+    "mtime": 1784865231.122831,
+    "ast_hash": "c2c9c2476085d902097f45c3aab4bfc6",
+    "semantic_hash": "c2c9c2476085d902097f45c3aab4bfc6"
+  },
+  "src/main/resources/templates/user/doctors.html": {
+    "mtime": 1784883512.9335318,
+    "ast_hash": "670a1b4f48af3278f95ce71e0d62bee3",
+    "semantic_hash": "670a1b4f48af3278f95ce71e0d62bee3"
+  },
+  "src/main/resources/templates/user/faq.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "465ca9fba8ea336870a98ed43eca3227",
+    "semantic_hash": "465ca9fba8ea336870a98ed43eca3227"
+  },
+  "src/main/resources/templates/user/gallery.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "cbeb3271dafe142e7bdfa3789d9969d2",
+    "semantic_hash": "cbeb3271dafe142e7bdfa3789d9969d2"
+  },
+  "src/main/resources/templates/user/include/ai-chat.html": {
+    "mtime": 1784778531.492111,
+    "ast_hash": "917ef6ddf8cba9b820d9c1ba8795b3cd",
+    "semantic_hash": "917ef6ddf8cba9b820d9c1ba8795b3cd"
+  },
+  "src/main/resources/templates/user/include/footer.html": {
+    "mtime": 1782096184.9764209,
+    "ast_hash": "a33fc6b6fa2d4d39639b43b4e306ec58",
+    "semantic_hash": "a33fc6b6fa2d4d39639b43b4e306ec58"
+  },
+  "src/main/resources/templates/user/include/header.html": {
+    "mtime": 1784554412.6260362,
+    "ast_hash": "edfc39b0d5052d9354ec083d0b296770",
+    "semantic_hash": "edfc39b0d5052d9354ec083d0b296770"
+  },
+  "src/main/resources/templates/user/index.html": {
+    "mtime": 1782279928.093151,
+    "ast_hash": "796309c63cc3a8f9d27588c3fbc09e20",
+    "semantic_hash": "796309c63cc3a8f9d27588c3fbc09e20"
+  },
+  "src/main/resources/templates/user/medical-process.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "e7d772a96c88fa904cb3ee2d04d94e7f",
+    "semantic_hash": "e7d772a96c88fa904cb3ee2d04d94e7f"
+  },
+  "src/main/resources/templates/user/medical-record-detail.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c4f03ccf52637d673cb44a1cda99f3f8",
+    "semantic_hash": "c4f03ccf52637d673cb44a1cda99f3f8"
+  },
+  "src/main/resources/templates/user/news-details.html": {
+    "mtime": 1782287238.2209256,
+    "ast_hash": "e0b9d6d4884869dc6e080d60fe40378f",
+    "semantic_hash": "e0b9d6d4884869dc6e080d60fe40378f"
+  },
+  "src/main/resources/templates/user/news.html": {
+    "mtime": 1784620857.209947,
+    "ast_hash": "62828fccf0a09e83716f8b73347365e0",
+    "semantic_hash": "62828fccf0a09e83716f8b73347365e0"
+  },
+  "src/main/resources/templates/user/payment-result.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "90f1e7d52fd589ef45ea620bb114823d",
+    "semantic_hash": "90f1e7d52fd589ef45ea620bb114823d"
+  },
+  "src/main/resources/templates/user/privacy.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "c973853e3b42b8aac056acbe569679a3",
+    "semantic_hash": "c973853e3b42b8aac056acbe569679a3"
+  },
+  "src/main/resources/templates/user/profile.html": {
+    "mtime": 1784777094.279704,
+    "ast_hash": "923579b0e8dae88669e3bc2e93a144c0",
+    "semantic_hash": "923579b0e8dae88669e3bc2e93a144c0"
+  },
+  "src/main/resources/templates/user/service-details.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "9ec5b19e9b6c682a9ff7ecc1660baca2",
+    "semantic_hash": "9ec5b19e9b6c682a9ff7ecc1660baca2"
+  },
+  "src/main/resources/templates/user/services.html": {
+    "mtime": 1782285973.5569277,
+    "ast_hash": "d6260fae74322cdf4ca81dc739f59f1d",
+    "semantic_hash": "d6260fae74322cdf4ca81dc739f59f1d"
+  },
+  "src/main/resources/templates/user/starter-page.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "7341e5626d40e4b59f8446c469baf159",
+    "semantic_hash": "7341e5626d40e4b59f8446c469baf159"
+  },
+  "src/main/resources/templates/user/terms.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "13379bfe9940715a1eaba5daaa5ac7d1",
+    "semantic_hash": "13379bfe9940715a1eaba5daaa5ac7d1"
+  },
+  "src/main/resources/templates/user/testimonials.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "445e6c1484d7f7c232c090d92585319b",
+    "semantic_hash": "445e6c1484d7f7c232c090d92585319b"
+  },
+  "src/main/resources/templates/user/working-hours.html": {
+    "mtime": 1781099863.0,
+    "ast_hash": "b0d768b6245ffb65a74e2ec1275e0d96",
+    "semantic_hash": "b0d768b6245ffb65a74e2ec1275e0d96"
+  }
+}
