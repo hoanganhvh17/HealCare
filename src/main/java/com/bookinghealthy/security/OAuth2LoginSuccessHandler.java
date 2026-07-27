@@ -88,10 +88,14 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
             boolean isAdmin = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
             boolean isDoctor = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_DOCTOR"));
             boolean isReceptionist = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_RECEPTIONIST"));
+            // Trưởng khoa được seed vẫn giữ ROLE_DOCTOR nên rơi vào nhánh isDoctor ở trên;
+            // nhánh này chỉ dành cho tài khoản trưởng khoa "thuần" (chỉ có ROLE_HEAD_DOCTOR).
+            boolean isHeadDoctor = userFinal.get().getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_HEAD_DOCTOR"));
 
             if(isAdmin) response.sendRedirect("/admin/dashboard");
             else if(isDoctor) response.sendRedirect("/doctor/dashboard");
             else if(isReceptionist) response.sendRedirect("/receptionist/dashboard");
+            else if(isHeadDoctor) response.sendRedirect("/head/dashboard");
             else response.sendRedirect("/");
         } else {
             response.sendRedirect("/");

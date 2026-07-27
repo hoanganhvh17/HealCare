@@ -69,11 +69,28 @@
                     <input class="form-check-input" type="checkbox" name="roleIds"
                            th:value="${role.id}"
                            th:id="${'role' + role.id}"
+                           th:attr="data-role=${role.name}"
                            th:checked="${user.roles != null && user.roles.contains(role)}">
-                    <label class="form-check-label" th:for="${'role' + role.id}" th:text="${role.name}"></label>
+                    <label class="form-check-label" th:for="${'role' + role.id}"
+                           th:text="${role.name == 'ROLE_ADMIN' ? 'Admin' : (role.name == 'ROLE_DOCTOR' ? 'Bác sĩ' : (role.name == 'ROLE_HEAD_DOCTOR' ? 'Trưởng khoa' : (role.name == 'ROLE_RECEPTIONIST' ? 'Lễ tân' : 'Bệnh nhân')))}"></label>
                   </div>
                 </th:block>
               </div>
+            </div>
+
+            <div class="col-12" id="headDeptWrapper">
+              <label for="headDepartmentId" class="form-label">Khoa phụ trách (Trưởng khoa)</label>
+              <select name="headDepartmentId" id="headDepartmentId" class="form-select">
+                <option value="">-- Không phụ trách khoa nào --</option>
+                <option th:each="dept : ${allDepartments}"
+                        th:value="${dept.id}"
+                        th:text="${dept.name}"
+                        th:selected="${headDepartmentId != null && headDepartmentId == dept.id}"></option>
+              </select>
+              <small class="text-muted">
+                Chỉ áp dụng khi tài khoản có vai trò <strong>Trưởng khoa</strong>. Đây là khoa mà người này
+                được duyệt đơn nghỉ và lịch trực. Bỏ trống nếu chỉ là bác sĩ / nhân viên thường.
+              </small>
             </div>
 
             <div class="text-center">
@@ -87,6 +104,18 @@
     </div>
   </div>
 </section>
+
+<!-- Chỉ hiện ô chọn khoa khi tài khoản được tick vai trò Trưởng khoa -->
+<script>
+  (function () {
+    var headCb = document.querySelector('input[name="roleIds"][data-role="ROLE_HEAD_DOCTOR"]');
+    var wrapper = document.getElementById('headDeptWrapper');
+    if (!headCb || !wrapper) return;
+    function sync() { wrapper.style.display = headCb.checked ? '' : 'none'; }
+    headCb.addEventListener('change', sync);
+    sync();
+  })();
+</script>
 
 </main><th:block th:replace="~{admin/include/footer :: footer}"></th:block>
 </body>

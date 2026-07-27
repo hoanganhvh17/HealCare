@@ -26,7 +26,7 @@
 
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Tất cả tài khoản (Admin, Bác sĩ, Bệnh nhân)</h5>
+                    <h5 class="card-title">Tất cả tài khoản (Admin, Bác sĩ, Trưởng khoa, Lễ tân, Bệnh nhân)</h5>
 
                     <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="bi bi-check-circle me-1"></i>
@@ -62,8 +62,8 @@
 
                             <td>
                                 <span th:each="role : ${user.roles}"
-                                      th:text="${role.name == 'ROLE_ADMIN' ? 'Admin' : (role.name == 'ROLE_DOCTOR' ? 'Bác sĩ' : 'Bệnh nhân')}"
-                                      th:classappend="${role.name == 'ROLE_ADMIN' ? 'badge bg-danger' : (role.name == 'ROLE_DOCTOR' ? 'badge bg-info' : 'badge bg-secondary')}"
+                                      th:text="${role.name == 'ROLE_ADMIN' ? 'Admin' : (role.name == 'ROLE_DOCTOR' ? 'Bác sĩ' : (role.name == 'ROLE_HEAD_DOCTOR' ? 'Trưởng khoa' : (role.name == 'ROLE_RECEPTIONIST' ? 'Lễ tân' : 'Bệnh nhân')))}"
+                                      th:classappend="${role.name == 'ROLE_ADMIN' ? 'badge bg-danger' : (role.name == 'ROLE_DOCTOR' ? 'badge bg-info' : (role.name == 'ROLE_HEAD_DOCTOR' ? 'badge bg-primary' : (role.name == 'ROLE_RECEPTIONIST' ? 'badge bg-success' : 'badge bg-secondary')))}"
                                       class="me-1">
                                 </span>
                             </td>

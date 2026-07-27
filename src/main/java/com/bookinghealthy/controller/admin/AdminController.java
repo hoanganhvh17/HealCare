@@ -2,8 +2,10 @@ package com.bookinghealthy.controller.admin;
 
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.BookingRepository;
+import com.bookinghealthy.repository.DepartmentRepository;
 import com.bookinghealthy.repository.RoleRepository;
 import com.bookinghealthy.repository.ReviewRepository;
+import com.bookinghealthy.repository.StaffProfileRepository;
 import com.bookinghealthy.service.ReviewService;
 import com.bookinghealthy.service.UserService;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet; // <-- THÊM IMPORT
 import java.util.List;
@@ -32,6 +35,11 @@ public class AdminController {
     @Autowired private UserService userService;
     @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+
+    // Gán khoa cho trưởng khoa: role mở /head/**, còn StaffProfile.headOfDepartment
+    // quyết định họ duyệt cho khoa nào (resolveHeadDepartment đọc trường này).
+    @Autowired private DepartmentRepository departmentRepository;
+    @Autowired private StaffProfileRepository staffProfileRepository;
 
     @Autowired private ReviewService reviewService; // <-- Inject Review Service
     @Autowired private ReviewRepository reviewRepository;
@@ -197,6 +205,7 @@ public class AdminController {
     public String showAddUserForm(Model model) {
         model.addAttribute("user", new User());
         model.addAttribute("allRoles", roleRepository.findAll()); // Gửi Roles ra form
+        model.addAttribute("allDepartments", departmentRepository.findAll()); // Chọn khoa cho trưởng khoa
         model.addAttribute("pageTitle", "Thêm mới Người dùng");
         return "admin/user-form";
     }
@@ -208,6 +217,11 @@ public class AdminController {
         if (user.isPresent()) {
             model.addAttribute("user", user.get());
             model.addAttribute("allRoles", roleRepository.findAll()); // Gửi Roles ra form
+            model.addAttribute("allDepartments", departmentRepository.findAll());
+            // Khoa mà người này đang làm trưởng khoa (nếu có) để chọn sẵn trong dropdown
+            model.addAttribute("headDepartmentId", staffProfileRepository.findByUserId(id)
+                    .map(sp -> sp.getHeadOfDepartment() != null ? sp.getHeadOfDepartment().getId() : null)
+                    .orElse(null));
             model.addAttribute("pageTitle", "Chỉnh sửa Người dùng");
             return "admin/user-form";
         } else {
@@ -222,13 +236,14 @@ public class AdminController {
                            BindingResult bindingResult,
                            @RequestParam(name = "password", required = false) String rawPassword,
                            @RequestParam(name = "roleIds", required = false) Set<Long> roleIds, // Lấy Role IDs
+                           @RequestParam(name = "headDepartmentId", required = false) Long headDepartmentId,
                            Model model,
                            RedirectAttributes ra) {
 
         // Bắt lỗi Validation (Email, NotBlank...)
         if (bindingResult.hasErrors()) {
+            reloadFormRefs(model, headDepartmentId);
             model.addAttribute("pageTitle", (user.getId() == null) ? "Thêm mới Người dùng" : "Chỉnh sửa Người dùng");
-            model.addAttribute("allRoles", roleRepository.findAll());
             return "admin/user-form";
         }
 
@@ -243,8 +258,8 @@ public class AdminController {
                 // A. TRƯỜNG HỢP THÊM MỚI
                 if (rawPassword == null || rawPassword.isEmpty()) {
                     bindingResult.rejectValue("password", "NotBlank", "Mật khẩu là bắt buộc khi tạo mới");
+                    reloadFormRefs(model, headDepartmentId);
                     model.addAttribute("pageTitle", "Thêm mới Người dùng");
-                    model.addAttribute("allRoles", roleRepository.findAll());
                     return "admin/user-form";
                 }
                 user.setRoles(roles); // Gán vai trò
@@ -267,14 +282,56 @@ public class AdminController {
             }
 
             userService.save(user);
+            // Đồng bộ gán/gỡ trưởng khoa (StaffProfile.headOfDepartment) theo vai trò + khoa đã chọn.
+            syncHeadOfDepartment(user, roles, headDepartmentId);
             ra.addFlashAttribute("successMessage", "Đã lưu Người dùng thành công.");
             return "redirect:/admin/manage-user";
 
         } catch (DataIntegrityViolationException e) {
             bindingResult.rejectValue("username", "Duplicate", "Username hoặc Email đã tồn tại.");
+            reloadFormRefs(model, headDepartmentId);
             model.addAttribute("pageTitle", (user.getId() == null) ? "Thêm mới Người dùng" : "Chỉnh sửa Người dùng");
-            model.addAttribute("allRoles", roleRepository.findAll());
             return "admin/user-form";
+        }
+    }
+
+    /** Nạp lại danh sách vai trò + khoa cho form khi phải render lại vì lỗi. */
+    private void reloadFormRefs(Model model, Long headDepartmentId) {
+        model.addAttribute("allRoles", roleRepository.findAll());
+        model.addAttribute("allDepartments", departmentRepository.findAll());
+        model.addAttribute("headDepartmentId", headDepartmentId);
+    }
+
+    /**
+     * Gán hoặc gỡ vai trò trưởng khoa ở tầng dữ liệu (StaffProfile.headOfDepartment).
+     * ROLE_HEAD_DOCTOR chỉ mở cửa /head/**; muốn duyệt đơn cho khoa nào thì phải có
+     * bản ghi khoa phụ trách này — nếu thiếu, /head/dashboard báo "chưa được gán khoa".
+     */
+    private void syncHeadOfDepartment(User user, Set<Role> roles, Long headDepartmentId) {
+        boolean isHead = roles.stream().anyMatch(r -> "ROLE_HEAD_DOCTOR".equals(r.getName()));
+        Optional<StaffProfile> existing = staffProfileRepository.findByUserId(user.getId());
+
+        if (isHead && headDepartmentId != null) {
+            Department dept = departmentRepository.findById(headDepartmentId).orElse(null);
+            if (dept == null) {
+                return; // Khoa không tồn tại -> bỏ qua, không dựng hồ sơ rác
+            }
+            StaffProfile profile = existing.orElseGet(() -> {
+                StaffProfile fresh = new StaffProfile();
+                fresh.setUser(user);
+                fresh.setHireDate(LocalDate.now());
+                return fresh;
+            });
+            profile.setHeadOfDepartment(dept);
+            staffProfileRepository.save(profile);
+        } else {
+            // Không còn là trưởng khoa (bỏ vai trò hoặc không chọn khoa) -> gỡ khoa phụ trách.
+            existing.ifPresent(profile -> {
+                if (profile.getHeadOfDepartment() != null) {
+                    profile.setHeadOfDepartment(null);
+                    staffProfileRepository.save(profile);
+                }
+            });
         }
     }
 

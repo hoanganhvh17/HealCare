@@ -124,6 +124,11 @@ public class SecurityConfig {
                             else if (authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_RECEPTIONIST"))) {
                                 response.sendRedirect("/receptionist/dashboard");
                             }
+                            // Trưởng khoa "thuần" (không kèm ROLE_DOCTOR) — kiểm tra SAU ROLE_DOCTOR
+                            // để trưởng khoa được seed (giữ cả ROLE_DOCTOR) vẫn về /doctor/dashboard như cũ.
+                            else if (authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_HEAD_DOCTOR"))) {
+                                response.sendRedirect("/head/dashboard");
+                            }
                             // Nếu là USER (Bệnh nhân), về trang chủ
                             else {
                                 response.sendRedirect("/");
