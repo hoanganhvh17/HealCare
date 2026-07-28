@@ -47,7 +47,20 @@ public class AiController {
 
 
     // =========================================================================
-    // CƠ CHẾ SOFT-LOCK (MÔ PHỎNG REDIS TTL) - XỬ LÝ RACE CONDITION
+    // CƠ CHẾ SOFT-LOCK (MÔ PHỎNG REDIS TTL)
+    //
+    // Giữ tạm một khung giờ cho phiên chat vừa CHỐT nó, để hai khách không cùng được điều hướng
+    // vào đúng một chỗ. Đây chỉ là lớp giảm va chạm ở tầng gợi ý — chỗ chống trùng thật sự vẫn là
+    // BookingServiceImpl.reserve() lúc ghi booking.
+    //
+    // CHỈ ĐƯỢC ĐẶT KHOÁ KHI KHÁCH THẬT SỰ CHỐT (POST /hold-slot). Trước đây chỉ cần MỞ chat xem
+    // danh sách bác sĩ là GET /doctors/department/{id} khoá luôn 12 khung giờ trong 3 phút, và
+    // người vào sau bị GIẤU sạch những khung đó — hai khách chat cùng khoa cùng lúc thấy hai lịch
+    // khác nhau, kèm câu "đang có người khác giữ chỗ" hoàn toàn sai sự thật (thực ra người kia chỉ
+    // đang xem). Endpoint đó lại là permitAll, nên một vòng lặp đổi sessionId là khoá sạch lịch
+    // toàn hệ thống.
+    //
+    // Lưu ý: map này nằm trong bộ nhớ của MỘT tiến trình — chạy nhiều instance là mất tác dụng.
     // =========================================================================
     static class SlotLock {
         String sessionId;
@@ -61,6 +74,8 @@ public class AiController {
     // Bộ nhớ đệm lưu trữ các khóa (Khóa tự động mất sau 3 phút)
     private final java.util.concurrent.ConcurrentHashMap<String, SlotLock> softLockCache = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private static final long SOFT_LOCK_TTL_MILLIS = 180_000; // 3 phút
+
     // Job tự động dọn dẹp các Lock đã hết hạn (Chạy mỗi 1 phút)
     @Scheduled(fixedRate = 60000)
     public void cleanUpExpiredLocks() {
@@ -68,15 +83,83 @@ public class AiController {
         softLockCache.entrySet().removeIf(entry -> now > entry.getValue().expireAtMillis);
     }
 
+    private String lockKey(Long doctorId, java.time.LocalDate date, String slotStr) {
+        return doctorId + "_" + date.toString() + "_" + slotStr;
+    }
+
+    /** Khung giờ này có đang bị PHIÊN KHÁC giữ không. Chỉ đọc, không ghi. */
+    private boolean isHeldByAnotherSession(Long doctorId, java.time.LocalDate date, String slotStr,
+                                           String sessionId, long nowMillis) {
+        SlotLock lock = softLockCache.get(lockKey(doctorId, date, slotStr));
+        if (lock == null || nowMillis > lock.expireAtMillis) return false;
+        return sessionId != null && !sessionId.equals(lock.sessionId);
+    }
+
+    /**
+     * Giữ tạm một khung giờ cho phiên chat vừa chốt nó. Gọi từ finishBookingHandoff ở trình duyệt,
+     * tức là chỉ khi khách THẬT SỰ được điều hướng sang trang đặt lịch.
+     *
+     * Dùng {@code compute()} chứ không get-rồi-put: hai request đồng thời cùng khung giờ đều lọt qua
+     * bước kiểm rồi ghi đè nhau, và cả hai khách đều tin mình đang giữ chỗ.
+     */
+    @PostMapping("/hold-slot")
+    public ResponseEntity<Map<String, Object>> holdSlot(@RequestParam Long doctorId,
+                                                        @RequestParam String date,
+                                                        @RequestParam String slot,
+                                                        @RequestParam(required = false) String sessionId) {
+        Map<String, Object> result = new HashMap<>();
+        java.time.LocalDate targetDate;
+        try {
+            targetDate = java.time.LocalDate.parse(date);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            result.put("held", false);
+            return ResponseEntity.ok(result);
+        }
+
+        final long now = System.currentTimeMillis();
+        SlotLock winner = softLockCache.compute(lockKey(doctorId, targetDate, slot), (key, current) -> {
+            boolean freeToTake = current == null
+                    || now > current.expireAtMillis
+                    || sessionId.equals(current.sessionId);
+            return freeToTake ? new SlotLock(sessionId, now + SOFT_LOCK_TTL_MILLIS) : current;
+        });
+
+        result.put("held", winner != null && sessionId.equals(winner.sessionId));
+        return ResponseEntity.ok(result);
+    }
+
     // --------------------------------------------------------
     // 1. CÁC API DÀNH CHO XỬ LÝ NGÔN NGỮ (LLM)
     // --------------------------------------------------------
 
+    /** Prompt dài hơn mức này chắc chắn không phải câu hỏi thật — cắt để khỏi tốn token và phình chatHistoryJson. */
+    private static final int MAX_PROMPT_CHARS = 2000;
+
     @PostMapping("/ask")
-    public ResponseEntity<Map<String, String>> askAi(@RequestBody ChatRequest request) {
-        String answer = aiService.chatWithMemory(request.getSessionId(), request.getPrompt());
+    public ResponseEntity<Map<String, String>> askAi(@RequestBody(required = false) ChatRequest request) {
         Map<String, String> result = new HashMap<>();
-        result.put("answer", answer);
+
+        String prompt = (request == null || request.getPrompt() == null) ? "" : request.getPrompt().trim();
+        if (prompt.isEmpty()) {
+            result.put("answer", "Dạ anh/chị nhắn giúp em nội dung cần hỏi với ạ.");
+            return ResponseEntity.badRequest().body(result);
+        }
+        if (prompt.length() > MAX_PROMPT_CHARS) {
+            prompt = prompt.substring(0, MAX_PROMPT_CHARS);
+        }
+
+        // sessionCode có ràng buộc NOT NULL: nhận null từ client là insert lỗi -> HTTP 500.
+        // Tự sinh và trả về để trình duyệt dùng tiếp cho các lượt sau.
+        String sessionId = (request == null || request.getSessionId() == null
+                || request.getSessionId().trim().isEmpty())
+                ? "session_" + java.util.UUID.randomUUID()
+                : request.getSessionId().trim();
+
+        result.put("answer", aiService.chatWithMemory(sessionId, prompt));
+        result.put("sessionId", sessionId);
         return ResponseEntity.ok(result);
     }
 
@@ -191,25 +274,11 @@ public class AiController {
                             }
                             if (isBlocked) continue;
 
-                            // === BẮT ĐẦU CHÈN LỌC 5: RACE CONDITION SOFT-LOCK CHECK ===
-                            String lockKey = doc.getId() + "_" + date.toString() + "_" + slotStr;
-                            SlotLock existingLock = softLockCache.get(lockKey);
-
-                            if (existingLock != null) {
-                                if (nowMillis > existingLock.expireAtMillis) {
-                                    // Lock đã hết hạn -> Xóa rác
-                                    softLockCache.remove(lockKey);
-                                } else if (sessionId != null && !sessionId.equals(existingLock.sessionId)) {
-                                    // Lock còn hạn VÀ đang bị thằng khác giành -> BỎ QUA SLOT NÀY
-                                    continue;
-                                }
+                            // Lọc 5: bỏ qua khung đang được PHIÊN KHÁC giữ chỗ.
+                            // CHỈ ĐỌC, không đặt khoá — xem chú thích ở phần khai báo softLockCache.
+                            if (isHeldByAnotherSession(doc.getId(), date, slotStr, sessionId, nowMillis)) {
+                                continue;
                             }
-
-                            // ĐỦ ĐIỀU KIỆN TRỐNG -> KHÓA LẠI CHO USER NÀY TRONG 3 PHÚT (180,000 ms)
-                            if (sessionId != null) {
-                                softLockCache.put(lockKey, new SlotLock(sessionId, nowMillis + 180000));
-                            }
-                            // === KẾT THÚC CHÈN LỌC 5 ===
 
                             // NẾU VƯỢT QUA CÁC BỘ LỌC TRÊN -> CHÍNH LÀ GIỜ TRỐNG!
                             String displaySlot = translateDay(date.getDayOfWeek()) + " " + date.format(dateFormatter) + " (" + slotStr + ")";
@@ -248,6 +317,7 @@ public class AiController {
     // =========================================================================
     private static final int NEARBY_MINUTES = 90;   // phạm vi tính "ca khám quanh giờ đó"
     private static final int FORWARD_SCAN_DAYS = 7; // quét tối đa bấy nhiêu ngày để tìm ngày bác sĩ có ca
+    private static final int MAX_BOOKING_AHEAD_DAYS = 90; // trần đặt trước, chặn ngày vô lý kiểu 2035
 
     @GetMapping("/slot-alternatives")
     public ResponseEntity<Map<String, Object>> getSlotAlternatives(
@@ -275,6 +345,28 @@ public class AiController {
             return ResponseEntity.badRequest().build();
         }
         result.put("date", date);
+
+        // Ngày trong QUÁ KHỨ phải bị chặn ở đây, không thể trông vào bộ lọc slot: mã "PAST" chỉ được
+        // xét khi date == hôm nay, còn bác sĩ thì không có lịch làm việc cho ngày đã qua nên
+        // slotsOutsideWorkingHours trả rỗng = "không giới hạn" -> cả 16 khung đều FREE và trợ lý
+        // hồn nhiên mời khách đặt lịch một ngày đã trôi qua.
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (targetDate.isBefore(today)) {
+            result.put("slot", null);
+            result.put("session", normalizeSessionParam(session));
+            result.put("reason", "PAST");
+            result.put("reasonText", buildDayLabel(targetDate)
+                    + " đã qua rồi ạ, anh/chị chọn giúp em một ngày từ hôm nay trở đi nhé.");
+            return ResponseEntity.ok(result);
+        }
+        if (targetDate.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) {
+            result.put("slot", null);
+            result.put("session", normalizeSessionParam(session));
+            result.put("reason", "TOO_FAR");
+            result.put("reasonText", "Phòng khám chỉ nhận đặt lịch trước tối đa "
+                    + MAX_BOOKING_AHEAD_DAYS + " ngày ạ.");
+            return ResponseEntity.ok(result);
+        }
 
         // Khách nêu BUỔI ("sáng thứ ba") thay vì giờ cụ thể. Việc quy buổi -> khung giờ nằm HẲN
         // ở server: trình duyệt chỉ gửi lên chữ "morning"/"afternoon" và không bao giờ phải biết
@@ -444,7 +536,8 @@ public class AiController {
             case "BLOCKED":
                 return who + " đã báo bận " + slotPart + " " + when + " ạ.";
             case "HELD":
-                return slotPart + " " + when + " đang có người khác giữ chỗ ạ.";
+                // Người kia đã CHỐT khung này và đang trong bước điền phiếu đặt lịch (khoá 3 phút).
+                return slotPart + " " + when + " vừa có người khác chọn và đang chờ xác nhận ạ.";
             case "PAST":
                 return slotPart + " " + when + " đã trôi qua rồi ạ.";
             case "OUTSIDE_HOURS":
@@ -494,14 +587,30 @@ public class AiController {
                 java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
     }
 
-    /** "10:30" hoặc "10:30 - 11:00" -> khung giờ chuẩn "10:30 - 11:00". Không khớp khung nào -> null. */
+    /**
+     * "10:30" hoặc "10:30 - 11:00" -> khung giờ chuẩn "10:30 - 11:00". Ngoài giờ hành chính -> null.
+     *
+     * Quy về khung CHỨA giờ đó (start &lt;= t &lt; end), không so `startsWith`: khách nói "9 giờ 15" là
+     * giờ hoàn toàn hợp lệ giữa giờ hành chính, nhưng "09:15" không mở đầu khung nào nên cách so cũ
+     * trả null và trợ lý đáp lại bằng câu "phòng khám chỉ nhận đặt khám trong giờ hành chính
+     * 07:30 - 11:30 và 13:30 - 17:30 ạ" — vô lý với chính giờ khách vừa xin.
+     */
     private String resolveCanonicalSlot(String time) {
         if (time == null) return null;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(time);
         if (!m.find()) return null;
-        String start = String.format("%02d:%s", Integer.parseInt(m.group(1)), m.group(2));
+
+        java.time.LocalTime wanted;
+        try {
+            wanted = java.time.LocalTime.of(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
+        } catch (Exception e) {
+            return null;
+        }
+
         for (String slot : ALL_SLOTS) {
-            if (slot.startsWith(start)) return slot;
+            java.time.LocalTime start = slotStartOf(slot);
+            java.time.LocalTime end = start.plusMinutes(30);
+            if (!wanted.isBefore(start) && wanted.isBefore(end)) return slot;
         }
         return null;
     }
@@ -556,9 +665,7 @@ public class AiController {
                 }
             }
 
-            SlotLock lock = softLockCache.get(doctorId + "_" + date.toString() + "_" + slotStr);
-            if (lock != null && nowMillis <= lock.expireAtMillis
-                    && sessionId != null && !sessionId.equals(lock.sessionId)) {
+            if (isHeldByAnotherSession(doctorId, date, slotStr, sessionId, nowMillis)) {
                 return "HELD";
             }
             return null;
@@ -796,8 +903,17 @@ public class AiController {
                     System.out.println("[LOG 6C] CẢNH BÁO: Bác sĩ set COMPLETED nhưng CHƯA TẠO Medical Record!");
                 }
 
-                // FALLBACK: Không có bệnh án hoặc bệnh án rỗng chẩn đoán -> Vẫn chào theo Khoa
-                String deptName = booking.getDoctor().getDepartment().getName().toLowerCase();
+                // FALLBACK: Không có bệnh án hoặc bệnh án rỗng chẩn đoán -> Vẫn chào theo Khoa.
+                // Bác sĩ có thể đã bị xoá hoặc chưa gán khoa: dereference thẳng ở đây từng làm
+                // /api/chat/welcome trả 500 và khung chat mở ra TRỐNG TRƠN.
+                String deptName = (booking.getDoctor() != null && booking.getDoctor().getDepartment() != null
+                        && booking.getDoctor().getDepartment().getName() != null)
+                        ? booking.getDoctor().getDepartment().getName().toLowerCase()
+                        : null;
+                if (deptName == null) {
+                    System.out.println("[LOG 6D] Booking COMPLETED nhưng bác sĩ/khoa không còn -> chào mặc định.");
+                    return ResponseEntity.ok(defaultGreeting);
+                }
                 System.out.println("[RESULT] Trả về câu chào theo KHOA (Fallback): " + deptName);
 
                 // Bôi đậm cả Tên và Khoa

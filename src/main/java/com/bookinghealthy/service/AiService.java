@@ -35,6 +35,13 @@ public class AiService {
     @Value("${ai.api.key}")
     private String apiKey;
 
+    /**
+     * OpenRouter dùng header này để ghi nhận nguồn gọi. Trước đây hardcode "http://localhost:8080"
+     * trong khi app chạy cổng 8090 — sai ngay từ máy dev và sai hẳn khi deploy.
+     */
+    @Value("${ai.api.referer:http://localhost:8090}")
+    private String referer;
+
     @Autowired private RestTemplate restTemplate;
     @Autowired private AiChatSessionRepository sessionRepository;
     @Autowired private UserRepository userRepository;
@@ -43,6 +50,64 @@ public class AiService {
     @Autowired private com.bookinghealthy.repository.MedicalRecordRepository medicalRecordRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * Thử lần lượt cho tới khi có model trả lời.
+     *
+     * ĐỪNG thêm id không có thật vào danh sách này: mỗi id sai là một round-trip CHẮC CHẮN LỖI cộng
+     * vào thời gian chờ của khách. `openrouter/free` từng nằm ở đây và không hề tồn tại (OpenRouter
+     * đặt tên theo dạng `<hãng>/<model>`, bản miễn phí có hậu tố `:free`), nên chuỗi 3 model thực ra
+     * chỉ có 2 model dùng được.
+     */
+    private static final String[] FALLBACK_MODELS = {
+            "openai/gpt-4o-mini",
+            "google/gemini-2.0-flash-exp:free"
+    };
+
+    /** Trần độ dài câu trả lời — xem chú thích ở AiRequest.maxTokens. */
+    private static final int MAX_TOKENS = 1200;
+
+    /**
+     * Gọi OpenRouter, thử lần lượt từng model. Trả về nội dung câu trả lời, hoặc null nếu không model
+     * nào trả lời được.
+     *
+     * Mọi lý do thất bại đều PHẢI được log kèm sessionId: trước đây nhánh catch chỉ in mỗi tên model
+     * và vứt sạch nội dung lỗi, còn lỗi kiểu "hết credit" thì OpenRouter trả HTTP 200 nên không có
+     * exception nào để mà bắt — kết quả là khách thấy "Hệ thống bận" với log trống trơn.
+     */
+    private String callModels(List<AiMessage> messagesToSend, double temperature, String sessionId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+        headers.set("HTTP-Referer", referer);
+
+        for (String modelName : FALLBACK_MODELS) {
+            try {
+                AiRequest request = new AiRequest();
+                request.setModel(modelName);
+                request.setMessages(messagesToSend);
+                request.setTemperature(temperature);
+                request.setMaxTokens(MAX_TOKENS);
+
+                AiResponse response = restTemplate.postForObject(
+                        apiUrl, new HttpEntity<>(request, headers), AiResponse.class);
+
+                if (response != null && response.getError() != null) {
+                    System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " báo lỗi: "
+                            + response.getError().getMessage() + " (code " + response.getError().getCode() + ")");
+                    continue;
+                }
+                if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
+                    return response.getChoices().get(0).getMessage().getContent();
+                }
+                System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " trả về rỗng (không choices, không error).");
+            } catch (Exception e) {
+                System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " thất bại: "
+                        + e.getClass().getSimpleName() + " - " + e.getMessage());
+            }
+        }
+        return null;
+    }
 
     private static final String PATIENT_BASE_PROMPT =
             "Bạn là Chuyên gia Phân luồng Bệnh nhân (Triage AI Agent) của hệ thống y tế MediTrust.\n" +
@@ -138,18 +203,9 @@ public class AiService {
                     "- Nếu chỉ hỏi thông tin bình thường (giờ làm, địa chỉ) hoặc chào hỏi, mảng ID Khoa để rỗng []. (TUYỆT ĐỐI KHÔNG để rỗng nếu khách có bất kỳ phàn nàn nào về sức khỏe).\n\n" +
                     "=== 7. DANH SÁCH CHUYÊN KHOA HIỆN CÓ CỦA MEDITRUST ===\n";
 
-    @Transactional
+    /** Không @Transactional — cùng lý do đã ghi ở chatWithMemory (gọi mạng giữa hàm). */
     public String getConversationalResponse(String systemPrompt, String userPrompt, String sessionId) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
-        headers.set("HTTP-Referer", "http://localhost:8080");
-
-        AiChatSession chatSession = sessionRepository.findBySessionCode(sessionId).orElseGet(() -> {
-            AiChatSession newSession = new AiChatSession();
-            newSession.setSessionCode(sessionId);
-            return sessionRepository.save(newSession);
-        });
+        AiChatSession chatSession = loadOrCreateSession(sessionId);
 
         try {
             List<AiMessage> chatHistory = new ArrayList<>();
@@ -165,37 +221,40 @@ public class AiService {
             int startIndex = Math.max(0, chatHistory.size() - 6);
             messagesToSend.addAll(chatHistory.subList(startIndex, chatHistory.size()));
 
-            String[] fallbackModels = { "openai/gpt-4o-mini", "openrouter/free", "google/gemini-2.0-flash-exp:free" };
-            for (String modelName : fallbackModels) {
-                try {
-                    AiRequest request = new AiRequest();
-                    request.setModel(modelName);
-                    request.setMessages(messagesToSend);
-                    request.setTemperature(0.5);
-
-                    AiResponse response = restTemplate.postForObject(apiUrl, new HttpEntity<>(request, headers), AiResponse.class);
-
-                    if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-                        String aiAnswer = response.getChoices().get(0).getMessage().getContent();
-
-                        chatHistory.add(new AiMessage("assistant", aiAnswer));
-                        chatSession.setChatHistoryJson(objectMapper.writeValueAsString(chatHistory));
-                        sessionRepository.save(chatSession);
-
-                        return aiAnswer;
-                    }
-                } catch (Exception modelEx) {
-                    System.err.println("---");
-                    System.err.println("⚠️ Lỗi khi gọi model: " + modelName);
-                    modelEx.printStackTrace(); // In chi tiết lỗi ra console
-                    System.err.println("---");
-                }
+            String aiAnswer = callModels(messagesToSend, 0.5, sessionId);
+            if (aiAnswer != null) {
+                chatHistory.add(new AiMessage("assistant", aiAnswer));
+                chatSession.setChatHistoryJson(objectMapper.writeValueAsString(chatHistory));
+                sessionRepository.save(chatSession);
+                return aiAnswer;
             }
         } catch (Exception e) {
+            System.err.println("⚠️ [AI][" + sessionId + "] Lỗi xử lý dữ liệu: "
+                    + e.getClass().getSimpleName() + " - " + e.getMessage());
             e.printStackTrace();
             return "Lỗi khi xử lý dữ liệu hệ thống. Vui lòng thử lại sau.";
         }
         return "Hệ thống AI đang bận hoặc quá tải API. Vui lòng thử lại sau.";
+    }
+
+    /**
+     * Lấy phiên chat, tạo mới nếu chưa có.
+     *
+     * `sessionCode` có ràng buộc UNIQUE, mà find-then-save thì KHÔNG nguyên tử: hai request cùng
+     * `sessionId` (khách bấm Gửi 2 lần, hoặc mở 2 tab) cùng thấy rỗng, cùng insert, và
+     * DataIntegrityViolationException bung ra NGOÀI khối try của hàm gọi -> HTTP 500.
+     * Thua cuộc đua thì chỉ cần đọc lại bản ghi người kia vừa tạo.
+     */
+    private AiChatSession loadOrCreateSession(String sessionId) {
+        return sessionRepository.findBySessionCode(sessionId).orElseGet(() -> {
+            AiChatSession newSession = new AiChatSession();
+            newSession.setSessionCode(sessionId);
+            try {
+                return sessionRepository.saveAndFlush(newSession);
+            } catch (org.springframework.dao.DataIntegrityViolationException race) {
+                return sessionRepository.findBySessionCode(sessionId).orElseThrow(() -> race);
+            }
+        });
     }
 
     /**
@@ -226,13 +285,24 @@ public class AiService {
         }
     }
 
-    @Transactional
+    /**
+     * CỐ Ý KHÔNG có @Transactional.
+     *
+     * Hàm này gọi OpenRouter ở giữa. Bọc cả hàm trong một transaction nghĩa là giữ một connection
+     * HikariCP suốt thời gian chờ mạng (mặc định pool chỉ 10) — OpenRouter chậm và ~10 người chat
+     * cùng lúc là cạn pool, kéo sập luôn trang chủ, đăng nhập, đặt lịch chứ không riêng chatbot.
+     *
+     * Bỏ transaction ở đây an toàn vì trình tự đã đúng sẵn: MỌI truy vấn nằm TRƯỚC lời gọi mạng,
+     * sau lời gọi chỉ còn đúng một lệnh save. Mỗi repository call tự chạy transaction riêng và trả
+     * connection ngay; `spring.jpa.open-in-view` (mặc định bật) giữ EntityManager cho cả request nên
+     * việc đọc quan hệ lazy vẫn chạy. NẾU sau này tắt open-in-view thì phải đọc hết ra biến String
+     * trong một method @Transactional riêng trước khi gọi API.
+     *
+     * Không có transaction bao ngoài còn giúp loadOrCreateSession bắt được va chạm khoá UNIQUE rồi
+     * đọc lại — trong một transaction chung thì transaction đã bị đánh dấu rollback-only và lần đọc
+     * lại đó cũng hỏng theo.
+     */
     public String chatWithMemory(String sessionId, String userPrompt) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
-        headers.set("HTTP-Referer", "http://localhost:8080");
-
         StringBuilder deptsInfo = new StringBuilder();
         try {
             List<Department> depts = departmentRepository.findAll();
@@ -279,7 +349,12 @@ public class AiService {
                     );
                 }
             }
-            return sessionRepository.save(newSession);
+            try {
+                return sessionRepository.saveAndFlush(newSession);
+            } catch (org.springframework.dao.DataIntegrityViolationException race) {
+                // Hai request cùng sessionId chạy song song — xem chú thích ở loadOrCreateSession().
+                return sessionRepository.findBySessionCode(sessionId).orElseThrow(() -> race);
+            }
         });
 
         try {
@@ -290,13 +365,22 @@ public class AiService {
 
             chatHistory.add(new AiMessage("user", userPrompt));
 
+            // Ký ức bền: moi lại `patient_summary` của lượt gần nhất.
+            // `(?:\\.|[^"\\])*` chứ KHÔNG phải `[^"]*` — model rất hay sinh dấu nháy đã escape
+            // ("đau bụng sau khi ăn \"bún riêu\""), và `[^"]*` dừng ngay ở dấu nháy đầu tiên nên
+            // hồ sơ bệnh nhân bị cắt cụt giữa chừng.
             String persistentMemory = "";
             for (int i = chatHistory.size() - 1; i >= 0; i--) {
                 AiMessage msg = chatHistory.get(i);
-                if ("assistant".equals(msg.getRole())) {
-                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"patient_summary\"\\s*:\\s*\"([^\"]*)\"").matcher(msg.getContent());
+                if ("assistant".equals(msg.getRole()) && msg.getContent() != null) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\"patient_summary\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"")
+                            .matcher(msg.getContent());
                     if (m.find()) {
-                        persistentMemory = m.group(1);
+                        persistentMemory = m.group(1)
+                                .replace("\\\"", "\"")
+                                .replace("\\n", "\n")
+                                .replace("\\\\", "\\");
                         break;
                     }
                 }
@@ -314,13 +398,22 @@ public class AiService {
                     java.util.Optional<com.bookinghealthy.model.MedicalRecord> record = medicalRecordRepository.findByBookingId(lastBooking.get().getId());
                     if (record.isPresent()) {
                         com.bookinghealthy.model.MedicalRecord rec = record.get();
+                        com.bookinghealthy.model.Doctor lastDoctor = lastBooking.get().getDoctor();
                         String doctorName = "Bác sĩ";
-                        if (lastBooking.get().getDoctor() != null && lastBooking.get().getDoctor().getUser() != null) {
-                            doctorName = lastBooking.get().getDoctor().getUser().getFullName();
+                        if (lastDoctor != null && lastDoctor.getUser() != null) {
+                            doctorName = lastDoctor.getUser().getFullName();
                         }
+                        // Bác sĩ có thể đã bị xoá hoặc chưa gán khoa. Dereference thẳng
+                        // getDoctor().getDepartment().getName() ở đây từng ném NPE, và vì cả hàm nằm
+                        // trong try/catch nên MỌI lượt chat của bệnh nhân đó chỉ nhận lại đúng câu
+                        // "Hệ thống bận. Thử lại sau." — mãi mãi, kể cả khi API AI hoàn toàn khoẻ.
+                        String lastDeptName = (lastDoctor != null && lastDoctor.getDepartment() != null
+                                && lastDoctor.getDepartment().getName() != null)
+                                ? lastDoctor.getDepartment().getName()
+                                : "không rõ";
                         dynamicSystemPrompt += "\n\n=== ⚠️ LỊCH SỬ BỆNH ÁN TRONG QUÁ KHỨ (CHỈ DÙNG ĐỂ TRẢ LỜI KHI KHÁCH HỎI BỆNH CŨ) ===\n" +
                                 "- Lần khám gần nhất: " + lastBooking.get().getAppointmentDate() + "\n" +
-                                "- Bác sĩ khám: " + doctorName + " (Khoa: " + lastBooking.get().getDoctor().getDepartment().getName() + ")\n" +
+                                "- Bác sĩ khám: " + doctorName + " (Khoa: " + lastDeptName + ")\n" +
                                 "- CHẨN ĐOÁN CỦA BÁC SĨ (BỆNH LÝ): " + (rec.getDiagnosis() != null ? rec.getDiagnosis() : "Không có") + "\n" +
                                 "- Triệu chứng lúc đó: " + (rec.getSymptoms() != null ? rec.getSymptoms() : "Không có") + "\n" +
                                 "- Lời dặn / Đơn thuốc: " + (rec.getDoctorNotes() != null ? rec.getDoctorNotes() : "Không có") + "\n" +
@@ -336,27 +429,21 @@ public class AiService {
             String enforcedPrompt = userPrompt + "\n\n(Lệnh hệ thống ngầm: Vẫn giữ nguyên tư duy phân luồng hiện tại, nhưng BẮT BUỘC JSON trả về phải có mảng `suggested_prompts` chứa 3 câu gợi ý ngắn gọn cho bệnh nhân).";
             messagesToSend.add(new AiMessage("user", enforcedPrompt));
 
-            String[] fallbackModels = { "openai/gpt-4o-mini", "openrouter/free", "google/gemini-2.0-flash-exp:free" };            for (String modelName : fallbackModels) {
-                try {
-                    AiRequest request = new AiRequest();
-                    request.setModel(modelName);
-                    request.setMessages(messagesToSend);
-                    request.setTemperature(0.2);
-
-                    AiResponse response = restTemplate.postForObject(apiUrl, new HttpEntity<>(request, headers), AiResponse.class);
-
-                    if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-                        String aiAnswer = response.getChoices().get(0).getMessage().getContent();
-                        chatHistory.add(new AiMessage("assistant", aiAnswer));
-                        chatSession.setChatHistoryJson(objectMapper.writeValueAsString(chatHistory));
-                        sessionRepository.save(chatSession);
-                        return aiAnswer;
-                    }
-                } catch (Exception e) {
-                    System.err.println("⚠️ Lỗi model: " + modelName);
-                }
+            String aiAnswer = callModels(messagesToSend, 0.2, sessionId);
+            if (aiAnswer != null) {
+                chatHistory.add(new AiMessage("assistant", aiAnswer));
+                chatSession.setChatHistoryJson(objectMapper.writeValueAsString(chatHistory));
+                sessionRepository.save(chatSession);
+                return aiAnswer;
             }
+
+            // Không model nào trả lời. Vẫn LƯU câu vừa hỏi của khách, nếu không thì lượt đó bốc hơi
+            // khỏi ký ức và khách hỏi lại "em vừa nói gì" thì trợ lý không biết.
+            chatSession.setChatHistoryJson(objectMapper.writeValueAsString(chatHistory));
+            sessionRepository.save(chatSession);
         } catch (Exception e) {
+            System.err.println("⚠️ [AI][" + sessionId + "] Lỗi xử lý hội thoại: "
+                    + e.getClass().getSimpleName() + " - " + e.getMessage());
             e.printStackTrace();
         }
         return "Hệ thống bận. Thử lại sau.";

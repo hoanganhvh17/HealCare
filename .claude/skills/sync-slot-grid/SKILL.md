@@ -52,6 +52,17 @@ Java) và nhãn chỉ hiện giờ bắt đầu. `id` theo dạng `t_HHmm`.
 > mốc `LocalTime.NOON`, không liệt kê lại lưới, nên **không phải** một nơi khai báo nữa. `extractSessionHint()`
 > ở `ai-chat.js` cũng chỉ trả về chữ `morning`/`afternoon` và không biết gì về giờ — giữ nguyên như vậy,
 > đừng map buổi ra giờ ở phía trình duyệt kẻo lưới có thêm nơi khai báo thứ 12.
+>
+> Cùng lý do đó, **trình duyệt không tự quyết định một giờ có nằm trong lưới hay không**. Nhánh "khách
+> nêu giờ cụ thể" của `resolveBookingHandoff` gọi `/api/chat/slot-alternatives` và để `resolveCanonicalSlot`
+> ở server trả lời. `isSlotBookable()` (hỏi `booked-slots`) **không** kiểm tra lưới — `booked-slots` chỉ
+> liệt kê các khung TRONG lưới nên mọi giờ ngoài lưới đều trông như còn trống — và chỉ được dùng cho
+> khung giờ do chính server sinh ra.
+
+> **Đang có nơi khai báo THỨ 12 chưa được dọn:** [DoctorAiController.java:197-201](../../../src/main/java/com/bookinghealthy/controller/api/DoctorAiController.java#L197-L201)
+> tự liệt kê một danh sách giờ riêng, lại còn chứa `17:30`/`18:00`/`18:30`/`19:00` — các khung ca tối
+> đã bị bỏ từ 24/07. Trợ lý của bác sĩ vì thế báo "rảnh lúc 18:30", một giờ mà bệnh nhân không thể đặt
+> ở bất kỳ đâu. Sửa lưới thì nhớ cả chỗ này, hoặc tốt hơn là cho nó dùng chung `ALL_SLOTS`.
 
 ## Sau khi sửa
 

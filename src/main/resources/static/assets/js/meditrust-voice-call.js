@@ -414,6 +414,31 @@
 
         var spoken = aiData.speech_reply || V().toSpeechText(aiData.ai_reply);
 
+        // Việc đặt lịch hỏng vì hệ thống. Handoff dạng này KHÔNG có bác sĩ lẫn khung giờ, nên nếu
+        // để rơi xuống nhánh xác nhận bên dưới thì một tiếng "vâng" sẽ chốt một lịch hẹn rỗng.
+        if (payload.bookingHandoff && payload.bookingHandoff.error) {
+            var WHY_VOICE = {
+                NETWORK: 'Dạ em chưa kết nối được tới danh sách bác sĩ. Anh/chị thử lại giúp em ạ.',
+                NO_DOCTORS: 'Dạ chuyên khoa này hiện chưa có bác sĩ nào nhận lịch ạ.',
+                NO_DEPARTMENT: 'Dạ em chưa rõ anh/chị muốn khám chuyên khoa nào. Anh/chị mô tả thêm triệu chứng giúp em ạ.'
+            };
+            awaitingConfirm = null;
+            say(WHY_VOICE[payload.bookingHandoff.error] || WHY_VOICE.NETWORK,
+                function () { startListening(); });
+            return;
+        }
+
+        // Nhiều bác sĩ trùng tên: đọc danh sách ra để khách chọn, tuyệt đối không tự quyết.
+        if (payload.bookingHandoff && payload.bookingHandoff.doctorAmbiguous) {
+            var names = (payload.bookingHandoff.candidates || []).map(function (d) { return d.fullName; });
+            awaitingConfirm = null;
+            say('Dạ bên em có ' + names.length + ' bác sĩ cùng tên '
+                + payload.bookingHandoff.requestedDoctorName + ': ' + names.join(', ')
+                + '. Anh/chị chọn giúp em một người ạ?',
+                function () { startListening(); });
+            return;
+        }
+
         // Khách nêu đích danh bác sĩ nhưng hệ thống không tìm ra: phải nói thật,
         // không được lặng lẽ chốt sang bác sĩ khác.
         if (payload.bookingHandoff && payload.bookingHandoff.doctorNotFound) {
