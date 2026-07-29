@@ -152,5 +152,9 @@ The prompt's section 0 forces the assistant to call itself **"em"** and the pati
 ## Other surfaces
 Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiController`, `DoctorAssistantService`, with the `AiRule` entity for configurable rules.
 
+`DoctorAiController` computes "nearest free slot" for the logged-in doctor. It **reads the grid from `TimeSlotService.allSlots()`** and filters it through `BookingService.slotsOutsideWorkingHours` — it must never list slot times of its own. Its old private copy still contained the evening slots dropped on 24/07, so the assistant told doctors they were "rảnh lúc 18:30", a time no patient can book, and it ignored `Schedule` entirely so it offered slots on days the doctor was off. It also skips a booking whose `appointmentTime` will not parse; one odd row used to 500 the entire assistant.
+
+**`/api/doctor/chat/**` is DOCTOR-only and `/api/admin/chat/**` is ADMIN-only, declared in block 0 of `SecurityConfig`** — see the matcher-order section in [authentication-and-roles.md](authentication-and-roles.md) for why they cannot live lower down.
+
 ## Housekeeping
 A `@Scheduled` job (`0 0 2 * * ?`) purges guest chat sessions older than 7 days. Scheduling is enabled by `SchedulerConfig`; async support by `@EnableAsync` on the main application class.

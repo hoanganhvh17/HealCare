@@ -41,6 +41,20 @@ public class TimeSlotService {
             "15:30 - 16:00", "16:00 - 16:30", "16:30 - 17:00", "17:00 - 17:30"
     };
 
+    /**
+     * Cả 16 khung giờ theo thứ tự trong ngày, dạng "HH:mm - HH:mm".
+     *
+     * Mở ra để nơi khác ĐỌC LẠI lưới thay vì tự liệt kê thêm một bản nữa —
+     * `DoctorAiController` từng có bản sao riêng và bản đó còn sót các khung ca tối
+     * (17:30/18:00/18:30/19:00) đã bị bỏ từ 24/07, nên trợ lý báo bác sĩ "rảnh lúc 18:30",
+     * một giờ mà bệnh nhân không thể đặt ở bất kỳ đâu. Xem `/skills/sync-slot-grid`.
+     */
+    public List<String> allSlots() {
+        List<String> all = new ArrayList<>(List.of(MORNING_SLOTS));
+        all.addAll(List.of(AFTERNOON_SLOTS));
+        return all;
+    }
+
     public List<TimeSlotDTO> getAvailableSlots(Long doctorId, LocalDate date, List<Schedule> workingSchedules) {
         List<TimeSlotDTO> allSlots = new ArrayList<>();
 

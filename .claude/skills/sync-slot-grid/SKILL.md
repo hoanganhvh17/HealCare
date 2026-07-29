@@ -59,10 +59,11 @@ Java) và nhãn chỉ hiện giờ bắt đầu. `id` theo dạng `t_HHmm`.
 > liệt kê các khung TRONG lưới nên mọi giờ ngoài lưới đều trông như còn trống — và chỉ được dùng cho
 > khung giờ do chính server sinh ra.
 
-> **Đang có nơi khai báo THỨ 12 chưa được dọn:** [DoctorAiController.java:197-201](../../../src/main/java/com/bookinghealthy/controller/api/DoctorAiController.java#L197-L201)
-> tự liệt kê một danh sách giờ riêng, lại còn chứa `17:30`/`18:00`/`18:30`/`19:00` — các khung ca tối
-> đã bị bỏ từ 24/07. Trợ lý của bác sĩ vì thế báo "rảnh lúc 18:30", một giờ mà bệnh nhân không thể đặt
-> ở bất kỳ đâu. Sửa lưới thì nhớ cả chỗ này, hoặc tốt hơn là cho nó dùng chung `ALL_SLOTS`.
+> `DoctorAiController` **từng** là nơi khai báo thứ 12 (và bản sao đó còn sót `17:30`/`18:00`/`18:30`/`19:00`
+> — các khung ca tối đã bỏ từ 24/07 — nên trợ lý báo bác sĩ "rảnh lúc 18:30", giờ mà bệnh nhân không
+> đặt được ở đâu cả). Nay nó gọi `TimeSlotService.allSlots()` và lọc tiếp qua
+> `BookingService.slotsOutsideWorkingHours`, nên **không còn là một nơi khai báo**. Giữ nguyên như vậy:
+> nơi nào cần đọc cả lưới thì gọi `allSlots()`, đừng liệt kê lại.
 
 ## Sau khi sửa
 

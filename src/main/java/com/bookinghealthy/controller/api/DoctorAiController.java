@@ -36,6 +36,12 @@ public class DoctorAiController {
     @Autowired private ReviewRepository reviewRepository;
     @Autowired private ReviewService reviewService;
 
+    /** Nguồn lưới khung giờ dùng chung — xem chú thích ở chỗ tính "giờ trống gần nhất". */
+    @Autowired private com.bookinghealthy.service.TimeSlotService timeSlotService;
+
+    /** Đường DUY NHẤT được phép tới ca khám đã đăng ký (ScheduleRepository.findEffective). */
+    @Autowired private com.bookinghealthy.service.BookingService bookingService;
+
     private Optional<User> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
@@ -170,9 +176,23 @@ public class DoctorAiController {
             for (Booking b : upcomingBookings) {
                 String patientName = b.getUser() != null ? b.getUser().getFullName() : "Khách vãng lai";
                 String fullTimeStr = b.getAppointmentTime();
-                String startTimeStr = fullTimeStr.split("-")[0].trim();
 
-                java.time.LocalTime appointmentLocalTime = java.time.LocalTime.parse(startTimeStr);
+                // Một dòng booking có appointmentTime lạ (null, "Sáng", "8h30" của dữ liệu cũ) từng
+                // làm LocalTime.parse ném ra ngoài controller -> HTTP 500 cho TOÀN BỘ trợ lý bác sĩ,
+                // chứ không riêng ca đó. Bỏ qua dòng hỏng, phần còn lại vẫn dùng được.
+                java.time.LocalTime appointmentLocalTime = null;
+                String startTimeStr = null;
+                if (fullTimeStr != null) {
+                    startTimeStr = fullTimeStr.split("-")[0].trim();
+                    try {
+                        appointmentLocalTime = java.time.LocalTime.parse(startTimeStr);
+                    } catch (Exception badTime) {
+                        System.err.println("[DoctorAi] Bỏ qua booking #" + b.getId()
+                                + " vì giờ khám không đọc được: " + fullTimeStr);
+                    }
+                }
+                if (appointmentLocalTime == null) continue;
+
                 String dateStr = b.getAppointmentDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
                 scheduleDetails.append(String.format("- Ngày %s | Giờ: %s | Bệnh nhân: %s | Trạng thái: %s\n",
@@ -194,24 +214,35 @@ public class DoctorAiController {
         }
 
         // 2. THUẬT TOÁN TÌM GIỜ TRỐNG GẦN NHẤT
-        List<String> allWorkingSlots = List.of(
-                "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-                "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
-                "17:30", "18:00", "18:30", "19:00"
-        );
+        //
+        // Lưới khung giờ ĐỌC LẠI từ TimeSlotService, tuyệt đối không liệt kê ở đây. Bản sao cũ nằm
+        // ngay chỗ này còn sót 17:30/18:00/18:30/19:00 — các khung ca tối đã bị bỏ từ 24/07 — nên
+        // trợ lý trả lời bác sĩ "rảnh lúc 18:30", một giờ mà bệnh nhân không đặt được ở đâu cả.
+        //
+        // Và phải lọc theo CA KHÁM bác sĩ đã đăng ký (BookingService là đường duy nhất được phép tới
+        // ScheduleRepository.findEffective), nếu không thì ngày bác sĩ nghỉ vẫn báo "trống lúc 07:30".
+        List<String> gridSlots = timeSlotService.allSlots();
+        Set<String> offDutyToday = new HashSet<>(
+                bookingService.slotsOutsideWorkingHours(doctor.getId(), today, gridSlots));
+        Set<String> offDutyTomorrow = new HashSet<>(
+                bookingService.slotsOutsideWorkingHours(doctor.getId(), tomorrow, gridSlots));
 
-        for (String slot : allWorkingSlots) {
-            java.time.LocalTime slotTime = java.time.LocalTime.parse(slot);
-            if (slotTime.isAfter(nowTime) && !bookedToday.contains(slot)) {
-                nextEmptySlotStr = String.format("Lúc **%s** Hôm nay (%s)", slot, today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        for (String slot : gridSlots) {
+            if (offDutyToday.contains(slot)) continue;
+            String start = slot.split(" - ")[0].trim();
+            java.time.LocalTime slotTime = java.time.LocalTime.parse(start);
+            if (slotTime.isAfter(nowTime) && !bookedToday.contains(start)) {
+                nextEmptySlotStr = String.format("Lúc **%s** Hôm nay (%s)", start, today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
                 foundNextEmpty = true;
                 break;
             }
         }
         if (!foundNextEmpty) {
-            for (String slot : allWorkingSlots) {
-                if (!bookedTomorrow.contains(slot)) {
-                    nextEmptySlotStr = String.format("Lúc **%s** Ngày mai (%s)", slot, tomorrow.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            for (String slot : gridSlots) {
+                if (offDutyTomorrow.contains(slot)) continue;
+                String start = slot.split(" - ")[0].trim();
+                if (!bookedTomorrow.contains(start)) {
+                    nextEmptySlotStr = String.format("Lúc **%s** Ngày mai (%s)", start, tomorrow.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
                     break;
                 }
             }

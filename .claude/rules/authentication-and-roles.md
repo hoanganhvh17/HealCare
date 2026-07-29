@@ -13,6 +13,13 @@
 
 **When adding a route, add it to the correct matcher block.** Anything not whitelisted falls through to `anyRequest().authenticated()` and will silently redirect anonymous visitors to the login page.
 
+## Matcher order is load-bearing
+Spring Security applies the **first matching rule**, so a narrow rule must be declared **above** any broader one that would also match. Block 0 at the top of `filterChain` exists for exactly that: `/api/doctor/chat/**` and `/api/admin/chat/**` are declared there, *before* the `permitAll` list.
+
+Both were previously declared further down and were dead. `/api/doctor/**` sat in the `permitAll` block to open `/api/doctor/{id}`, but `DoctorAiController` is `@RequestMapping("/api/doctor/chat")`, so the whole doctor AI assistant fell inside that whitelist and the `hasRole("DOCTOR")` line below never ran — anonymous callers could read patient names, diagnoses and schedules. **Put any new restricted `/api/...` rule in block 0.**
+
+The mirror-image trap: `/api/doctor/**` does **not** cover `/api/doctors/search`, because AntPathMatcher compares whole path segments and `doctor` ≠ `doctors`. That endpoint therefore fell through to `anyRequest().authenticated()`, so the AI assistant's doctor-name lookup 302'd to `/login` for anonymous patients and silently degraded to the `/api/doctors` fallback. It is now covered by `/api/doctors/**`.
+
 ## Login flows
 - Form login **plus OAuth2** (Google and Facebook).
 - A custom `successHandler` redirects by role: ADMIN → `/admin/dashboard`, DOCTOR → `/doctor/dashboard`, RECEPTIONIST → `/receptionist/dashboard`, **HEAD_DOCTOR → `/head/dashboard`**, USER → `/`. `OAuth2LoginSuccessHandler` mirrors the same branches — update both together. The **HEAD_DOCTOR branch is checked *after* DOCTOR** on purpose: a seeded head doctor keeps `ROLE_DOCTOR` and so still lands on `/doctor/dashboard`; the branch only catches a **head-doctor-only** account (e.g. one an admin promoted without `ROLE_DOCTOR`), which would otherwise fall through to `/` and look like a patient.

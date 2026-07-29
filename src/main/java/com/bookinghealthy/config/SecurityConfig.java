@@ -44,6 +44,10 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
+                        // Thêm luật mới cho /api/doctor/** hay /admin/** thì đặt ở ĐÂY, đừng đặt xuống dưới.
+                        .requestMatchers("/api/doctor/chat/**").hasRole("DOCTOR")
+                        .requestMatchers("/api/admin/chat/**").hasRole("ADMIN")
+
                         // --- 1. CÁC TRANG CÔNG KHAI (AI CŨNG XEM ĐƯỢC) ---
                         .requestMatchers(
                                 "/", "/home",             // Trang chủ
@@ -64,7 +68,8 @@ public class SecurityConfig {
                                 "/services", "/service-details/**",      // Cho phép /services VÀ /service-details/1...
                                 "/departments", "/department-details/**",// Cho phép /departments VÀ /department-details/1...
                                 "/api/doctors",                 // Lấy danh sách bác sĩ
-                                "/api/doctor/**",               // Lấy chi tiết 1 bác sĩ
+                                "/api/doctors/**",              // Tìm bác sĩ theo tên (trợ lý AI dùng)
+                                "/api/doctor/**",               // Lấy chi tiết 1 bác sĩ (/api/doctor/{id})
                                 "/api/bookings/booked-slots"
                         ).permitAll()
 
@@ -77,10 +82,10 @@ public class SecurityConfig {
 
                         // --- 3. PHÂN QUYỀN ADMIN (BẮT BUỘC ROLE_ADMIN) ---
                         // Sửa: Dùng "/admin/**" để bao gồm TẤT CẢ các trang con
-                        .requestMatchers("/admin/**", "/api/admin/chat/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         // --- 4. PHÂN QUYỀN BÁC SĨ (BẮT BUỘC ROLE_DOCTOR) ---
-                        .requestMatchers("/doctor/**", "/api/doctor/chat/**").hasRole("DOCTOR")
+                        .requestMatchers("/doctor/**").hasRole("DOCTOR")
 
                         // --- 4b. PHÂN QUYỀN LỄ TÂN (BẮT BUỘC ROLE_RECEPTIONIST) ---
                         .requestMatchers("/receptionist/**").hasRole("RECEPTIONIST")
