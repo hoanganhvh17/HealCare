@@ -15,6 +15,16 @@ This is the whole point of the subsystem, and it is easy to break:
 
   **Only the next-week registration can write `Schedule`.** `DoctorService.registerSchedule` and `deleteSchedule` (plus the `GET /doctor/schedule/delete/{id}` route) were removed — they were orphaned when `schedule-register.html` was deleted, and each bypassed both the week lock and the "≥1 ca mỗi ngày" rule.
 
+  **Trưởng khoa xếp ca cho cả khoa** — `/head/clinic-roster` (`HeadRosterController`), a doctors × 7 weekdays × (Sáng/Chiều) checkbox grid saved in one shot via `StaffScheduleService.assignClinicWeek`. This is the *active* counterpart to the old "Chốt & tự xếp lịch" button, which only ran `autoRegisterUnregisteredDoctors` and chose nobody. It reuses `replaceClinicSchedules` + `markRegisteredForNextWeek`, so the week lock still holds. Three rules, all load-bearing:
+
+  - **Coverage is checked per DEPARTMENT, not per doctor**: every weekday needs ≥1 doctor on ca sáng and ≥1 on ca chiều (`missingCoverageMessage`). `missingDaysMessage` (every doctor, every day) is the rule for *self*-registration only — applying it here would make it impossible for a head to give anyone a day off.
+  - **But every doctor still needs ≥1 session somewhere in the week** (`emptyWeekMessage`), unless approved leave covers all 7 days. A completely empty week is *unrepresentable*: `replaceClinicSchedules` deletes that week's rows, and `findEffective` reads "no rows for this week" as "not registered" and falls back to the doctor's previous pattern — so the saved roster would silently differ from what patients can book, and the grid would re-tick the old pattern next time.
+  - The head is **not** bound by `LeavePolicy.CLINIC_DEADLINE_*` (Chủ nhật 22:00) since they are the one who closes the schedule; they are still limited to **next week**.
+
+  Cells for days the doctor has blocking leave render as "Nghỉ" and are re-checked server-side. Doctors whose effective schedule actually changed get an email **and** a `Notification`; opening the grid and saving it unchanged notifies nobody (`changesEffectiveSchedule` compares against `findEffective`, not against that week's rows).
+
+  **Trưởng khoa phân công trực** — `POST /head/duty-roster/assign` → `assignDutyShift`, a modal on `/head/duty-roster` (the "chưa có ai trực" badges prefill the date). It runs the **same** `validateShift` as self-registration, so every legal rule survives; the only difference is the shift is created `APPROVED` with the head as approver, since the person assigning is the person who would approve. Clinic shift types are rejected here, as in `registerShift`.
+
   **Weekly registration lifecycle.** `StaffProfile.clinicRegisteredForWeek` (a Monday date) records which week a doctor last registered for; `saveClinicTemplate` sets it to `nextWeekStart()`. Registration closes at the deadline in `LeavePolicy.CLINIC_DEADLINE_DAY`/`_TIME` (**Chủ nhật 22:00**, the moment the cron finalizes the week): after it `saveClinicTemplate` rejects, the checkbox grid renders disabled with no submit button, and the bell stops nagging. `ClinicRegistrationTask` runs two Sunday crons: 08:00 emails doctors who haven't registered for next week (`sendNextWeekRegistrationReminders`), 22:00 auto-fills a full week (every day ≥1 morning) for anyone still unregistered (`autoRegisterUnregisteredDoctors`) and emails them. The bell (`/api/staff/notifications`) shows the same reminder from Thursday onward. A trưởng khoa can trigger both manually per department from `/head/dashboard` (`POST /head/clinic/remind` and `/head/clinic/finalize`).
 
   On the calendar, clinic blocks outside next week come back with `readOnly = true` and a `statusLabel` of "Ca khám đã chốt" / "Ca khám dự kiến"; `work-schedule.js` adds `.ws-locked` (dimmed, padlock) so a doctor can see at a glance which week they may still edit.
@@ -43,15 +53,30 @@ Duty start times must therefore be **≥ 17:30**. This is why the weekday full-c
 
 `LeavePolicy.HEAVY_DEPARTMENTS` lists the departments seeded as `WorkCondition.HEAVY` (14 ngày): Cấp cứu, Gây mê hồi sức, Ung bướu, Chẩn đoán hình ảnh, Tâm thần, Huyết học.
 
+### Đơn / ca đã hết hiệu lực không còn ra quyết định được
+`LeaveService.whyCannotDecide(request)` and `StaffScheduleService.whyCannotDecideShift(shift)` are the single source of truth for "can the head still act on this": `null` = yes, otherwise the Vietnamese reason. Both reject a **CANCELED** item and one whose period has already elapsed (`endDate < today`, `getEndsAt() < now`). `approve`/`reject` call them first, and the two head screens use them to hide the buttons and show an "Đã hết hiệu lực" badge — so a crafted POST is refused too. Approving a finished leave would generate `DoctorBlockTime` for past dates and wrongly consume the year's quota; approving a finished duty shift would generate compensatory leave nobody can take.
+
+**Only the shared conditions live in those methods.** "Already APPROVED" belongs to `approve`/`approveShift` alone, because **rejecting an already-approved item is how a head revokes a decision** (`reject` calls `removeBlockTimes`). `rejectShift` also gained the status guard it never had — it used to overwrite an APPROVED or CANCELED shift.
+
+Because both decisions are now blocked, an elapsed PENDING request would sit in the queue forever, so `HeadApprovalController` splits the list into `requests` and `expiredRequests` (a collapsed table at the bottom), and `LeaveService.countPendingInDepartment` **counts only what is still actionable** (`AND l.endDate >= :today` in the repository query) — the dashboard tiles and the notification bell both read that number, and a badge that can never be cleared is worse than no badge. No new `ApprovalStatus` constant was added on purpose: it is a native MySQL `ENUM(...)` column (see [environment-setup.md](environment-setup.md)).
+
+### Thông báo trong ứng dụng (`Notification`)
+Every head-doctor decision now writes a row to `notifications` **in addition to** the email, because `EmailServiceImpl` is `@Async` and swallows failures into `System.err` — a doctor had no reliable way to learn whether their request was approved.
+
+- `NotificationService.push(recipient, icon, title, message, link)` is called right beside the existing `emailService.sendStaffNotification` in `LeaveServiceImpl.notifyDecision`, `StaffScheduleServiceImpl.notifyShiftDecision`, `autoRegisterUnregisteredDoctors`, and both new head assignment paths. Keep the pair together so the bell and the inbox never tell different stories.
+- `GET /api/staff/notifications` merges the stored rows (with `id`, `link`, `read`, `time`) **first**, then the still-computed reminders (unregistered week, cover invitations, own shifts needing cover, head's pending queue) — those must stay computed because they have to disappear on their own when the underlying work is done. It also returns `unreadCount`; `POST /api/staff/notifications/read` clears it.
+- The old *computed* "đơn nghỉ đã có quyết định trong 7 ngày" contributor was **removed**: with decisions persisted it would list every decision twice.
+- The bell markup moved into the shared `doctor/include/header :: header-nav` fragment (see [coding-conventions.md](coding-conventions.md)) so it appears on every doctor / head / receptionist page, not only the calendar page.
+
 ### Approved leave blocks the booking calendar
 `LeaveServiceImpl.approve()` generates `DoctorBlockTime` rows tagged with `leaveRequestId` for every date in range (full day, or the half-day window from `HalfDaySession`). Rejecting or cancelling deletes them by that tag, so a doctor's own manual blocks are never touched. **This is the only integration point with booking — reuse it rather than teaching booking code about leave.** Emergency requests ("Báo bận đột xuất", `emergency = true`) create the blocks immediately at submit time and are approved afterwards.
 
 `LeaveService.countAffectedBookings` feeds the warning on the approval screen, which links to the existing receptionist bulk cancel/transfer tool.
 
 ### Entities
-`StaffProfile` (hireDate, workCondition, BHXH years, `headOfDepartment`), `StaffShift`, `LeaveRequest`, `ShiftCoverRequest`, all keyed on **`User`** so receptionists work too. `StaffProfile` is a separate table on purpose: `User`/`Doctor`/`Department` use positional `@AllArgsConstructor` in `DataInitializer`, so adding fields there would break seeding.
+`StaffProfile` (hireDate, workCondition, BHXH years, `headOfDepartment`), `StaffShift`, `LeaveRequest`, `ShiftCoverRequest`, `Notification`, all keyed on **`User`** so receptionists work too. `StaffProfile` is a separate table on purpose: `User`/`Doctor`/`Department` use positional `@AllArgsConstructor` in `DataInitializer`, so adding fields there would break seeding.
 
-Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveService`, `ShiftCoverService`. `CurrentUserService` resolves the principal (UserDetails or OAuth2User) for all of them.
+Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveService`, `ShiftCoverService`, `NotificationService`. `CurrentUserService` resolves the principal (UserDetails or OAuth2User) for all of them.
 
 ## Wallet & transactions
 `User.balance` (a `BigDecimal` on the user) plus a `WalletTransaction` ledger typed by `TransactionType`. `WalletService` handles debit (`payWithWallet`, returns `false` on insufficient funds rather than throwing) and `refundToWallet`. Booking cancellations refund to the wallet.

@@ -29,9 +29,6 @@
         els.body = document.getElementById('wsCalendarBody');
         els.title = document.getElementById('wsCalendarTitle');
         els.searchInput = document.getElementById('wsSearchInput');
-        els.notifList = document.getElementById('wsNotifList');
-        els.notifDot = document.getElementById('wsNotifDot');
-        els.notifCount = document.getElementById('wsNotifCount');
         els.segmented = document.getElementById('wsSegmented');
 
         if (!els.body) {
@@ -45,7 +42,6 @@
         bindLeaveForm();
         bindClinicPicker();
 
-        loadNotifications();
         reload();
     });
 
@@ -564,40 +560,8 @@
         });
     }
 
-    // ===================== THÔNG BÁO =====================
-
-    function loadNotifications() {
-        if (!els.notifList) {
-            return;
-        }
-
-        fetch('/api/staff/notifications')
-            .then(function (res) { return res.ok ? res.json() : { count: 0, items: [] }; })
-            .then(function (data) {
-                var items = data.items || [];
-                toggle(els.notifDot, items.length > 0);
-                if (els.notifCount) {
-                    els.notifCount.textContent = items.length;
-                }
-
-                if (!items.length) {
-                    els.notifList.innerHTML = '<div class="ws-empty">Không có thông báo mới.</div>';
-                    return;
-                }
-
-                els.notifList.innerHTML = '';
-                items.forEach(function (item) {
-                    var row = el('div', 'ws-notif-item');
-                    row.innerHTML = '<i class="bi ' + escapeHtml(item.icon) + '"></i>'
-                        + '<div><div class="ws-notif-title">' + escapeHtml(item.title) + '</div>'
-                        + '<div class="ws-notif-sub">' + escapeHtml(item.subtitle || '') + '</div></div>';
-                    els.notifList.appendChild(row);
-                });
-            })
-            .catch(function () {
-                els.notifList.innerHTML = '<div class="ws-empty">Không tải được thông báo.</div>';
-            });
-    }
+    // Chuông thông báo đã chuyển sang assets/js/staff-notifications.js: file này thoát sớm
+    // khi không thấy lưới lịch, nên để chuông ở đây là nó chỉ sống trên đúng trang này.
 
     // ===================== TIỆN ÍCH =====================
 
@@ -627,12 +591,6 @@
         if (node) {
             node.textContent = text;
         }
-    }
-
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text == null ? '' : text;
-        return div.innerHTML;
     }
 
     function pad(value) {

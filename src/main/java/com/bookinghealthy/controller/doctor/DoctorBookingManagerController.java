@@ -1,9 +1,9 @@
 package com.bookinghealthy.controller.doctor;
 
 import com.bookinghealthy.model.Booking;
-import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.repository.BookingRepository;
+import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.DoctorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -13,8 +13,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/doctor")
@@ -25,6 +26,9 @@ public class DoctorBookingManagerController {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private BookingService bookingService;
 
     private Doctor getLoggedInDoctor(Authentication authentication) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -44,8 +48,25 @@ public class DoctorBookingManagerController {
         allBookings.sort((b1, b2) -> b2.getCreatedAt().compareTo(b1.getCreatedAt()));
 
         model.addAttribute("listBookings", allBookings);
+        model.addAttribute("actionBlockReasons", buildActionBlockReasons(allBookings));
         model.addAttribute("activePage", "manage-bookings"); // Để highlight menu
 
         return "doctor/booking-manager";
+    }
+
+    /**
+     * Lý do từng lịch hẹn không còn được thao tác (id -> câu tiếng Việt). Không có khóa nghĩa
+     * là còn thao tác được. Cùng một hàm kiểm tra với controller xử lý xác nhận/hủy nên giao
+     * diện và server không bao giờ nói khác nhau.
+     */
+    private Map<Long, String> buildActionBlockReasons(List<Booking> bookings) {
+        Map<Long, String> reasons = new HashMap<>();
+        for (Booking booking : bookings) {
+            String reason = bookingService.whyStaffCannotChange(booking);
+            if (reason != null) {
+                reasons.put(booking.getId(), reason);
+            }
+        }
+        return reasons;
     }
 }

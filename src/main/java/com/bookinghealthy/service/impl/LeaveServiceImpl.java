@@ -7,6 +7,7 @@ import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.*;
 import com.bookinghealthy.service.EmailService;
 import com.bookinghealthy.service.LeaveService;
+import com.bookinghealthy.service.NotificationService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class LeaveServiceImpl implements LeaveService {
     @Autowired private DoctorBlockTimeRepository doctorBlockTimeRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     // ===================== HỒ SƠ & SỐ DƯ =====================
 
@@ -322,6 +324,28 @@ public class LeaveServiceImpl implements LeaveService {
         return null;
     }
 
+    /**
+     * Chỉ chứa những điều kiện chung cho CẢ duyệt và từ chối. Riêng "đã duyệt rồi" thuộc về
+     * {@code approve}, vì từ chối một đơn đã duyệt chính là cách trưởng khoa thu hồi quyết
+     * định (và gỡ lại các khung giờ đã chặn).
+     */
+    @Override
+    public String whyCannotDecide(LeaveRequest request) {
+        if (request == null) {
+            return "Không tìm thấy đơn nghỉ.";
+        }
+        if (request.getStatus() == ApprovalStatus.CANCELED) {
+            return "Đơn đã bị nhân viên hủy, không xử lý được nữa.";
+        }
+        // Kỳ nghỉ đã kết thúc thì quyết định không còn tác dụng gì: chặn giờ cho ngày quá khứ
+        // là vô nghĩa, còn duyệt thì lại trừ vào số dư phép của năm.
+        if (request.getEndDate() != null && request.getEndDate().isBefore(LocalDate.now())) {
+            return "Kỳ nghỉ đã kết thúc ngày " + request.getEndDate().format(DATE_FORMAT)
+                    + " nên đơn không còn hiệu lực để xử lý.";
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public String approve(Long leaveId, User approver, String comment) {
@@ -331,11 +355,12 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest request = found.get();
+        String blocked = whyCannotDecide(request);
+        if (blocked != null) {
+            return blocked;
+        }
         if (request.getStatus() == ApprovalStatus.APPROVED) {
             return "Đơn này đã được duyệt trước đó.";
-        }
-        if (request.getStatus() == ApprovalStatus.CANCELED) {
-            return "Đơn đã bị nhân viên hủy, không duyệt được nữa.";
         }
 
         request.setStatus(ApprovalStatus.APPROVED);
@@ -358,8 +383,9 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest request = found.get();
-        if (request.getStatus() == ApprovalStatus.CANCELED) {
-            return "Đơn đã bị nhân viên hủy.";
+        String blocked = whyCannotDecide(request);
+        if (blocked != null) {
+            return blocked;
         }
 
         request.setStatus(ApprovalStatus.REJECTED);
@@ -374,6 +400,11 @@ public class LeaveServiceImpl implements LeaveService {
         return null;
     }
 
+    /**
+     * Báo kết quả cho người gửi đơn qua CẢ email VÀ thông báo trong ứng dụng: email có thể
+     * vào spam hoặc thất bại âm thầm (gửi bất đồng bộ), nên nếu chỉ có email thì bác sĩ
+     * không biết đơn của mình được duyệt hay không.
+     */
     private void notifyDecision(LeaveRequest request, String verb) {
         String range = request.getStartDate().format(DATE_FORMAT)
                 + (request.getStartDate().equals(request.getEndDate())
@@ -394,6 +425,20 @@ public class LeaveServiceImpl implements LeaveService {
                 "MediTrust - Kết quả đơn nghỉ phép",
                 "Đơn nghỉ phép " + verb,
                 body.toString());
+
+        boolean approved = request.getStatus() == ApprovalStatus.APPROVED;
+        StringBuilder note = new StringBuilder(request.getLeaveType().getLabel())
+                .append(" • ").append(range);
+        if (request.getApproverComment() != null && !request.getApproverComment().isBlank()) {
+            note.append(" • Lời phê: “").append(request.getApproverComment()).append("”");
+        }
+
+        notificationService.push(
+                request.getUser(),
+                approved ? "bi-check-circle text-success" : "bi-x-circle text-danger",
+                "Đơn nghỉ phép " + verb,
+                note.toString(),
+                "/doctor/work-schedule");
     }
 
     // ===================== CHẶN LỊCH KHÁM =====================
@@ -461,7 +506,8 @@ public class LeaveServiceImpl implements LeaveService {
         if (departmentId == null) {
             return 0;
         }
-        return leaveRequestRepository.countByDepartmentAndStatus(departmentId, ApprovalStatus.PENDING);
+        return leaveRequestRepository.countByDepartmentAndStatus(
+                departmentId, ApprovalStatus.PENDING, LocalDate.now());
     }
 
     @Override

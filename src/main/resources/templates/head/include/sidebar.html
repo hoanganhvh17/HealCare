@@ -23,6 +23,14 @@
         </li>
 
         <li class="nav-item">
+            <a class="nav-link" th:classappend="${activePage != 'clinic-roster'} ? 'collapsed' : ''"
+               th:href="@{/head/clinic-roster}">
+                <i class="bi bi-calendar2-week"></i>
+                <span>Xếp ca khoa</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
             <a class="nav-link" th:classappend="${activePage != 'duty-roster'} ? 'collapsed' : ''"
                th:href="@{/head/duty-roster}">
                 <i class="bi bi-clipboard-check"></i>

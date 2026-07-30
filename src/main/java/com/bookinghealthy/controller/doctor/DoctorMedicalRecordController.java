@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.AllergyRepository;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -119,6 +120,14 @@ public class DoctorMedicalRecordController {
         }
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
             ra.addFlashAttribute("errorMessage", "Lịch hẹn không hợp lệ để khám (Phải ở trạng thái Đã xác nhận).");
+            return "redirect:/doctor/examinations";
+        }
+
+        // Luật "chỉ khám đúng ngày hẹn" trước đây chỉ nằm trong template, nên một URL gõ tay
+        // vẫn mở được form khám cho ca của tuần trước hoặc tuần sau.
+        if (!LocalDate.now().equals(booking.getAppointmentDate())) {
+            ra.addFlashAttribute("errorMessage", "Chỉ được khám vào đúng ngày hẹn ("
+                    + booking.getAppointmentDate() + ").");
             return "redirect:/doctor/examinations";
         }
 

@@ -2,7 +2,9 @@ package com.bookinghealthy.controller.head;
 
 import com.bookinghealthy.model.ApprovalStatus;
 import com.bookinghealthy.model.Department;
+import com.bookinghealthy.model.DutyRole;
 import com.bookinghealthy.model.LeaveRequest;
+import com.bookinghealthy.model.ShiftType;
 import com.bookinghealthy.model.StaffShift;
 import com.bookinghealthy.model.User;
 import com.bookinghealthy.service.CurrentUserService;
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +56,16 @@ public class HeadApprovalController {
         LocalDate today = LocalDate.now();
         LocalDate weekAhead = today.plusDays(7);
 
-        List<LeaveRequest> pendingLeaves = leaveService.findByDepartment(department.getId(), ApprovalStatus.PENDING);
+        // Chỉ đếm những việc trưởng khoa CÒN xử lý được: đơn nghỉ đã hết hiệu lực và ca trực
+        // đã trực xong không duyệt được nữa, để lên đây chỉ làm con số báo động sai.
+        List<LeaveRequest> pendingLeaves = leaveService
+                .findByDepartment(department.getId(), ApprovalStatus.PENDING).stream()
+                .filter(leave -> leaveService.whyCannotDecide(leave) == null)
+                .toList();
         List<StaffShift> pendingShifts = staffScheduleService
-                .findDepartmentShiftsByStatus(department.getId(), ApprovalStatus.PENDING);
+                .findDepartmentShiftsByStatus(department.getId(), ApprovalStatus.PENDING).stream()
+                .filter(shift -> staffScheduleService.whyCannotDecideShift(shift) == null)
+                .toList();
         List<LocalDate> uncovered = staffScheduleService
                 .findUncoveredDutyDates(department.getId(), today, weekAhead);
 
@@ -78,7 +88,7 @@ public class HeadApprovalController {
         Department department = currentUserService.resolveHeadDepartment(user);
         ApprovalStatus filter = (status != null) ? status : ApprovalStatus.PENDING;
 
-        List<LeaveRequest> requests = (department != null)
+        List<LeaveRequest> all = (department != null)
                 ? leaveService.findByDepartment(department.getId(), filter)
                 : new ArrayList<>();
 
@@ -86,15 +96,36 @@ public class HeadApprovalController {
         // khoa quyết định có cơ sở thay vì duyệt mù.
         Map<Long, Integer> affectedBookings = new HashMap<>();
         Map<Long, String> remainingLeave = new HashMap<>();
-        for (LeaveRequest request : requests) {
+        Map<Long, String> decideBlockReasons = new HashMap<>();
+
+        // Đơn có kỳ nghỉ đã trôi qua không duyệt cũng không từ chối được nữa. Tách xuống một
+        // khối riêng để hàng đợi chỉ còn việc thật sự làm được, thay vì lẫn vào nhau.
+        List<LeaveRequest> requests = new ArrayList<>();
+        List<LeaveRequest> expiredRequests = new ArrayList<>();
+
+        for (LeaveRequest request : all) {
             affectedBookings.put(request.getId(), leaveService.countAffectedBookings(
                     request.getUser(), request.getStartDate(), request.getEndDate()));
             remainingLeave.put(request.getId(), leaveService
                     .getBalance(request.getUser(), request.getStartDate().getYear())
                     .getAnnualRemaining().stripTrailingZeros().toPlainString());
+
+            String blocked = leaveService.whyCannotDecide(request);
+            if (blocked != null) {
+                decideBlockReasons.put(request.getId(), blocked);
+            }
+            // Chỉ những đơn CHỜ DUYỆT mà đã hết hiệu lực mới cần tách ra; đơn đã có quyết
+            // định thì bản thân trạng thái đã nói hết.
+            if (blocked != null && request.getStatus() == ApprovalStatus.PENDING) {
+                expiredRequests.add(request);
+            } else {
+                requests.add(request);
+            }
         }
 
         model.addAttribute("requests", requests);
+        model.addAttribute("expiredRequests", expiredRequests);
+        model.addAttribute("decideBlockReasons", decideBlockReasons);
         model.addAttribute("selectedStatus", filter);
         model.addAttribute("statuses", ApprovalStatus.values());
         model.addAttribute("affectedBookings", affectedBookings);
@@ -173,8 +204,18 @@ public class HeadApprovalController {
                 ? staffScheduleService.findDepartmentShifts(department.getId(), start, end)
                 : new ArrayList<>();
 
+        // Ca đã trực xong thì không duyệt/từ chối được nữa — làm mờ nút kèm lý do.
+        Map<Long, String> decideBlockReasons = new HashMap<>();
+        for (StaffShift shift : shifts) {
+            String blocked = staffScheduleService.whyCannotDecideShift(shift);
+            if (blocked != null) {
+                decideBlockReasons.put(shift.getId(), blocked);
+            }
+        }
+
         model.addAttribute("shifts", shifts);
         model.addAttribute("dutyShifts", shifts.stream().filter(StaffShift::isDuty).toList());
+        model.addAttribute("decideBlockReasons", decideBlockReasons);
         model.addAttribute("weekStart", start);
         model.addAttribute("weekEnd", end);
         model.addAttribute("prevWeek", start.minusWeeks(1));
@@ -182,6 +223,15 @@ public class HeadApprovalController {
         model.addAttribute("uncoveredDates", department != null
                 ? staffScheduleService.findUncoveredDutyDates(department.getId(), start, end)
                 : new ArrayList<>());
+
+        // Dữ liệu cho form phân công trực: chỉ bác sĩ trong khoa, và chỉ những loại ca NGOÀI
+        // giờ hành chính (ca khám được xếp ở bảng /head/clinic-roster).
+        model.addAttribute("departmentDoctors", department != null
+                ? staffScheduleService.findDepartmentDoctors(department.getId())
+                : new ArrayList<>());
+        model.addAttribute("dutyShiftTypes", Arrays.stream(ShiftType.values())
+                .filter(type -> !type.isClinic()).toList());
+        model.addAttribute("dutyRoles", DutyRole.values());
 
         return prepare(model, user, department, "duty-roster", "head/duty-roster");
     }

@@ -75,6 +75,18 @@ public interface BookingService {
     String whyCannotCancel(Booking booking);
 
     /**
+     * Kiểm tra một lịch hẹn có còn được NHÂN VIÊN (bác sĩ / lễ tân) xác nhận, hủy hay khám nữa
+     * không. Dùng chung cho giao diện (làm mờ nút) và cho controller (chặn thật sự).
+     * <p>
+     * Khác {@link #whyCannotCancel} ở chỗ KHÔNG áp mốc {@value #MIN_HOURS_BEFORE_CHANGE} tiếng:
+     * bác sĩ vẫn phải hủy được lịch đột xuất ngay trong ngày. Ở đây chỉ chặn những gì đã
+     * thành hồ sơ: lịch đã hủy, đã khám xong, hoặc giờ khám đã trôi qua.
+     *
+     * @return null nếu còn được thao tác, ngược lại là lý do bằng tiếng Việt.
+     */
+    String whyStaffCannotChange(Booking booking);
+
+    /**
      * Số giờ còn lại tính đến giờ khám. Âm nghĩa là đã quá giờ.
      * Trả về null nếu không đọc được khung giờ của lịch hẹn.
      */

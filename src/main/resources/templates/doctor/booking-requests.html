@@ -146,8 +146,8 @@
               <td>
                 <small class="text-muted fst-italic" th:text="${b.notes != null && !b.notes.isEmpty() ? b.notes : 'Không có ghi chú'}"></small>
               </td>
-              <td class="text-center">
-                <div class="d-flex justify-content-center gap-2">
+              <td class="text-center" th:with="blockReason=${actionBlockReasons[b.id]}">
+                <div th:if="${blockReason == null}" class="d-flex justify-content-center gap-2">
                   <a th:href="@{/doctor/bookings/confirm/{id}(id=${b.id})}"
                      class="btn btn-success btn-sm"
                      onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
@@ -158,6 +158,11 @@
                      onclick="return confirm('Từ chối lịch hẹn này?')">
                     <i class="bi bi-x-circle me-1"></i> Hủy
                   </a>
+                </div>
+                <!-- Yêu cầu đã trôi qua: không nhận cũng không hủy được nữa, chỉ nêu lý do. -->
+                <div th:if="${blockReason != null}">
+                  <span class="badge bg-secondary"><i class="bi bi-lock-fill me-1"></i> Đã quá hạn</span>
+                  <div class="small text-muted mt-1" th:text="${blockReason}">Lịch hẹn đã trôi qua.</div>
                 </div>
               </td>
             </tr>

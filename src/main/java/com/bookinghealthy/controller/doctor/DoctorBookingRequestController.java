@@ -4,6 +4,7 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.repository.BookingRepository;
+import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.DoctorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -13,7 +14,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -25,6 +28,9 @@ public class DoctorBookingRequestController {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private BookingService bookingService;
 
     private Doctor getLoggedInDoctor(Authentication authentication) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -46,7 +52,18 @@ public class DoctorBookingRequestController {
                 .sorted((b1, b2) -> b1.getAppointmentDate().compareTo(b2.getAppointmentDate())) // Sắp xếp ngày gần nhất lên đầu
                 .collect(Collectors.toList());
 
+        // Lý do không còn xác nhận/từ chối được (lịch đã trôi qua) — id nào không có khóa
+        // thì nút vẫn bấm được. Cùng hàm kiểm tra với DoctorDashboardController.
+        Map<Long, String> actionBlockReasons = new HashMap<>();
+        for (Booking booking : pendingBookings) {
+            String reason = bookingService.whyStaffCannotChange(booking);
+            if (reason != null) {
+                actionBlockReasons.put(booking.getId(), reason);
+            }
+        }
+
         model.addAttribute("pendingBookings", pendingBookings);
+        model.addAttribute("actionBlockReasons", actionBlockReasons);
         model.addAttribute("activePage", "requests"); // Để highlight menu (nếu có)
 
         return "doctor/booking-requests";

@@ -55,6 +55,9 @@ public class BookingServiceImpl implements BookingService {
 
     private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
+    private static final DateTimeFormatter PAST_APPOINTMENT_FORMATTER =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
     @Override
     public Booking save(Booking booking) {
         return bookingRepository.save(booking);
@@ -250,10 +253,12 @@ public class BookingServiceImpl implements BookingService {
 
         boolean refunded = false;
         if ("PAID".equals(booking.getPaymentStatus())) {
+            // Ghi luôn lý do vào sổ ví: bộ phận hỗ trợ cần biết AI hủy, không chỉ là "đã hoàn".
             walletService.refundToWallet(
                     booking.getUser(),
                     booking.getBookingPrice(),
                     "Hoàn tiền hủy lịch khám #" + booking.getId()
+                            + ((reason != null && !reason.isBlank()) ? " — " + reason : "")
             );
             booking.setPaymentStatus("REFUNDED");
             refunded = true;
@@ -306,6 +311,30 @@ public class BookingServiceImpl implements BookingService {
         if (hoursLeft < MIN_HOURS_BEFORE_CHANGE) {
             return "Không thể hủy lịch khi còn dưới " + MIN_HOURS_BEFORE_CHANGE
                     + " tiếng trước giờ khám. Vui lòng liên hệ hotline 0985 123 888 để được hỗ trợ.";
+        }
+        return null;
+    }
+
+    @Override
+    public String whyStaffCannotChange(Booking booking) {
+        if (booking == null) {
+            return "Không tìm thấy lịch hẹn.";
+        }
+        if (booking.getStatus() == BookingStatus.CANCELED) {
+            return "Lịch hẹn đã bị hủy trước đó.";
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            return "Lịch hẹn đã khám xong nên không sửa được nữa.";
+        }
+
+        LocalDateTime start = appointmentStart(booking);
+        if (start == null) {
+            return "Không đọc được khung giờ của lịch hẹn, vui lòng liên hệ hotline.";
+        }
+        // So cả giờ chứ không chỉ ngày: ca 08:00 sáng nay đã trôi qua vào buổi chiều.
+        if (start.isBefore(LocalDateTime.now())) {
+            return "Lịch hẹn đã trôi qua (" + start.format(PAST_APPOINTMENT_FORMATTER)
+                    + ") nên không sửa được nữa.";
         }
         return null;
     }

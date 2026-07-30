@@ -47,7 +47,7 @@
       </form>
     </div>
 
-    <div th:if="${#lists.isEmpty(requests)}" class="ws-card ws-empty">
+    <div th:if="${#lists.isEmpty(requests) and #lists.isEmpty(expiredRequests)}" class="ws-card ws-empty">
       Không có đơn nào ở trạng thái này.
     </div>
 
@@ -109,8 +109,10 @@
           </div>
         </div>
 
-        <!-- Khu ra quyết định -->
-        <div class="col-lg-4" th:if="${leave.status.name() == 'PENDING'}">
+        <!-- Khu ra quyết định. Đơn đã hết hiệu lực không vào danh sách này (xuống khối
+             riêng bên dưới), điều kiện decideBlockReasons ở đây chỉ là chốt an toàn. -->
+        <div class="col-lg-4"
+             th:if="${leave.status.name() == 'PENDING' and decideBlockReasons[leave.id] == null}">
           <div class="border-start ps-lg-3 h-100">
             <label class="form-label fw-semibold small"
                    th:for="'comment-' + ${leave.id}">Lời phê gửi nhân viên</label>
@@ -154,6 +156,51 @@
                  th:text="'“' + ${leave.approverComment} + '”'"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ĐƠN ĐÃ HẾT HIỆU LỰC: kỳ nghỉ đã trôi qua nên không duyệt cũng không từ chối được.
+         Gom xuống đây để hàng đợi phía trên chỉ còn việc trưởng khoa làm được thật. -->
+    <div th:if="${!#lists.isEmpty(expiredRequests)}" class="ws-card mt-4">
+      <div class="ws-panel-title">
+        <i class="bi bi-hourglass-bottom"></i>
+        Đơn đã hết hiệu lực (<span th:text="${#lists.size(expiredRequests)}">2</span>)
+      </div>
+      <p class="small text-muted">
+        Những đơn này gửi lên nhưng kỳ nghỉ đã kết thúc trước khi có quyết định. Duyệt lúc này
+        sẽ chặn khung giờ của ngày đã qua và trừ sai số dư phép, nên hệ thống không cho xử lý
+        nữa. Nếu nhân viên đã nghỉ thật, anh/chị hãy yêu cầu họ gửi lại đơn cho đúng khoảng ngày.
+      </p>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+          <tr>
+            <th>Nhân viên</th>
+            <th>Loại nghỉ</th>
+            <th>Khoảng nghỉ</th>
+            <th>Lý do không xử lý được</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="leave : ${expiredRequests}">
+            <td class="fw-semibold" th:text="${leave.user.fullName}">BS. Nguyễn Văn A</td>
+            <td>
+              <span th:text="${leave.leaveType.label}">Phép năm</span>
+              <span th:if="${leave.emergency}" class="badge text-bg-danger">Đột xuất</span>
+            </td>
+            <td>
+              <span th:text="${#temporals.format(leave.startDate, 'dd/MM/yyyy')}">24/10/2026</span>
+              <span th:if="${leave.startDate != leave.endDate}"
+                    th:text="' - ' + ${#temporals.format(leave.endDate, 'dd/MM/yyyy')}"></span>
+            </td>
+            <td>
+              <span class="badge text-bg-secondary me-1"><i class="bi bi-lock-fill"></i> Đã hết hiệu lực</span>
+              <span class="small text-muted" th:text="${decideBlockReasons[leave.id]}">Kỳ nghỉ đã kết thúc.</span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>

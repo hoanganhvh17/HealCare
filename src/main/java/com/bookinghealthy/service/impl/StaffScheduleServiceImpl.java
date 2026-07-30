@@ -1,11 +1,13 @@
 package com.bookinghealthy.service.impl;
 
 import com.bookinghealthy.config.LeavePolicy;
+import com.bookinghealthy.dto.ClinicRosterRowDTO;
 import com.bookinghealthy.dto.ScheduleEventDTO;
 import com.bookinghealthy.dto.ShiftRegisterResultDTO;
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.*;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.StaffScheduleService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private StaffProfileRepository staffProfileRepository;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     // ===================== ĐĂNG KÝ CA =====================
 
@@ -247,6 +250,10 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
                     "<p>Do chưa đăng ký, hệ thống đã tự xếp cho anh/chị lịch khám cả tuần <strong>"
                             + weekLabel(week) + "</strong> (mỗi ngày tối thiểu một ca sáng).</p>"
                             + "<p>Anh/chị có thể điều chỉnh trong mục Ca khám nếu cần.</p>");
+            notificationService.push(staff, "bi-calendar2-check text-primary",
+                    "Hệ thống đã tự xếp lịch khám tuần sau",
+                    "Tuần " + weekLabel(week) + " • mỗi ngày tối thiểu một ca sáng",
+                    "/doctor/work-schedule");
             registered++;
         }
         return registered;
@@ -272,6 +279,355 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
             }
         }
         replaceClinicSchedules(doctor, weekStart, new ArrayList<>(morning), new ArrayList<>(afternoon));
+    }
+
+    // ===================== TRƯỞNG KHOA XẾP CA CHO KHOA =====================
+
+    @Override
+    public List<Doctor> findDepartmentDoctors(Long departmentId) {
+        return (departmentId != null) ? doctorRepository.findByDepartmentId(departmentId) : new ArrayList<>();
+    }
+
+    @Override
+    public List<ClinicRosterRowDTO> buildClinicRoster(Long departmentId, LocalDate weekStart) {
+        List<ClinicRosterRowDTO> rows = new ArrayList<>();
+
+        for (Doctor doctor : findDepartmentDoctors(departmentId)) {
+            ClinicRosterRowDTO row = new ClinicRosterRowDTO();
+            row.setDoctorId(doctor.getId());
+            row.setDoctorName(doctor.getUser() != null ? doctor.getUser().getFullName() : "—");
+            row.setUserId(doctor.getUser() != null ? doctor.getUser().getId() : null);
+            row.setDegree(doctor.getDegree());
+
+            // Tích sẵn theo lịch ĐANG CÓ HIỆU LỰC: tuần chưa xếp thì findEffective trả về mẫu
+            // của lần đăng ký gần nhất, coi như gợi ý "giống tuần trước".
+            for (Schedule schedule : scheduleRepository.findEffective(doctor.getId(), weekStart)) {
+                if (schedule.getStartTime().getHour() < 12) {
+                    row.getMorning().add(schedule.getDayOfWeek());
+                } else {
+                    row.getAfternoon().add(schedule.getDayOfWeek());
+                }
+            }
+
+            // Ngày bác sĩ đang nghỉ phép thì không xếp ca được — ô sẽ bị vô hiệu trên bảng.
+            if (row.getUserId() != null) {
+                for (DayOfWeek day : DayOfWeek.values()) {
+                    LocalDate date = dateOf(weekStart, day);
+                    if (!leaveRequestRepository.findBlockingOnDate(row.getUserId(), date).isEmpty()) {
+                        row.getOnLeave().add(day);
+                    }
+                }
+                row.setRegistered(isRegisteredForWeek(row.getUserId(), weekStart));
+            }
+
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional
+    public String assignClinicWeek(User head, Long departmentId, LocalDate weekStart,
+                                   java.util.Map<Long, List<DayOfWeek>> morningByDoctor,
+                                   java.util.Map<Long, List<DayOfWeek>> afternoonByDoctor) {
+
+        if (departmentId == null) {
+            return "Anh/chị chưa được gán làm trưởng khoa của khoa nào.";
+        }
+        // Tuần hiện tại bệnh nhân đã đặt lịch vào, tuần đã qua là hồ sơ — chỉ tuần sau sửa được.
+        if (weekStart == null || !weekStart.equals(nextWeekStart())) {
+            return "Chỉ xếp được ca khám cho TUẦN SAU (" + weekLabel(nextWeekStart())
+                    + "). Lịch tuần hiện tại đã công bố cho bệnh nhân đặt.";
+        }
+
+        List<Doctor> doctors = findDepartmentDoctors(departmentId);
+        if (doctors.isEmpty()) {
+            return "Khoa chưa có bác sĩ nào để xếp ca.";
+        }
+
+        java.util.Map<Long, Doctor> allowed = new java.util.HashMap<>();
+        for (Doctor doctor : doctors) {
+            allowed.put(doctor.getId(), doctor);
+        }
+
+        java.util.Map<Long, Set<DayOfWeek>> morning = new java.util.HashMap<>();
+        java.util.Map<Long, Set<DayOfWeek>> afternoon = new java.util.HashMap<>();
+
+        String scopeError = collectAssignment(allowed, morningByDoctor, morning, weekStart, "sáng");
+        if (scopeError != null) {
+            return scopeError;
+        }
+        scopeError = collectAssignment(allowed, afternoonByDoctor, afternoon, weekStart, "chiều");
+        if (scopeError != null) {
+            return scopeError;
+        }
+
+        String coverage = missingCoverageMessage(doctors, morning, afternoon);
+        if (coverage != null) {
+            return coverage;
+        }
+
+        String emptyWeek = emptyWeekMessage(doctors, morning, afternoon, weekStart);
+        if (emptyWeek != null) {
+            return emptyWeek;
+        }
+
+        for (Doctor doctor : doctors) {
+            List<DayOfWeek> newMorning = new ArrayList<>(morning.getOrDefault(doctor.getId(), Set.of()));
+            List<DayOfWeek> newAfternoon = new ArrayList<>(afternoon.getOrDefault(doctor.getId(), Set.of()));
+
+            boolean changed = changesEffectiveSchedule(doctor, weekStart, newMorning, newAfternoon);
+
+            replaceClinicSchedules(doctor, weekStart, newMorning, newAfternoon);
+            if (doctor.getUser() != null) {
+                markRegisteredForNextWeek(doctor.getUser());
+                if (changed) {
+                    notifyClinicAssignment(head, doctor.getUser(), weekStart, newMorning, newAfternoon);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Đưa dữ liệu từ form về dạng Set, đồng thời chặn hai thứ: bác sĩ không thuộc khoa
+     * (id gửi lên từ form đã bị sửa), và xếp ca vào ngày bác sĩ đang có đơn nghỉ.
+     */
+    private String collectAssignment(java.util.Map<Long, Doctor> allowed,
+                                     java.util.Map<Long, List<DayOfWeek>> source,
+                                     java.util.Map<Long, Set<DayOfWeek>> target,
+                                     LocalDate weekStart, String sessionLabel) {
+
+        if (source == null) {
+            return null;
+        }
+        for (java.util.Map.Entry<Long, List<DayOfWeek>> entry : source.entrySet()) {
+            Doctor doctor = allowed.get(entry.getKey());
+            if (doctor == null) {
+                return "Có bác sĩ không thuộc khoa của anh/chị trong danh sách xếp ca.";
+            }
+            if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                continue;
+            }
+
+            for (DayOfWeek day : entry.getValue()) {
+                if (doctor.getUser() != null) {
+                    LocalDate date = dateOf(weekStart, day);
+                    List<LeaveRequest> leaves = leaveRequestRepository
+                            .findBlockingOnDate(doctor.getUser().getId(), date);
+                    if (!leaves.isEmpty()) {
+                        return "Không xếp được ca " + sessionLabel + " " + vietnameseDay(day)
+                                + " cho " + doctor.getUser().getFullName() + ": ngày "
+                                + date.format(DATE_FORMAT) + " bác sĩ đang có đơn "
+                                + leaves.get(0).getLeaveType().getLabel() + ".";
+                    }
+                }
+            }
+            target.computeIfAbsent(entry.getKey(), key -> new HashSet<>()).addAll(entry.getValue());
+        }
+        return null;
+    }
+
+    /**
+     * Luật của trưởng khoa là ĐỘ PHỦ CỦA KHOA, không phải "mỗi bác sĩ đủ 7 ngày" như lúc bác
+     * sĩ tự đăng ký ({@code missingDaysMessage}): từng người được nghỉ, miễn là mỗi buổi của
+     * mỗi ngày khoa vẫn còn ít nhất một bác sĩ nhận khám.
+     */
+    private String missingCoverageMessage(List<Doctor> doctors,
+                                          java.util.Map<Long, Set<DayOfWeek>> morning,
+                                          java.util.Map<Long, Set<DayOfWeek>> afternoon) {
+        List<String> gaps = new ArrayList<>();
+
+        for (DayOfWeek day : DayOfWeek.values()) {
+            if (!anyDoctorOn(doctors, morning, day)) {
+                gaps.add(vietnameseDay(day) + " buổi sáng");
+            }
+            if (!anyDoctorOn(doctors, afternoon, day)) {
+                gaps.add(vietnameseDay(day) + " buổi chiều");
+            }
+        }
+
+        if (gaps.isEmpty()) {
+            return null;
+        }
+        return "Mỗi buổi trong tuần khoa phải có tối thiểu 1 bác sĩ nhận khám. "
+                + "Chưa có ai: " + String.join(", ", gaps) + ".";
+    }
+
+    /**
+     * Bác sĩ không có ca nào cả tuần là trường hợp KHÔNG biểu diễn được, nên phải chặn ở đây.
+     * Lý do: {@code replaceClinicSchedules} xóa hết bản ghi của tuần đó, mà
+     * {@code ScheduleRepository.findEffective} coi "tuần không có bản ghi" là "chưa đăng ký"
+     * và rơi về mẫu của lần đăng ký gần nhất — nên lịch lưu ra một đằng, bệnh nhân đặt được
+     * một nẻo, và bảng xếp ca lần sau lại tích sẵn theo mẫu cũ.
+     *
+     * Ngoại lệ: bác sĩ đã có đơn nghỉ chặn TRỌN tuần thì để trống là đúng, và
+     * {@code DoctorBlockTime} của đơn nghỉ đã chặn hết khung giờ nên mẫu cũ không gây hại.
+     */
+    private String emptyWeekMessage(List<Doctor> doctors,
+                                    java.util.Map<Long, Set<DayOfWeek>> morning,
+                                    java.util.Map<Long, Set<DayOfWeek>> afternoon,
+                                    LocalDate weekStart) {
+        for (Doctor doctor : doctors) {
+            boolean hasAny = !morning.getOrDefault(doctor.getId(), Set.of()).isEmpty()
+                    || !afternoon.getOrDefault(doctor.getId(), Set.of()).isEmpty();
+            if (hasAny || doctor.getUser() == null || onLeaveAllWeek(doctor.getUser().getId(), weekStart)) {
+                continue;
+            }
+            return doctor.getUser().getFullName() + " chưa được xếp ca nào trong tuần. "
+                    + "Mỗi bác sĩ cần tối thiểu 1 ca, vì tuần để trống hoàn toàn sẽ bị hiểu là "
+                    + "\"chưa đăng ký\" và hệ thống dùng lại lịch tuần gần nhất của bác sĩ. "
+                    + "Nếu bác sĩ nghỉ cả tuần, hãy duyệt đơn nghỉ phép cho họ thay vì để trống.";
+        }
+        return null;
+    }
+
+    private boolean onLeaveAllWeek(Long userId, LocalDate weekStart) {
+        for (DayOfWeek day : DayOfWeek.values()) {
+            if (leaveRequestRepository.findBlockingOnDate(userId, dateOf(weekStart, day)).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean anyDoctorOn(List<Doctor> doctors,
+                                java.util.Map<Long, Set<DayOfWeek>> assignment, DayOfWeek day) {
+        for (Doctor doctor : doctors) {
+            Set<DayOfWeek> days = assignment.get(doctor.getId());
+            if (days != null && days.contains(day)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Lịch mới có khác lịch bác sĩ vốn sẽ làm trong tuần đó không. So với lịch ĐANG CÓ HIỆU
+     * LỰC chứ không với bản ghi của đúng tuần: trưởng khoa mở bảng rồi lưu mà không sửa gì
+     * thì tuần đó có thêm bản ghi mới, nhưng giờ làm của bác sĩ không đổi — báo cho họ lúc
+     * đó chỉ là thông báo rác.
+     */
+    private boolean changesEffectiveSchedule(Doctor doctor, LocalDate weekStart,
+                                             List<DayOfWeek> newMorning, List<DayOfWeek> newAfternoon) {
+        Set<DayOfWeek> oldMorning = new HashSet<>();
+        Set<DayOfWeek> oldAfternoon = new HashSet<>();
+        for (Schedule schedule : scheduleRepository.findEffective(doctor.getId(), weekStart)) {
+            if (schedule.getStartTime().getHour() < 12) {
+                oldMorning.add(schedule.getDayOfWeek());
+            } else {
+                oldAfternoon.add(schedule.getDayOfWeek());
+            }
+        }
+        return !oldMorning.equals(new HashSet<>(newMorning))
+                || !oldAfternoon.equals(new HashSet<>(newAfternoon));
+    }
+
+    private void notifyClinicAssignment(User head, User staff, LocalDate weekStart,
+                                        List<DayOfWeek> morning, List<DayOfWeek> afternoon) {
+        String summary = "Ca sáng: " + dayListLabel(morning) + " • Ca chiều: " + dayListLabel(afternoon);
+        String headName = (head != null) ? head.getFullName() : "Trưởng khoa";
+
+        emailService.sendStaffNotification(staff.getEmail(),
+                "MediTrust - Lịch khám tuần sau đã được trưởng khoa xếp",
+                "Lịch khám tuần " + weekLabel(weekStart),
+                "<p>" + headName + " đã xếp lịch khám tuần <strong>" + weekLabel(weekStart)
+                        + "</strong> cho anh/chị.</p><p>" + summary + "</p>"
+                        + "<p>Anh/chị xem chi tiết trong mục <em>Lịch làm việc &amp; Nghỉ phép</em>.</p>");
+
+        notificationService.push(staff, "bi-calendar2-week text-primary",
+                "Trưởng khoa đã xếp lịch khám tuần " + weekLabel(weekStart),
+                summary,
+                "/doctor/work-schedule");
+    }
+
+    private String dayListLabel(List<DayOfWeek> days) {
+        if (days == null || days.isEmpty()) {
+            return "không có";
+        }
+        List<String> labels = new ArrayList<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            if (days.contains(day)) {
+                labels.add(vietnameseDay(day));
+            }
+        }
+        return String.join(", ", labels);
+    }
+
+    private LocalDate dateOf(LocalDate weekStart, DayOfWeek day) {
+        return weekStart.plusDays(day.getValue() - 1L);
+    }
+
+    @Override
+    @Transactional
+    public ShiftRegisterResultDTO assignDutyShift(User head, Long doctorId, ShiftType shiftType,
+                                                 LocalDate date, DutyRole dutyRole, String note) {
+        if (doctorId == null || shiftType == null || date == null) {
+            return ShiftRegisterResultDTO.reject("Vui lòng chọn bác sĩ, loại phiên trực và ngày.");
+        }
+        if (shiftType.isClinic()) {
+            return ShiftRegisterResultDTO.reject(
+                    "Ca khám được xếp ở bảng \"Xếp ca khoa\", mục này chỉ dành cho phiên trực.");
+        }
+
+        Optional<Doctor> found = doctorRepository.findById(doctorId);
+        if (found.isEmpty() || found.get().getUser() == null) {
+            return ShiftRegisterResultDTO.reject("Không tìm thấy bác sĩ được phân công.");
+        }
+        Doctor doctor = found.get();
+        User staff = doctor.getUser();
+
+        // Dùng NGUYÊN bộ luật của việc tự đăng ký: trưởng khoa phân công cũng không được phá
+        // quy định nghỉ bù, không lấn giờ hành chính, không trùng ca của bác sĩ.
+        String error = validateShift(staff, shiftType, date);
+        if (error != null) {
+            return ShiftRegisterResultDTO.reject(error);
+        }
+
+        StaffShift shift = new StaffShift();
+        shift.setUser(staff);
+        shift.setDepartment(doctor.getDepartment());
+        shift.setShiftDate(date);
+        shift.setShiftType(shiftType);
+        shift.setStartTime(shiftType.getDefaultStart());
+        shift.setEndTime(shiftType.getDefaultEnd());
+        shift.setOvernight(shiftType.isOvernight());
+        shift.setDutyRole(shiftType.isDuty() ? resolveDutyRole(dutyRole) : null);
+        shift.setNote(note);
+        shift.setCreatedAt(LocalDateTime.now());
+
+        // Người phân công chính là người có quyền duyệt nên ca vào thẳng trạng thái đã duyệt.
+        shift.setStatus(ApprovalStatus.APPROVED);
+        shift.setApprover(head);
+        shift.setDecidedAt(LocalDateTime.now());
+        staffShiftRepository.save(shift);
+
+        generateCompensatoryLeave(shift);
+        notifyDutyAssignment(head, shift);
+
+        return buildResult(shiftType, date);
+    }
+
+    private void notifyDutyAssignment(User head, StaffShift shift) {
+        String headName = (head != null) ? head.getFullName() : "Trưởng khoa";
+        String when = shift.getShiftDate().format(DATE_FORMAT) + " "
+                + shift.getStartTime().format(TIME_FORMAT) + " - "
+                + shift.getEndTime().format(TIME_FORMAT);
+
+        emailService.sendStaffNotification(shift.getUser().getEmail(),
+                "MediTrust - Anh/chị được phân công phiên trực",
+                "Phân công phiên trực",
+                "<p>" + headName + " đã phân công anh/chị <strong>"
+                        + shift.getShiftType().getLabel() + "</strong> ngày " + when + ".</p>"
+                        + (shift.getNote() != null && !shift.getNote().isBlank()
+                        ? "<p><em>Ghi chú: " + shift.getNote() + "</em></p>" : "")
+                        + "<p>Nếu không nhận được ca, anh/chị hãy dùng chức năng "
+                        + "<em>Tìm người thay thế</em> trong mục Lịch làm việc.</p>");
+
+        notificationService.push(shift.getUser(), "bi-clipboard-check text-primary",
+                "Anh/chị được phân công " + shift.getShiftType().getLabel(),
+                when + (shift.getDutyRole() != null ? " • " + shift.getDutyRole().getLabel() : ""),
+                "/doctor/work-schedule");
     }
 
     private List<Doctor> doctorsInScope(Long departmentId) {
@@ -540,6 +896,28 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
 
     // ===================== DUYỆT / TỪ CHỐI CA TRỰC =====================
 
+    /**
+     * Chỉ chứa điều kiện chung cho cả duyệt và từ chối. Riêng "đã duyệt rồi" thuộc về
+     * {@code approveShift}: từ chối một ca đã duyệt là cách trưởng khoa thu hồi quyết định.
+     */
+    @Override
+    public String whyCannotDecideShift(StaffShift shift) {
+        if (shift == null) {
+            return "Không tìm thấy ca trực.";
+        }
+        if (shift.getStatus() == ApprovalStatus.CANCELED) {
+            return "Ca trực đã bị hủy, không xử lý được nữa.";
+        }
+        // Ca đã trực xong thì quyết định không còn ý nghĩa: ngày nghỉ bù sinh ra cũng rơi
+        // vào quá khứ, còn từ chối thì cũng không xóa được việc người ta đã trực.
+        if (shift.getEndsAt() != null && shift.getEndsAt().isBefore(LocalDateTime.now())) {
+            return "Ca " + shift.getShiftType().getLabel() + " ngày "
+                    + shift.getShiftDate().format(DATE_FORMAT)
+                    + " đã kết thúc nên không còn hiệu lực để xử lý.";
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public String approveShift(Long shiftId, User approver, String comment) {
@@ -549,11 +927,12 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         }
 
         StaffShift shift = found.get();
+        String blocked = whyCannotDecideShift(shift);
+        if (blocked != null) {
+            return blocked;
+        }
         if (shift.getStatus() == ApprovalStatus.APPROVED) {
             return "Ca trực này đã được duyệt trước đó.";
-        }
-        if (shift.getStatus() == ApprovalStatus.CANCELED) {
-            return "Ca trực đã bị hủy, không duyệt được nữa.";
         }
 
         shift.setStatus(ApprovalStatus.APPROVED);
@@ -576,6 +955,14 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         }
 
         StaffShift shift = found.get();
+        String blocked = whyCannotDecideShift(shift);
+        if (blocked != null) {
+            return blocked;
+        }
+        if (shift.getStatus() == ApprovalStatus.REJECTED) {
+            return "Ca trực này đã bị từ chối trước đó.";
+        }
+
         shift.setStatus(ApprovalStatus.REJECTED);
         shift.setApprover(approver);
         shift.setApproverComment(comment);
@@ -649,6 +1036,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         }
     }
 
+    /** Báo kết quả qua CẢ email VÀ chuông thông báo — xem lý do ở {@code NotificationService}. */
     private void notifyShiftDecision(StaffShift shift, String verb) {
         StringBuilder body = new StringBuilder();
         body.append("<p>Ca <strong>").append(shift.getShiftType().getLabel())
@@ -665,6 +1053,20 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
                 "MediTrust - Kết quả đăng ký ca trực",
                 "Ca trực " + verb,
                 body.toString());
+
+        StringBuilder note = new StringBuilder(shift.getShiftType().getLabel())
+                .append(" • ").append(shift.getShiftDate().format(DATE_FORMAT));
+        if (shift.getApproverComment() != null && !shift.getApproverComment().isBlank()) {
+            note.append(" • Ghi chú: “").append(shift.getApproverComment()).append("”");
+        }
+
+        notificationService.push(
+                shift.getUser(),
+                shift.getStatus() == ApprovalStatus.APPROVED
+                        ? "bi-check-circle text-success" : "bi-x-circle text-danger",
+                "Ca trực " + verb,
+                note.toString(),
+                "/doctor/work-schedule");
     }
 
     // ===================== SỰ KIỆN TRÊN LỊCH =====================

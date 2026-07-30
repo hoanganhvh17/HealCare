@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{admin/include/header :: header (title='Xếp ca khoa')}"></th:block>
+  <link th:href="@{/assets-admin/css/work-schedule.css}" rel="stylesheet">
+</head>
+<body>
+<th:block th:replace="~{doctor/include/header :: header-nav}"></th:block>
+<th:block th:replace="~{head/include/sidebar :: sidebar}"></th:block>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Xếp ca khám cho khoa</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">Trưởng khoa</li>
+        <li class="breadcrumb-item active"
+            th:text="${headDepartment != null ? 'Khoa ' + headDepartment.name : 'Chưa gán khoa'}">Khoa Nội</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div th:if="${headDepartment == null}" class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      Tài khoản của anh/chị chưa được gán làm trưởng khoa của khoa nào.
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${headDepartment != null}">
+
+      <!-- Điều hướng tuần -->
+      <div class="ws-card mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h2 class="ws-calendar-title mb-0">
+            Tuần <span th:text="${#temporals.format(weekStart, 'dd/MM')}">03/08</span>
+            - <span th:text="${#temporals.format(weekEnd, 'dd/MM/yyyy')}">09/08/2026</span>
+            <span th:if="${editable}" class="badge text-bg-primary ms-2">Tuần sau — đang mở</span>
+            <span th:unless="${editable}" class="badge text-bg-secondary ms-2">
+              <i class="bi bi-lock-fill"></i> Chỉ xem
+            </span>
+          </h2>
+
+          <div class="ws-nav">
+            <a th:href="@{/head/clinic-roster(weekStart=${prevWeek})}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+            <a th:href="@{/head/clinic-roster}" class="btn btn-sm btn-outline-secondary">Tuần sau</a>
+            <a th:href="@{/head/clinic-roster(weekStart=${nextWeek})}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <p class="small text-muted mb-0 mt-2">
+          Chỉ <strong>tuần sau</strong> sửa được: lịch tuần hiện tại đã công bố và bệnh nhân đã
+          đặt vào đó, các tuần đã qua là hồ sơ. Luật kiểm tra ở đây là <strong>độ phủ của
+          khoa</strong> — mỗi buổi của mỗi ngày phải có tối thiểu một bác sĩ nhận khám, còn từng
+          bác sĩ vẫn được nghỉ ngày nào đó. Riêng <strong>mỗi bác sĩ cần tối thiểu 1 ca trong
+          tuần</strong>: để trống cả tuần sẽ bị hiểu là chưa đăng ký và hệ thống dùng lại lịch
+          tuần gần nhất của bác sĩ — nghỉ cả tuần thì đi qua đơn nghỉ phép.
+        </p>
+      </div>
+
+      <form th:action="@{/head/clinic-roster/save}" method="post" id="rosterForm">
+        <input type="hidden" name="weekStart" th:value="${weekStart}">
+
+        <div class="ws-card">
+          <div class="ws-panel-title">
+            Bảng ca khám
+          </div>
+
+          <div th:if="${#lists.isEmpty(rows)}" class="ws-empty">
+            Khoa chưa có bác sĩ nào.
+          </div>
+
+          <div th:unless="${#lists.isEmpty(rows)}" class="table-responsive">
+            <table class="table table-bordered align-middle text-center mb-0">
+              <thead class="table-light">
+              <tr>
+                <th class="text-start" style="min-width: 210px;">Bác sĩ</th>
+                <th th:each="day, iter : ${days}" style="min-width: 92px;">
+                  <div th:text="${dayLabels[iter.index]}">Thứ 2</div>
+                  <div class="small text-muted fw-normal"
+                       th:text="${#temporals.format(weekStart.plusDays(day.value - 1), 'dd/MM')}">03/08</div>
+                  <!-- Tích/bỏ cả cột: khoa 6 bác sĩ là 84 ô, bấm tay từng ô rất mệt -->
+                  <div th:if="${editable}" class="mt-1">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                            th:attr="data-col=${day.value}" data-session="m">S</button>
+                    <span class="text-muted">/</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                            th:attr="data-col=${day.value}" data-session="a">C</button>
+                  </div>
+                </th>
+              </tr>
+              </thead>
+
+              <tbody>
+              <tr th:each="row : ${rows}">
+                <td class="text-start">
+                  <div class="fw-semibold" th:text="${row.doctorName}">BS. Nguyễn Văn A</div>
+                  <div class="small text-muted" th:text="${row.degree != null ? row.degree : ''}">Thạc sĩ</div>
+                  <span th:if="${!row.registered}" class="badge text-bg-warning mt-1">Chưa tự đăng ký</span>
+                </td>
+
+                <td th:each="day : ${days}"
+                    th:classappend="${row.onLeave.contains(day)} ? 'table-secondary' : ''">
+                  <!-- Ngày bác sĩ có đơn nghỉ đang chặn lịch: không xếp ca được, server cũng
+                       chặn lần nữa trong assignClinicWeek. -->
+                  <div th:if="${row.onLeave.contains(day)}" class="small text-muted">
+                    <i class="bi bi-airplane"></i> Nghỉ
+                  </div>
+
+                  <div th:unless="${row.onLeave.contains(day)}"
+                       class="d-flex justify-content-center gap-2">
+                    <div class="form-check form-check-inline m-0">
+                      <input class="form-check-input" type="checkbox"
+                             th:name="'m_' + ${row.doctorId} + '_' + ${day.value}"
+                             th:id="'m_' + ${row.doctorId} + '_' + ${day.value}"
+                             th:checked="${row.morning.contains(day)}"
+                             th:disabled="${!editable}"
+                             th:attr="data-col=${day.value}, data-session='m'">
+                      <label class="form-check-label small"
+                             th:for="'m_' + ${row.doctorId} + '_' + ${day.value}"
+                             title="Ca sáng 07:30 - 11:30">S</label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                      <input class="form-check-input" type="checkbox"
+                             th:name="'a_' + ${row.doctorId} + '_' + ${day.value}"
+                             th:id="'a_' + ${row.doctorId} + '_' + ${day.value}"
+                             th:checked="${row.afternoon.contains(day)}"
+                             th:disabled="${!editable}"
+                             th:attr="data-col=${day.value}, data-session='a'">
+                      <label class="form-check-label small"
+                             th:for="'a_' + ${row.doctorId} + '_' + ${day.value}"
+                             title="Ca chiều 13:30 - 17:30">C</label>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              </tbody>
+
+              <tfoot class="table-light">
+              <tr>
+                <th class="text-start">Số bác sĩ ca sáng</th>
+                <td th:each="day, iter : ${days}"
+                    th:classappend="${morningCoverage[iter.index] == 0} ? 'table-danger' : ''">
+                  <span class="fw-semibold" th:text="${morningCoverage[iter.index]}">2</span>
+                </td>
+              </tr>
+              <tr>
+                <th class="text-start">Số bác sĩ ca chiều</th>
+                <td th:each="day, iter : ${days}"
+                    th:classappend="${afternoonCoverage[iter.index] == 0} ? 'table-danger' : ''">
+                  <span class="fw-semibold" th:text="${afternoonCoverage[iter.index]}">1</span>
+                </td>
+              </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="ws-legal-note mt-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Ca khám nằm trong giờ hành chính: <strong>ca sáng 07:30 - 11:30</strong>,
+            <strong>ca chiều 13:30 - 17:30</strong>. Ngoài giờ hành chính là phiên trực
+            (Thông tư 32/2023/TT-BYT) và không mở khung giờ đặt khám — phân công trực ở mục
+            <a th:href="@{/head/duty-roster}">Lịch trực của khoa</a>.
+          </div>
+
+          <div th:if="${editable}" class="d-flex flex-wrap gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> Lưu lịch khám cho khoa
+            </button>
+            <a th:href="@{/head/clinic-roster}" class="btn btn-outline-secondary">Hủy thay đổi</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script>
+  // Bấm "S" / "C" trên đầu cột để tích hoặc bỏ cả cột đó. Lần bấm đầu tích hết, bấm lại bỏ hết.
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('thead button[data-col]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var col = btn.getAttribute('data-col');
+        var session = btn.getAttribute('data-session');
+        var boxes = document.querySelectorAll(
+          'tbody input[type="checkbox"][data-col="' + col + '"][data-session="' + session + '"]:not(:disabled)');
+        var allChecked = Array.prototype.every.call(boxes, function (box) { return box.checked; });
+        boxes.forEach(function (box) { box.checked = !allChecked; });
+      });
+    });
+  });
+</script>
+</body>
+</html>

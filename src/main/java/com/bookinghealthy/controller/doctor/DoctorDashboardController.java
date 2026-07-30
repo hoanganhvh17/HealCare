@@ -29,8 +29,7 @@ public class DoctorDashboardController {
     @Autowired private DoctorBlockTimeService doctorBlockTimeService;
     @Autowired private ReviewService reviewService;
 
-    // === INJECT WALLET SERVICE ĐỂ HOÀN TIỀN ===
-    @Autowired private WalletService walletService;
+    // Không inject WalletService ở đây: việc hoàn tiền nằm trong BookingService.cancelWithRefund.
 
     // Helper: Lấy bác sĩ hiện tại
     private Doctor getLoggedInDoctor(Authentication authentication) {
@@ -132,6 +131,14 @@ public class DoctorDashboardController {
                 return "redirect:/doctor/dashboard";
             }
 
+            // Chặn thật ở server chứ không tin vào việc giao diện đã làm mờ nút: lịch đã
+            // trôi qua / đã hủy / đã khám xong thì xác nhận là vô nghĩa và vẫn gửi email đi.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                ra.addFlashAttribute("errorMessage", blocked);
+                return "redirect:/doctor/booking-requests";
+            }
+
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingService.save(booking);
             emailService.sendBookingConfirmation(booking);
@@ -142,7 +149,7 @@ public class DoctorDashboardController {
         return "redirect:/doctor/booking-requests";
     }
 
-    // 3. XỬ LÝ HỦY LỊCH (CANCEL & REFUND) - ĐÃ SỬA
+    // 3. XỬ LÝ HỦY LỊCH (CANCEL & REFUND)
     @Transactional
     @GetMapping("/bookings/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, Authentication authentication, RedirectAttributes ra) {
@@ -155,34 +162,21 @@ public class DoctorDashboardController {
                 return "redirect:/doctor/dashboard";
             }
 
-            // Cập nhật trạng thái Hủy
-            booking.setStatus(BookingStatus.CANCELED);
-
-            // === LOGIC HOÀN TIỀN VÀO VÍ ===
-            // Nếu khách đã thanh toán (PAID) -> Hoàn tiền
-            if ("PAID".equals(booking.getPaymentStatus())) {
-
-                // 1. Cộng tiền vào ví khách hàng
-                walletService.refundToWallet(
-                        booking.getUser(),
-                        booking.getBookingPrice(),
-                        "Bác sĩ " + currentDoctor.getUser().getFullName() + " hủy lịch khám #" + booking.getId()
-                );
-
-                // 2. Cập nhật trạng thái thanh toán
-                booking.setPaymentStatus("REFUNDED");
-
-                ra.addFlashAttribute("successMessage", "Đã hủy lịch. Hệ thống đã tự động hoàn tiền vào Ví của khách hàng.");
-            } else {
-                booking.setPaymentStatus("FAILED");
-                ra.addFlashAttribute("successMessage", "Đã từ chối lịch hẹn thành công.");
+            // Lịch đã trôi qua / đã khám xong thì KHÔNG hủy được: hủy một ca COMPLETED sẽ
+            // hoàn tiền cho ca bệnh nhân đã khám thật.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                ra.addFlashAttribute("errorMessage", blocked);
+                return "redirect:/doctor/manage-bookings";
             }
-            // ==============================
 
-            bookingService.save(booking);
+            // Hủy lịch chỉ có MỘT chỗ làm: cancelWithRefund lo cả trạng thái, hoàn ví và email.
+            boolean refunded = bookingService.cancelWithRefund(booking.getId(),
+                    "Bác sĩ " + currentDoctor.getUser().getFullName() + " đã từ chối/hủy lịch hẹn.");
 
-            String reason = "Bác sĩ " + currentDoctor.getUser().getFullName() + " đã từ chối/hủy lịch hẹn.";
-            emailService.sendBookingCancellation(booking, reason);
+            ra.addFlashAttribute("successMessage", refunded
+                    ? "Đã hủy lịch. Hệ thống đã tự động hoàn tiền vào Ví của khách hàng."
+                    : "Đã từ chối lịch hẹn thành công.");
 
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", e.getMessage());

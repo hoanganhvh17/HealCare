@@ -40,6 +40,16 @@ public interface LeaveService {
     /** Trưởng khoa từ chối đơn: gỡ các khung giờ đã chặn (nếu là đơn báo bận đột xuất). */
     String reject(Long leaveId, User approver, String comment);
 
+    /**
+     * Lý do đơn không còn ra quyết định được (đã duyệt / đã bị hủy / kỳ nghỉ đã trôi qua);
+     * null nghĩa là trưởng khoa vẫn duyệt hoặc từ chối được.
+     * <p>
+     * Dùng chung cho giao diện (ẩn nút, gắn nhãn "Đã hết hiệu lực") và cho {@link #approve}
+     * / {@link #reject} (chặn thật) nên hai bên không bao giờ nói khác nhau. Duyệt một kỳ
+     * nghỉ đã kết thúc là sinh giờ chặn cho ngày quá khứ và trừ sai số dư phép.
+     */
+    String whyCannotDecide(LeaveRequest request);
+
     List<LeaveRequest> findByUser(Long userId);
 
     /** Các đơn của một người giao với khoảng ngày — dùng vẽ lịch. */
@@ -48,6 +58,10 @@ public interface LeaveService {
     /** Hàng đợi duyệt của trưởng khoa. */
     List<LeaveRequest> findByDepartment(Long departmentId, ApprovalStatus status);
 
+    /**
+     * Số đơn chờ duyệt mà trưởng khoa CÒN xử lý được — đơn có kỳ nghỉ đã trôi qua bị loại,
+     * vì không duyệt cũng không từ chối được nữa (xem {@link #whyCannotDecide}).
+     */
     long countPendingInDepartment(Long departmentId);
 
     /** Đơn đang chặn lịch trong ngày (đã duyệt, hoặc báo bận đột xuất chờ duyệt). */

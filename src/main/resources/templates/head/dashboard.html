@@ -68,15 +68,19 @@
         </div>
       </div>
 
-      <!-- Chốt lịch khám tuần sau cho khoa -->
+      <!-- Lịch khám tuần sau của khoa -->
       <div class="ws-card mb-3">
         <div class="ws-panel-title">Lịch khám tuần sau của khoa</div>
         <p class="small text-muted mb-2">
-          Bác sĩ phải đăng ký lịch khám cho tuần sau (mỗi ngày tối thiểu 1 ca). Hệ thống tự nhắc
-          vào sáng Chủ nhật và tự xếp lịch cả tuần vào tối Chủ nhật cho ai chưa đăng ký. Anh/chị
-          cũng có thể nhắc hoặc chốt ngay.
+          Cách chủ động là <strong>tự xếp ca</strong>: anh/chị chọn từng bác sĩ làm buổi nào,
+          miễn mỗi buổi trong tuần khoa còn ít nhất một người nhận khám. Hai nút còn lại là
+          phương án dự phòng khi để bác sĩ tự đăng ký: hệ thống tự nhắc sáng Chủ nhật và tự xếp
+          cả tuần vào tối Chủ nhật cho ai chưa đăng ký (mỗi ngày một ca sáng, không chọn người).
         </p>
         <div class="d-flex flex-wrap gap-2">
+          <a th:href="@{/head/clinic-roster}" class="btn btn-primary">
+            <i class="bi bi-calendar2-week"></i> Xếp ca cho khoa
+          </a>
           <form th:action="@{/head/clinic/remind}" method="post">
             <button type="submit" class="btn btn-outline-primary">
               <i class="bi bi-bell"></i> Nhắc bác sĩ đăng ký
@@ -84,7 +88,7 @@
           </form>
           <form th:action="@{/head/clinic/finalize}" method="post"
                 onsubmit="return confirm('Tự xếp lịch khám cả tuần cho các bác sĩ chưa đăng ký?');">
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-outline-secondary">
               <i class="bi bi-calendar2-check"></i> Chốt &amp; tự xếp lịch
             </button>
           </form>
@@ -98,7 +102,7 @@
         </div>
         <p class="small text-muted">
           Khám chữa bệnh phải liên tục 24/24 giờ. Anh/chị hãy phân công bác sĩ trực cho các
-          ngày dưới đây.
+          ngày dưới đây tại mục <a th:href="@{/head/duty-roster}">Lịch trực của khoa</a>.
         </p>
         <div class="d-flex flex-wrap gap-2">
           <span th:each="date : ${uncoveredDates}" class="badge text-bg-danger"

@@ -57,8 +57,21 @@ Constants live on `BookingService`: `MIN_HOURS_BEFORE_CHANGE = 24` and `MAX_RESC
 - Moving a booking clears `queueOrder` / `lateMarkedAt`, since the old queue position belongs to the old slot.
 - The new slot only has to be in the future — the 24-hour rule gates the *current* appointment, mirroring cancel, since booking a brand-new slot for tomorrow has never been restricted.
 
+## 4b. What staff may still do — `whyStaffCannotChange`
+`BookingService.whyStaffCannotChange(booking)` is the doctor/receptionist counterpart of `whyCannotCancel`: `null` = still allowed, otherwise the Vietnamese reason. It rejects `CANCELED`, `COMPLETED`, and any booking whose `appointmentStart` is already in the past — and deliberately **does not** apply `MIN_HOURS_BEFORE_CHANGE`, because a doctor must still be able to cancel a same-day booking ("hủy lịch đột xuất").
+
+It compares the **full `LocalDateTime`**, not just the date, so an 08:00 slot is closed by the afternoon of the same day.
+
+`DoctorDashboardController.confirmBooking` / `cancelBooking` call it before touching anything, and `DoctorBookingManagerController` / `DoctorBookingRequestController` pass an `actionBlockReasons` map (id → reason) into `booking-manager.html` / `booking-requests.html`, which grey out the buttons and print the reason. Same shape as `ProfileController`'s `cancelBlockReasons` for patients, so UI and server can never disagree. Before this, a doctor could "cancel" a `COMPLETED` visit and the patient's wallet was refunded for an exam that actually happened, or "confirm" a booking from last year and an email went out.
+
+`DoctorMedicalRecordController.showCreateForm` also checks `appointmentDate == today` server-side; that rule previously lived **only** in the template, so a hand-typed URL opened the exam form for any day.
+
+**The guard is deliberately NOT inside `cancelWithRefund`.** The receptionist bulk-cancel tool exists exactly for "doctor called in sick mid-day", where some of the day's slots have already passed — a guard there would break that flow.
+
 ## 5. Shared cancel logic
-`BookingServiceImpl.cancelWithRefund(bookingId, reason)` is the single place that cancels a booking: sets `CANCELED`, refunds `bookingPrice` to the wallet when `paymentStatus == "PAID"` (marking it `REFUNDED`, otherwise `FAILED`), and sends the cancellation email. `AdminBookingController` and the receptionist bulk-cancel flow both call it — put any change to cancellation behaviour here, not in a controller.
+`BookingServiceImpl.cancelWithRefund(bookingId, reason)` is the single place that cancels a booking: sets `CANCELED`, refunds `bookingPrice` to the wallet when `paymentStatus == "PAID"` (marking it `REFUNDED`, otherwise `FAILED`), and sends the cancellation email. `AdminBookingController`, the receptionist bulk-cancel flow **and `DoctorDashboardController.cancelBooking`** all call it — put any change to cancellation behaviour here, not in a controller. The doctor path used to hand-roll its own copy of the refund, which is how it ended up with none of the guards.
+
+The `reason` is appended to the wallet ledger description, so the ledger says *who* cancelled and not merely that money moved.
 
 ## Data model notes
 - `BookingStatus`: `PENDING → CONFIRMED → COMPLETED`, or `CANCELED`.

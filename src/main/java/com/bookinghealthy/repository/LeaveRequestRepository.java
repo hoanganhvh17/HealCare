@@ -47,10 +47,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByDepartmentAndStatus(@Param("departmentId") Long departmentId,
                                                  @Param("status") ApprovalStatus status);
 
-    @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.status = :status AND l.user.id IN "
+    /**
+     * Số đơn trưởng khoa CÒN xử lý được: đơn có kỳ nghỉ đã kết thúc thì không duyệt cũng
+     * không từ chối được nữa nên phải loại khỏi con số hiển thị, kẻo chuông báo mãi một
+     * việc không ai làm được.
+     */
+    @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.status = :status "
+            + "AND l.endDate >= :today AND l.user.id IN "
             + "(SELECT d.user.id FROM Doctor d WHERE d.department.id = :departmentId)")
     long countByDepartmentAndStatus(@Param("departmentId") Long departmentId,
-                                    @Param("status") ApprovalStatus status);
+                                    @Param("status") ApprovalStatus status,
+                                    @Param("today") LocalDate today);
 
     /** Đơn đang có hiệu lực chặn lịch trong một ngày — chặn đăng ký ca vào ngày đã nghỉ. */
     @Query("SELECT l FROM LeaveRequest l WHERE l.user.id = :userId "

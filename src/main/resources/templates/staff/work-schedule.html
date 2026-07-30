@@ -28,22 +28,8 @@
         <i class="bi bi-search"></i>
       </button>
 
-      <!-- Chuông thông báo -->
-      <div class="dropdown">
-        <button type="button" class="ws-icon-btn" data-bs-toggle="dropdown"
-                data-bs-auto-close="outside" title="Thông báo">
-          <i class="bi bi-bell"></i>
-          <span class="ws-badge-dot d-none" id="wsNotifDot"></span>
-        </button>
-        <div class="dropdown-menu dropdown-menu-end p-3" style="width: 340px; max-height: 420px; overflow-y: auto;">
-          <h6 class="fw-bold mb-2">
-            Thông báo <span class="text-muted small">(<span id="wsNotifCount">0</span>)</span>
-          </h6>
-          <div id="wsNotifList">
-            <div class="ws-empty">Đang tải…</div>
-          </div>
-        </div>
-      </div>
+      <!-- Chuông thông báo nằm ở fragment header dùng chung (doctor/include/header),
+           để nó có mặt trên mọi trang chứ không chỉ trang này. -->
 
       <!-- Đăng ký ca khám theo tuần: chỉ bác sĩ mới mở khung giờ khám -->
       <button type="button" class="ws-btn-primary" th:if="${isDoctor}"

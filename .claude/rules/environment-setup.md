@@ -3,6 +3,8 @@
 ## Database
 **MySQL** must be running locally with a `bookinghealthy` schema. Hibernate runs with `ddl-auto=update`, so tables are auto-created and migrated on boot — there is no migration tool (Flyway/Liquibase). Entity changes take effect on restart.
 
+**Gotcha — `ddl-auto=update` never widens a column either.** It only *adds* tables and columns. Declaring `@Column(length = 500)` on a field whose column already exists as `varchar(255)` compiles and boots fine, then fails at runtime with "Data truncated" the first time a long value arrives — and only on databases that already had the table. `Notification.message` is pinned to 255 for exactly this reason: the dev database already contained a leftover `notifications` table from an earlier iteration of the project, with narrower columns and two now-unused ones (`user_id`, `target_url`) that Hibernate left in place.
+
 **Gotcha — renaming an `@Enumerated(EnumType.STRING)` value.** Hibernate 6 maps such a field to a **native MySQL `ENUM(...)` column** whose value list is fixed at table-creation time. `ddl-auto=update` **never rewrites that list**, so after you rename or remove an enum constant, inserting the new value fails with `Data truncated for column '…'` (surfaces as an HTTP 500). Fix it once by hand, e.g. `ALTER TABLE staff_shifts MODIFY COLUMN shift_type ENUM('CA_SANG','CA_CHIEU','TRUC_NGOAI_GIO','TRUC_12H_DEM','TRUC_24H','HOI_CHAN') NOT NULL;` — or drop the table and let it re-create. Adding a *new* constant to the end is safe; only renames/removals on an existing dev DB need this.
 
 ## Configuration file

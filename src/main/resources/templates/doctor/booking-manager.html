@@ -67,41 +67,60 @@
                   <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-success"><i class="bi bi-clipboard-check"></i> Đã khám</span>
                 </td>
                 <td>
-                  <div th:if="${booking.status.name() == 'PENDING'}" class="d-flex gap-1">
-                    <a th:href="@{/doctor/bookings/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận" onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
-                      <i class="bi bi-check-lg"></i>
-                    </a>
-                    <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Từ chối" onclick="return confirm('Bạn có chắc muốn hủy lịch này?')">
-                      <i class="bi bi-x-lg"></i>
-                    </a>
-                  </div>
+                  <!-- Lịch đã trôi qua / đã hủy / đã khám xong thì mọi nút thao tác bị vô hiệu:
+                       lý do do server tính (BookingService.whyStaffCannotChange) nên giao diện
+                       không bao giờ mời bác sĩ bấm một việc server sẽ chặn. -->
+                  <th:block th:with="blockReason=${actionBlockReasons[booking.id]}">
 
-                  <div th:if="${booking.status.name() == 'CONFIRMED'}" class="d-flex gap-1">
+                    <div th:if="${booking.status.name() == 'PENDING'}" class="d-flex gap-1">
+                      <th:block th:if="${blockReason == null}">
+                        <a th:href="@{/doctor/bookings/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận" onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
+                          <i class="bi bi-check-lg"></i>
+                        </a>
+                        <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Từ chối" onclick="return confirm('Bạn có chắc muốn hủy lịch này?')">
+                          <i class="bi bi-x-lg"></i>
+                        </a>
+                      </th:block>
+                      <button th:if="${blockReason != null}" type="button"
+                              class="btn btn-secondary btn-sm disabled" th:title="${blockReason}">
+                        <i class="bi bi-lock-fill"></i> Đã quá hạn
+                      </button>
+                    </div>
 
-                    <a th:if="${booking.appointmentDate.isEqual(#temporals.createToday())}"
-                       th:href="@{/doctor/medical-record/create/{id}(id=${booking.id})}"
-                       class="btn btn-outline-primary btn-sm"
-                       title="Thực hiện khám">
-                      <i class="bi bi-stethoscope"></i> Khám
-                    </a>
+                    <div th:if="${booking.status.name() == 'CONFIRMED'}" class="d-flex gap-1">
 
-                    <button th:unless="${booking.appointmentDate.isEqual(#temporals.createToday())}"
-                            class="btn btn-secondary btn-sm disabled"
-                            type="button"
-                            title="Chưa đến ngày hẹn (Chỉ được khám vào đúng ngày)">
-                      <i class="bi bi-lock-fill"></i> Chờ
-                    </button>
+                      <a th:if="${booking.appointmentDate.isEqual(#temporals.createToday())}"
+                         th:href="@{/doctor/medical-record/create/{id}(id=${booking.id})}"
+                         class="btn btn-outline-primary btn-sm"
+                         title="Thực hiện khám">
+                        <i class="bi bi-stethoscope"></i> Khám
+                      </a>
 
-                    <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-outline-danger btn-sm" title="Hủy lịch đột xuất" onclick="return confirm('Hủy lịch này? Bệnh nhân sẽ được thông báo.')">
-                      <i class="bi bi-x"></i>
-                    </a>
-                  </div>
+                      <button th:unless="${booking.appointmentDate.isEqual(#temporals.createToday())}"
+                              class="btn btn-secondary btn-sm disabled"
+                              type="button"
+                              th:title="${booking.appointmentDate.isBefore(#temporals.createToday())}
+                                        ? 'Đã quá ngày hẹn nên không khám được nữa'
+                                        : 'Chưa đến ngày hẹn (Chỉ được khám vào đúng ngày)'">
+                        <i class="bi bi-lock-fill"></i>
+                        <span th:text="${booking.appointmentDate.isBefore(#temporals.createToday())} ? 'Đã quá ngày' : 'Chờ'">Chờ</span>
+                      </button>
 
-                  <div th:if="${booking.status.name() == 'COMPLETED'}">
-                    <a th:href="@{/doctor/medical-record/view/{id}(id=${booking.id})}" class="btn btn-outline-secondary btn-sm" title="Xem lại hồ sơ">
-                      <i class="bi bi-file-earmark-medical"></i> Xem
-                    </a>
-                  </div>
+                      <a th:if="${blockReason == null}"
+                         th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-outline-danger btn-sm" title="Hủy lịch đột xuất" onclick="return confirm('Hủy lịch này? Bệnh nhân sẽ được thông báo.')">
+                        <i class="bi bi-x"></i>
+                      </a>
+                    </div>
+
+                    <div th:if="${booking.status.name() == 'COMPLETED'}">
+                      <a th:href="@{/doctor/medical-record/view/{id}(id=${booking.id})}" class="btn btn-outline-secondary btn-sm" title="Xem lại hồ sơ">
+                        <i class="bi bi-file-earmark-medical"></i> Xem
+                      </a>
+                    </div>
+
+                    <div th:if="${blockReason != null && booking.status.name() != 'COMPLETED' && booking.status.name() != 'CANCELED'}"
+                         class="small text-muted mt-1" th:text="${blockReason}">Lịch hẹn đã trôi qua.</div>
+                  </th:block>
                 </td>
               </tr>
               </tbody>

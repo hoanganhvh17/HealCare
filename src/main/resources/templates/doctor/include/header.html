@@ -42,6 +42,30 @@
         </button>
       </li>
 
+      <!-- CHUÔNG THÔNG BÁO (nhân viên).
+           Đặt ở fragment header dùng chung nên có mặt trên MỌI trang bác sĩ / trưởng khoa /
+           lễ tân — trước đây chuông chỉ nằm ở trang Lịch làm việc, nên bác sĩ không biết
+           đơn của mình đã được duyệt hay chưa.
+           Dựng bằng class Bootstrap thuần: work-schedule.css không được nạp ở phần lớn
+           các trang này. Fragment cũng được trang bệnh nhân dùng, nên chặn theo vai trò. -->
+      <li class="nav-item dropdown pe-3"
+          sec:authorize="hasAnyRole('DOCTOR','HEAD_DOCTOR','RECEPTIONIST')">
+        <a class="nav-link nav-icon position-relative" href="#" id="staffNotifToggle"
+           data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Thông báo">
+          <i class="bi bi-bell" style="font-size: 1.3rem;"></i>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                id="staffNotifBadge">0</span>
+        </a>
+
+        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow p-3"
+             style="width: 340px; max-height: 420px; overflow-y: auto;">
+          <h6 class="fw-bold mb-2">Thông báo</h6>
+          <div id="staffNotifList">
+            <div class="text-muted small py-2">Đang tải…</div>
+          </div>
+        </div>
+      </li>
+
       <li class="nav-item dropdown pe-3">
         <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
           <img th:src="${#authentication.principal.avatar != null && !#strings.isEmpty(#authentication.principal.avatar)}
@@ -68,6 +92,11 @@
 
   <!-- NHÚNG SIDEBAR TRỰC TIẾP VÀO HEADER ĐỂ CHẮC CHẮN NÓ LUÔN TỒN TẠI -->
   <div th:replace="~{doctor/include/ai-chat-doctor :: chat-widget}"></div>
+
+  <!-- Script đi kèm markup chuông ở trên: nạp ngay trong fragment để mọi trang dùng
+       header này đều có chuông chạy, không phải sửa 13 template. Script tự thoát khi
+       trang không có chuông. -->
+  <script th:src="@{/assets/js/staff-notifications.js}"></script>
 </header>
 
 </body>

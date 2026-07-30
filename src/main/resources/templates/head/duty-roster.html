@@ -31,6 +31,10 @@
       <i class="bi bi-exclamation-octagon me-1"></i> <span th:text="${errorMessage}"></span>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
+    <div th:if="${warningMessage}" class="alert alert-warning alert-dismissible fade show">
+      <i class="bi bi-exclamation-triangle me-1"></i> <span th:text="${warningMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 
     <!-- Điều hướng theo tuần -->
     <div class="ws-card mb-3">
@@ -61,16 +65,27 @@
         Thông tư 32/2023/TT-BYT: phiên trực phải có đủ nhân lực, tối thiểu một bác sĩ,
         để bảo đảm khám chữa bệnh liên tục 24/24 giờ.
       </p>
+      <!-- Bấm vào ngày trống là mở form phân công với ngày điền sẵn -->
       <div class="d-flex flex-wrap gap-2">
-        <span th:each="date : ${uncoveredDates}" class="badge text-bg-danger"
-              th:text="${#temporals.format(date, 'dd/MM/yyyy')}">22/07/2026</span>
+        <button type="button" th:each="date : ${uncoveredDates}"
+                class="badge text-bg-danger border-0"
+                data-bs-toggle="modal" data-bs-target="#assignDutyModal"
+                th:attr="data-assign-date=${date}"
+                title="Bấm để phân công trực cho ngày này">
+          <i class="bi bi-person-plus"></i>
+          <span th:text="${#temporals.format(date, 'dd/MM/yyyy')}">22/07/2026</span>
+        </button>
       </div>
     </div>
 
     <!-- Danh sách phiên trực -->
     <div class="ws-card">
-      <div class="ws-panel-title">
-        Phiên trực trong tuần (<span th:text="${#lists.size(dutyShifts)}">6</span>)
+      <div class="ws-panel-title d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Phiên trực trong tuần (<span th:text="${#lists.size(dutyShifts)}">6</span>)</span>
+        <button type="button" class="btn btn-sm btn-primary"
+                data-bs-toggle="modal" data-bs-target="#assignDutyModal">
+          <i class="bi bi-person-plus"></i> Phân công trực
+        </button>
       </div>
 
       <div class="table-responsive">
@@ -105,8 +120,12 @@
               </span>
             </td>
 
-            <td class="text-end" style="min-width: 230px;">
-              <div th:if="${shift.status.name() == 'PENDING'}" class="d-flex gap-1 justify-content-end">
+            <td class="text-end" style="min-width: 230px;"
+                th:with="blockReason=${decideBlockReasons[shift.id]}">
+              <!-- Ca đã trực xong thì không duyệt/từ chối được nữa: ngày nghỉ bù sinh ra
+                   cũng rơi vào quá khứ. Lý do do server tính (whyCannotDecideShift). -->
+              <div th:if="${shift.status.name() == 'PENDING' and blockReason == null}"
+                   class="d-flex gap-1 justify-content-end">
                 <form th:action="@{/head/duty-roster/{id}/approve(id=${shift.id})}" method="post" class="d-flex gap-1">
                   <input type="hidden" name="weekStart" th:value="${weekStart}">
                   <input type="text" name="comment" class="form-control form-control-sm"
@@ -121,6 +140,11 @@
                     <i class="bi bi-x-lg"></i>
                   </button>
                 </form>
+              </div>
+
+              <div th:if="${shift.status.name() == 'PENDING' and blockReason != null}">
+                <span class="badge text-bg-secondary"><i class="bi bi-lock-fill"></i> Đã hết hiệu lực</span>
+                <div class="small text-muted mt-1" th:text="${blockReason}">Ca đã kết thúc.</div>
               </div>
 
               <div th:if="${shift.status.name() != 'PENDING'}" class="small text-muted">
@@ -148,6 +172,92 @@
   </section>
 </main>
 
+<!-- ===================== PHÂN CÔNG PHIÊN TRỰC =====================
+     Trưởng khoa tạo ca hộ bác sĩ. Ca vào thẳng trạng thái ĐÃ DUYỆT (người phân công cũng
+     là người có quyền duyệt), nhưng vẫn đi qua đủ bộ luật của việc tự đăng ký: không phân
+     công cho quá khứ, phải trước 24 giờ, trực 24/24 chỉ ngày nghỉ / lễ, không lấn giờ hành
+     chính, không trùng ca, không rơi vào ngày bác sĩ đang nghỉ phép, đủ giờ nghỉ bù. -->
+<div class="modal fade" id="assignDutyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" th:action="@{/head/duty-roster/assign}" method="post">
+      <input type="hidden" name="weekStart" th:value="${weekStart}">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Phân công phiên trực</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="assignDoctorId">Bác sĩ</label>
+          <select class="form-select" id="assignDoctorId" name="doctorId" required>
+            <option value="">-- Chọn bác sĩ trong khoa --</option>
+            <option th:each="doctor : ${departmentDoctors}"
+                    th:value="${doctor.id}"
+                    th:text="${doctor.user != null ? doctor.user.fullName : '—'}">BS. Nguyễn Văn A</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="assignShiftType">Loại phiên trực</label>
+          <select class="form-select" id="assignShiftType" name="shiftType" required>
+            <option th:each="type : ${dutyShiftTypes}"
+                    th:value="${type.name()}"
+                    th:text="${type.label} + ' (' + ${type.defaultStart} + ' - ' + ${type.defaultEnd} + ')'">
+              Trực ngoài giờ
+            </option>
+          </select>
+          <div class="form-text">
+            Ca khám (sáng / chiều) không xếp ở đây — dùng
+            <a th:href="@{/head/clinic-roster}">Xếp ca khoa</a>.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="assignShiftDate">Ngày trực</label>
+          <input type="date" class="form-control" id="assignShiftDate" name="shiftDate" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="assignDutyRole">Vị trí trực</label>
+          <select class="form-select" id="assignDutyRole" name="dutyRole">
+            <option value="">-- Mặc định: trực lâm sàng --</option>
+            <option th:each="role : ${dutyRoles}" th:value="${role.name()}"
+                    th:text="${role.label}">Trực lâm sàng</option>
+          </select>
+        </div>
+
+        <div class="mb-0">
+          <label class="form-label" for="assignNote">Ghi chú</label>
+          <textarea class="form-control" id="assignNote" name="note" rows="2"
+                    placeholder="Ví dụ: thay ca cho BS. Bình."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-lg"></i> Phân công &amp; thông báo
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <th:block th:replace="~{admin/include/footer :: footer}"></th:block>
+
+<script>
+  // Bấm vào một ngày trống trực thì điền sẵn ngày đó vào form.
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-assign-date]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('assignShiftDate');
+        if (input) {
+          input.value = btn.getAttribute('data-assign-date');
+        }
+      });
+    });
+  });
+</script>
 </body>
 </html>

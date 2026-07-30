@@ -81,6 +81,47 @@ public interface StaffScheduleService {
     /** @return null nếu hủy được, ngược lại là lý do không hủy được. */
     String cancelShift(Long shiftId, User user);
 
+    // ===================== TRƯỞNG KHOA XẾP CA CHO KHOA =====================
+
+    /**
+     * Bảng xếp ca khám của cả khoa cho tuần {@code weekStart}: một hàng mỗi bác sĩ, đã tích
+     * sẵn theo lịch đang có hiệu lực ({@code ScheduleRepository.findEffective}).
+     */
+    List<com.bookinghealthy.dto.ClinicRosterRowDTO> buildClinicRoster(Long departmentId,
+                                                                      LocalDate weekStart);
+
+    /**
+     * Trưởng khoa xếp ca khám cho cả khoa trong MỘT lần lưu.
+     * <p>
+     * Khác {@link #saveClinicTemplate} (bác sĩ tự đăng ký) ở hai điểm cốt lõi:
+     * <ul>
+     *   <li>Luật kiểm tra là <b>độ phủ của KHOA</b>: mỗi ngày trong tuần khoa phải có tối
+     *       thiểu một bác sĩ ca sáng và một bác sĩ ca chiều. Từng bác sĩ được nghỉ ngày nào
+     *       đó — đúng nghĩa xếp ca cho khoa, thay vì bắt ai cũng làm cả 7 ngày.</li>
+     *   <li>Trưởng khoa KHÔNG bị hạn chốt lịch {@code LeavePolicy.CLINIC_DEADLINE_*} chặn,
+     *       vì họ chính là người chốt lịch. Nhưng vẫn chỉ sửa được TUẦN SAU: tuần hiện tại
+     *       bệnh nhân đã đặt vào rồi.</li>
+     * </ul>
+     *
+     * @param assignments doctorId -> các thứ làm ca sáng / ca chiều
+     * @return null nếu lưu được, ngược lại là lý do từ chối bằng tiếng Việt
+     */
+    String assignClinicWeek(User head, Long departmentId, LocalDate weekStart,
+                            java.util.Map<Long, java.util.List<java.time.DayOfWeek>> morningByDoctor,
+                            java.util.Map<Long, java.util.List<java.time.DayOfWeek>> afternoonByDoctor);
+
+    /**
+     * Trưởng khoa phân công một phiên trực cho bác sĩ trong khoa. Đi qua đúng bộ luật của
+     * {@code registerShift} (quá khứ, trước 24 giờ, trực 24/24 chỉ ngày nghỉ, không lấn giờ
+     * hành chính, không trùng ca, không rơi vào ngày nghỉ phép, đủ giờ nghỉ bù) nhưng ca vào
+     * thẳng trạng thái ĐÃ DUYỆT — người phân công chính là người có quyền duyệt.
+     */
+    ShiftRegisterResultDTO assignDutyShift(User head, Long doctorId, ShiftType shiftType,
+                                           LocalDate date, DutyRole dutyRole, String note);
+
+    /** Bác sĩ của một khoa — danh sách để trưởng khoa chọn khi phân công. */
+    List<com.bookinghealthy.model.Doctor> findDepartmentDoctors(Long departmentId);
+
     /**
      * Toàn bộ sự kiện hiển thị trên lưới lịch, gom từ 4 nguồn:
      * ca trực/hội chẩn ({@code StaffShift}), ca khám định kỳ ({@code Schedule}),
@@ -107,6 +148,16 @@ public interface StaffScheduleService {
     String approveShift(Long shiftId, User approver, String comment);
 
     String rejectShift(Long shiftId, User approver, String comment);
+
+    /**
+     * Lý do phiên trực không còn ra quyết định được (đã bị hủy, hoặc ca đã kết thúc);
+     * null nghĩa là vẫn duyệt / từ chối được.
+     * <p>
+     * Dùng chung cho giao diện (ẩn nút, gắn nhãn "Đã hết hiệu lực") và cho
+     * {@link #approveShift} / {@link #rejectShift}. Duyệt một ca đã trực xong thì phần
+     * "tự sinh ngày nghỉ bù" rơi vào quá khứ, chẳng ai nghỉ được.
+     */
+    String whyCannotDecideShift(StaffShift shift);
 
     /**
      * Các ngày trong khoảng mà khoa CHƯA có ai trực — Thông tư 32/2023/TT-BYT yêu cầu
