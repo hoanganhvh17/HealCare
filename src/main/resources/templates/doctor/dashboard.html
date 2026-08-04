@@ -446,9 +446,10 @@
 
 <th:block th:replace="~{doctor/include/footer :: footer}"></th:block>
 
-<script th:src="@{/assets-admin/vendor/apexcharts/apexcharts.min.js}"></script>
-<script th:src="@{/assets-admin/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
-<script th:src="@{/assets-admin/js/main.js}"></script>
+<!-- Fragment footer đã nạp apexcharts + bootstrap.bundle + main.js rồi.
+     KHÔNG nạp lại bootstrap ở đây: nạp hai lần thì data-api của Bootstrap gắn HAI handler
+     lên document, một cú bấm chạy toggle() hai lần (mở rồi đóng ngay) nên mọi dropdown —
+     kể cả chuông thông báo — trông như bấm không ăn. -->
 
 <script th:inline="javascript">
     document.addEventListener("DOMContentLoaded", () => {

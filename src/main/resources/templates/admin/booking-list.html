@@ -115,8 +115,8 @@
 
 </main>
 <th:block th:replace="~{admin/include/footer :: footer}"></th:block>
-<script th:src="@{/assets-admin/vendor/simple-datatables/simple-datatables.js}"></script>
-<script th:src="@{/assets-admin/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
-<script th:src="@{/assets-admin/js/main.js}"></script>
+<!-- Fragment footer đã nạp simple-datatables + bootstrap.bundle + main.js. Nạp bootstrap
+     lần hai làm data-api gắn hai handler lên document, một cú bấm chạy toggle() hai lần
+     (mở rồi đóng) nên mọi dropdown trông như bấm không ăn. -->
 </body>
 </html>

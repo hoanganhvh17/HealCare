@@ -246,7 +246,11 @@
 </main>
 
 <th:block th:if="${role == 'USER'}">
-  <footer th:replace="~{user/index :: footer}"></footer>
+  <!-- user/index.html KHÔNG có fragment "footer" nào, nên ~{user/index :: footer} ném
+       TemplateInputException giữa chừng: bệnh nhân nhận về trang cụt ở </main>, mất footer
+       lẫn toàn bộ script phía dưới (kể cả nút xuất PDF). Fragment đúng là user/include/footer,
+       thứ mọi trang bệnh nhân khác đang dùng. -->
+  <div th:replace="~{user/include/footer :: footer}"></div>
   <div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
 </th:block>
 
@@ -254,7 +258,11 @@
   <th:block th:replace="~{admin/include/footer :: footer}"></th:block>
 </th:block>
 
-<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<!-- Chỉ nạp cho BỆNH NHÂN: nhánh trên đã kéo theo bootstrap.bundle của fragment footer.
+     Nạp thêm ở đây thì bác sĩ/admin có HAI bản Bootstrap, data-api gắn hai handler lên
+     document, một cú bấm chạy toggle() hai lần (mở rồi đóng) nên dropdown như bị liệt. -->
+<script th:unless="${role == 'DOCTOR' || role == 'ADMIN'}"
+        th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 
 <script>
   function exportPDF() {
