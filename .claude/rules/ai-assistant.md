@@ -167,5 +167,31 @@ This was already how the single original box worked; it just wasn't written down
 
 The insight text must agree with the number printed above it. `countToday` counts **CONFIRMED only**, so the "Cần khám hôm nay" box counts the same set — an earlier draft included PENDING and printed "Còn 3/4 ca" under a card reading 2.
 
+## Explaining a patient's own medical record
+`POST /api/chat/medical-record/{bookingId}/explain` (in `AiController`) lets a logged-in patient ask AI to explain their own diagnosis/prescription in plain language. It deliberately stands **outside** `chatWithMemory`/`PATIENT_BASE_PROMPT` — that prompt forces the 9-key JSON triage schema and has nothing to do with reading a specific record. Instead it builds its own system prompt (`RECORD_EXPLAIN_PROMPT_TEMPLATE`, same one-shot-template pattern as `AdminAiController.ADMIN_SYSTEM_PROMPT_TEMPLATE`) and calls `AiService.getConversationalResponse(...)`, returning plain prose — the frontend never touches the 9-key JSON parsing path.
+
+Unlike the doctor side's `#pdf-content` DOM-scrape-and-forward pattern (`DoctorAiController.askAi`), this endpoint reads the record **straight from the DB** (`MedicalRecord` fields + `PrescriptionItemRepository`, falling back to the legacy `record.prescription` text field when no structured items exist) rather than trusting client-supplied `pageContent` — the data is more reliable and ownership can be re-checked server-side against the real `Booking.user`. It re-runs the exact same ownership check as `UserMedicalRecordController.viewMedicalRecord` (booking's `user.id` must equal the caller's) before returning anything, and the prompt explicitly forbids the model from proposing a new appointment even when `doctorNotes` mentions a follow-up — that's `FollowUpReminderTask`'s job, not a chat reply's.
+
+`sessionId` is `"record_" + bookingId` (one conversation per record, remembers follow-up questions within it via the same history mechanism `getConversationalResponse` already has).
+
+**`/api/chat/medical-record/**` requires authentication**, declared in block 0 of `SecurityConfig` **above** the `/api/chat/**` `permitAll()` — the same matcher-order requirement documented in [authentication-and-roles.md](authentication-and-roles.md), since `/api/chat/**` itself is open to anonymous triage chat.
+
+The UI is a small self-contained Q&A box directly in `user/medical-record-detail.html` (guarded by `role == 'USER'`) — not the floating chat widget (`ai-chat.js`). Reusing the widget would have meant either routing through `chatWithMemory`'s JSON schema (wrong tool for a one-off record explanation) or forking `sendMessage()`'s internals; the small dedicated panel avoids both.
+
+## Reminding patients to book a follow-up
+`task/FollowUpReminderTask.java` (`@Scheduled(cron = "0 0 8 * * ?")`, daily) scans `MedicalRecord` rows for a doctor's follow-up instruction and nags the patient once it's close.
+
+**Regex scope is deliberately narrow.** It recognizes exactly one pattern — `(tái khám|khám lại) ... sau ... N ... (ngày|tuần|tháng)` — and nothing else, in particular **no absolute `dd/mm` dates**. `doctorNotes` is the same kind of free medical text that already burned the chat's date parser (`ai-assistant.md`'s own history: "huyết áp 120/80" matched as day/month, "sốt 39-40 độ" matched as a date range) — a slash or dash in a blood-pressure or dosage reading is far more common in this text than an actual date. Missing a follow-up mention is safe; inventing the wrong date and nagging the patient toward the wrong day is not.
+
+**Idempotency uses a persisted flag, not a time-exact trigger.** `MedicalRecord.followUpReminderSent` is set once the job has *processed* a record (sent, or determined sending is unnecessary/moot) — never merely because the date hasn't arrived yet, since the job must keep re-checking those. The reminder fires when the computed revisit date is within `LEAD_DAYS` (3) of today, down to `-STALE_DAYS` (14) in the past — a window wide enough to survive the job not running exactly on the target day, while the flag prevents ever sending twice. Records whose revisit date is more than 14 days overdue are silently marked done without sending — a reminder that late is pointless.
+
+Before sending, it checks `BookingRepository.existsByUserIdAndAppointmentDateGreaterThanEqualAndStatusNot(userId, today, CANCELED)` — a patient who already rebooked (on their own, or via the AI record-explain chat) is not nagged again.
+
+Sends **both** `EmailService.sendFollowUpReminder(...)` and `NotificationService.push(...)`, same "always in pairs" convention as `LeaveServiceImpl.notifyDecision` (see [supporting-subsystems.md](supporting-subsystems.md)). Never creates a booking itself — only nudges the patient toward `/appointment`, same "AI never books directly" principle already applied to voice.
+
+**Gotcha hit while building this:** the query behind the scan (`MedicalRecordRepository.findByStatusAndFollowUpReminderSentFalseAndDoctorNotesIsNotNull`) needs its own `@EntityGraph` (`booking`, `booking.user`, `booking.doctor`, `booking.doctor.user`, `booking.doctor.department`). Unlike a web request, a `@Scheduled` job has no `open-in-view` safety net keeping the Hibernate session open — touching any of those LAZY associations after the initial query returns throws `LazyInitializationException`.
+
+**Gotcha hit while testing this:** `followup-reminder.html` originally had `th:href="@{/appointment}"` as a "Đặt lịch tái khám" button. `EmailServiceImpl` renders every template through a plain `org.thymeleaf.context.Context`, not an `IWebContext` — `@{...}` link expressions need the latter and throw `TemplateProcessingException` at render time. None of the other 6 templates under `templates/email/` use a link expression for exactly this reason; they say "truy cập website để..." in plain text instead. Any future email template needs a call-to-action must follow that same plain-text convention — there is no configured base URL anywhere in the app to build an absolute link from even if `IWebContext` were available.
+
 ## Housekeeping
 A `@Scheduled` job (`0 0 2 * * ?`) purges guest chat sessions older than 7 days. Scheduling is enabled by `SchedulerConfig`; async support by `@EnableAsync` on the main application class.

@@ -31,6 +31,15 @@ public interface EmailService {
                                 java.time.LocalDate oldDate, String oldTime);
 
     /**
+     * Nhắc bệnh nhân tới hạn tái khám theo lời dặn của bác sĩ ở lần khám trước.
+     * Gọi bởi {@code FollowUpReminderTask}, luôn đi kèm {@code NotificationService.push}.
+     *
+     * @param lastBooking lịch hẹn đã hoàn thành mà lời dặn tái khám được trích ra
+     * @param revisitDate ngày tái khám ước tính (suy từ lời dặn, không phải mốc chính xác)
+     */
+    void sendFollowUpReminder(Booking lastBooking, java.time.LocalDate revisitDate);
+
+    /**
      * Thông báo chung gửi cho nhân viên, dựng từ {@code templates/email/general-notification.html}.
      * Dùng cho các sự kiện của lịch làm việc: đơn nghỉ được duyệt / bị từ chối,
      * lời mời nhận ca, ca trực đã có người thay.

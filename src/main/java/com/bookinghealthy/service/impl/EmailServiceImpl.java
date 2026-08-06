@@ -224,6 +224,36 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    // === NHẮC TÁI KHÁM (FollowUpReminderTask) ===
+    @Async
+    @Override
+    public void sendFollowUpReminder(Booking lastBooking, java.time.LocalDate revisitDate) {
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(lastBooking.getUser().getEmail());
+            helper.setSubject("MediTrust - Nhắc lịch tái khám");
+
+            org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+            context.setVariable("patientName", lastBooking.getUser().getFullName());
+            context.setVariable("doctorName", "Dr. " + lastBooking.getDoctor().getUser().getFullName());
+            context.setVariable("departmentName", lastBooking.getDoctor().getDepartment().getName());
+
+            java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            context.setVariable("lastVisitDate", lastBooking.getAppointmentDate().format(dateFormatter));
+            context.setVariable("revisitDate", revisitDate.format(dateFormatter));
+
+            String htmlContent = templateEngine.process("email/followup-reminder", context);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            System.err.println("Lỗi khi gửi mail NHẮC TÁI KHÁM: " + e.getMessage());
+        }
+    }
+
     // === 1. GỬI XÁC NHẬN CHO ỨNG VIÊN ===
     @Async
     @Override

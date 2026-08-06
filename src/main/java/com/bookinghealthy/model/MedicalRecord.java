@@ -51,4 +51,13 @@ public class MedicalRecord {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private MedicalRecordStatus status = DRAFT; // DRAFT, COMPLETED
+
+    /**
+     * Đã gửi nhắc tái khám cho hồ sơ này chưa — cờ chống nhắc trùng của {@code FollowUpReminderTask}.
+     * Đặt true sau khi job đã XỬ LÝ xong hồ sơ (đã gửi, hoặc xác định không cần gửi vì bệnh nhân đã
+     * tự đặt lịch mới / đã quá hạn nhắc), KHÔNG đặt true chỉ vì chưa tới hạn — job cần thử lại các
+     * hồ sơ đó vào những ngày sau.
+     */
+    @Column(nullable = false)
+    private boolean followUpReminderSent = false;
 }

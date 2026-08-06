@@ -47,6 +47,10 @@ public class SecurityConfig {
                         // Thêm luật mới cho /api/doctor/** hay /admin/** thì đặt ở ĐÂY, đừng đặt xuống dưới.
                         .requestMatchers("/api/doctor/chat/**").hasRole("DOCTOR")
                         .requestMatchers("/api/admin/chat/**").hasRole("ADMIN")
+                        // Giải thích hồ sơ bệnh án: phải đăng nhập, đứng TRÊN /api/chat/**.permitAll()
+                        // bên dưới — nếu không lại rơi vào whitelist công khai, đúng bẫy đã từng xảy ra
+                        // với /api/doctor/chat/** (xem authentication-and-roles.md).
+                        .requestMatchers("/api/chat/medical-record/**").authenticated()
 
                         // --- 1. CÁC TRANG CÔNG KHAI (AI CŨNG XEM ĐƯỢC) ---
                         .requestMatchers(

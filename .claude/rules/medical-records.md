@@ -13,4 +13,6 @@ Post-visit clinical data is a connected entity cluster centered on `MedicalRecor
 - **Patients** view their own records via `UserMedicalRecordController`.
 - **Admins** have a read/manage view via `AdminMedicalRecordController`.
 
-Records are also read by the AI layer — the patient's latest completed record is injected into triage chat context, so changes to `MedicalRecord` field names should be checked against `AiService`.
+Records are also read by the AI layer — the patient's latest completed record is injected into triage chat context, so changes to `MedicalRecord` field names should be checked against `AiService`. A patient can also ask AI to explain **any one of their own records** in plain language via `POST /api/chat/medical-record/{bookingId}/explain` (a small Q&A box on `medical-record-detail.html`, not the floating triage widget) — see [ai-assistant.md](ai-assistant.md).
+
+`MedicalRecord.followUpReminderSent` (boolean, default `false`) is **not** clinical data — it's the idempotency flag for `FollowUpReminderTask`, which scans `doctorNotes` for a follow-up instruction ("tái khám sau N ngày/tuần/tháng") and nags the patient by email + in-app notification once the computed date is close. See [ai-assistant.md](ai-assistant.md) for the regex scope and [supporting-subsystems.md](supporting-subsystems.md) for the task pattern. `MedicalRecord` uses `@AllArgsConstructor` but — unlike `User`/`Doctor`/`Department`/`Schedule` — is never constructed positionally by `DataInitializer`, so adding fields to it is safe.

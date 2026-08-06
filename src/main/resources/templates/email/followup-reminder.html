@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #006B63; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .revisit-box { background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; margin: 20px 0; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header"><h2>NHẮC LỊCH TÁI KHÁM</h2></div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${patientName}"></strong>,</p>
+        <p>Theo lời dặn của bác sĩ ở lần khám ngày <strong th:text="${lastVisitDate}"></strong>
+           tại <strong>MediTrust</strong>, bạn nên tái khám vào khoảng thời gian sắp tới.</p>
+        <div class="revisit-box">
+            <strong>Ngày tái khám ước tính:</strong> <span th:text="${revisitDate}"></span>
+        </div>
+        <p><strong>Chi tiết lần khám trước:</strong></p>
+        <ul>
+            <li>Bác sĩ: <span th:text="${doctorName}"></span></li>
+            <li>Chuyên khoa: <span th:text="${departmentName}"></span></li>
+        </ul>
+        <p>Đây là mốc ước tính từ lời dặn của bác sĩ, không phải lịch hẹn đã được đặt. Hãy chủ động đăng nhập vào MediTrust và đặt lịch tái khám để giữ chỗ đúng thời điểm phù hợp với bạn.</p>
+    </div>
+    <div class="footer">© 2026 MediTrust International Hospital</div>
+</div>
+</body>
+</html>

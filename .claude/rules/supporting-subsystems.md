@@ -93,7 +93,14 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 `util/QRCodeGenerator` uses ZXing to render QR images — used for the VietQR bank-transfer payment page and booking tickets.
 
 ## Email
-`EmailServiceImpl` sends HTML mail rendered from Thymeleaf templates in `templates/email/`: booking confirmation, booking cancellation, candidate confirmation, and a general notification template. Sending is asynchronous (`@EnableAsync`), so failures surface in logs rather than in the request.
+`EmailServiceImpl` sends HTML mail rendered from Thymeleaf templates in `templates/email/`: booking confirmation, booking cancellation, candidate confirmation, a follow-up-reminder template, and a general notification template. Sending is asynchronous (`@EnableAsync`), so failures surface in logs rather than in the request.
+
+**No template under `templates/email/` may use a `@{...}` link expression.** `EmailServiceImpl` renders through a plain `org.thymeleaf.context.Context`, not an `IWebContext` — `@{...}` needs the latter and throws `TemplateProcessingException` at send time, silently swallowed by the same try/catch that catches every other mail-sending failure (easy to miss: it looks exactly like an SMTP error in the log). Every existing template routes a call-to-action through plain text ("truy cập website để...") instead, since the app has no configured base URL to build an absolute link from even if `IWebContext` were available.
+
+## Scheduled tasks (`task/`)
+Each cron job is its own `@Component` in `task/` (`ClinicRegistrationTask`, `BookingCleanupTask`, `MedicalNewsTask`, `FollowUpReminderTask`) — the one exception is the AI chat-session cleanup, a `@Scheduled` method living directly inside `AiService`. `SchedulerConfig` just flips on `@EnableScheduling`.
+
+`FollowUpReminderTask` (daily, `0 0 8 * * ?`) reads a doctor's "tái khám sau N ngày/tuần/tháng" instruction out of `MedicalRecord.doctorNotes` and reminds the patient once the computed date is close — see [ai-assistant.md](ai-assistant.md) for the regex scope (deliberately narrow — no absolute dates) and [medical-records.md](medical-records.md) for the `followUpReminderSent` flag it uses for idempotency. Follows the same "email + `NotificationService.push` together" convention documented above under "Thông báo trong ứng dụng".
 
 ## Dashboards
 `AdminDashboardService` + `DashboardApiController` aggregate booking statistics (`DailyBookingStatsDTO`, `AdminDashboardSummaryDTO`) consumed by charts on the admin dashboard.

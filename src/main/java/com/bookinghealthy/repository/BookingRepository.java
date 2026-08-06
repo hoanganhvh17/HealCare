@@ -110,6 +110,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // Tìm các lịch PENDING, UNPAID và có thời gian tạo trước một mốc thời gian (cutoffTime)
     List<Booking> findByStatusAndPaymentStatusAndCreatedAtBefore(BookingStatus status, String paymentStatus, java.time.LocalDateTime cutoffTime);
 
+    // === NHẮC TÁI KHÁM: bệnh nhân đã tự đặt lịch mới chưa? ===
+    // Dùng để FollowUpReminderTask khỏi làm phiền người đã tự rebooking rồi.
+    boolean existsByUserIdAndAppointmentDateGreaterThanEqualAndStatusNot(Long userId, LocalDate fromDate, BookingStatus status);
+
     // === AI AGENT FOR DOCTOR ===
     @EntityGraph(attributePaths = {"user"})
     List<Booking> findByDoctorIdAndAppointmentDateOrderByAppointmentTimeAsc(Long doctorId, LocalDate appointmentDate);

@@ -36,6 +36,8 @@ public class AiController {
     @Autowired private com.bookinghealthy.repository.DoctorBlockTimeRepository doctorBlockTimeRepository;
     // === THÊM DÒNG NÀY VÀO ===
     @Autowired private com.bookinghealthy.repository.MedicalRecordRepository medicalRecordRepository;
+    // Dùng cho endpoint "giải thích hồ sơ bệnh án" — đọc thẳng đơn thuốc có cấu trúc từ DB.
+    @Autowired private com.bookinghealthy.repository.PrescriptionItemRepository prescriptionItemRepository;
 
     /**
      * Ca khám bác sĩ đã đăng ký (bảng Schedule). BẮT BUỘC đi qua BookingService — đó là đường
@@ -167,6 +169,125 @@ public class AiController {
     public ResponseEntity<String> clearChat(@PathVariable String sessionId) {
         aiService.clearMemory(sessionId);
         return ResponseEntity.ok("Đã xóa lịch sử chat của phiên: " + sessionId);
+    }
+
+    // =========================================================================
+    // GIẢI THÍCH HỒ SƠ BỆNH ÁN CHO BỆNH NHÂN
+    //
+    // CỐ Ý đứng ngoài chatWithMemory/PATIENT_BASE_PROMPT: prompt đó ép JSON 9 key cho luồng
+    // tam giác, không phải chỗ để nhét ngữ cảnh bệnh án. Dùng getConversationalResponse
+    // (đúng cách AdminAiController đang làm) — tự soạn system prompt riêng, trả văn xuôi.
+    //
+    // Đọc dữ liệu THẲNG TỪ DB (không cào DOM #pdf-content như bên bác sĩ): AiController đã
+    // có sẵn medicalRecordRepository + bookingRepository, và dữ liệu gốc đáng tin hơn hẳn text
+    // hiển thị. Endpoint này yêu cầu đăng nhập — xem SecurityConfig khối 0
+    // (/api/chat/medical-record/** phải đứng TRÊN /api/chat/**.permitAll()).
+    // =========================================================================
+
+    private static final String RECORD_EXPLAIN_PROMPT_TEMPLATE =
+            "Bạn là trợ lý AI của phòng khám MediTrust, đang giúp một bệnh nhân hiểu hồ sơ bệnh án của chính họ. " +
+            "Luôn xưng là 'em' và gọi bệnh nhân là 'anh/chị'.\n\n" +
+            "Dưới đây là NỘI DUNG HỒ SƠ BỆNH ÁN (trích từ hệ thống, chỉ đúng bệnh nhân đang hỏi mới xem được):\n\n" +
+            "%s\n\n" +
+            "--- QUY TẮC TRẢ LỜI ---\n" +
+            "1. Giải thích bằng ngôn ngữ ĐƠN GIẢN, DỄ HIỂU — mọi thuật ngữ y khoa (tên bệnh, tên thuốc, chỉ số) phải kèm giải thích ngắn gọn, không dùng nguyên xi từ chuyên môn mà không diễn giải.\n" +
+            "2. Chỉ dựa vào đúng nội dung hồ sơ ở trên, không suy diễn thêm chẩn đoán hay đơn thuốc khác.\n" +
+            "3. Đây KHÔNG phải yêu cầu đặt lịch. TUYỆT ĐỐI không chủ động đề nghị đặt lịch tái khám hay mời đặt lịch mới, kể cả khi hồ sơ có nhắc tái khám — chỉ trả lời nếu bệnh nhân chủ động hỏi về việc đặt lịch.\n" +
+            "4. Nếu câu hỏi vượt ngoài phạm vi hồ sơ (ví dụ hỏi bệnh khác), trả lời ngắn gọn là hồ sơ này không có thông tin đó.\n\n" +
+            "Bây giờ, hãy trả lời câu hỏi của anh/chị.";
+
+    @PostMapping("/medical-record/{bookingId}/explain")
+    public ResponseEntity<Map<String, String>> explainMedicalRecord(
+            @PathVariable Long bookingId, @RequestBody(required = false) ChatRequest request) {
+
+        java.util.Optional<com.bookinghealthy.model.User> currentUserOpt =
+                resolveCurrentUser(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(401).body(Map.of("answer", "Vui lòng đăng nhập để dùng tính năng này."));
+        }
+
+        java.util.Optional<com.bookinghealthy.model.Booking> bookingOpt = bookingRepository.findById(bookingId);
+        if (bookingOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("answer", "Không tìm thấy lịch hẹn."));
+        }
+
+        // Đúng check bảo mật UserMedicalRecordController.viewMedicalRecord đang dùng: chỉ chủ
+        // của lịch hẹn mới được xem/hỏi về hồ sơ bệnh án của lịch hẹn đó.
+        com.bookinghealthy.model.Booking booking = bookingOpt.get();
+        if (!booking.getUser().getId().equals(currentUserOpt.get().getId())) {
+            return ResponseEntity.status(403).body(Map.of("answer", "Bạn không có quyền xem hồ sơ bệnh án này."));
+        }
+
+        com.bookinghealthy.model.MedicalRecord record = medicalRecordRepository.findByBookingId(bookingId).orElse(null);
+        if (record == null) {
+            return ResponseEntity.status(404).body(Map.of("answer", "Lịch hẹn này chưa có hồ sơ bệnh án."));
+        }
+
+        String recordText = formatRecordForAi(record);
+        String systemPrompt = String.format(RECORD_EXPLAIN_PROMPT_TEMPLATE, recordText);
+
+        String question = (request == null || request.getPrompt() == null || request.getPrompt().isBlank())
+                ? "Hãy giải thích chẩn đoán và đơn thuốc trong hồ sơ này giúp tôi bằng ngôn ngữ dễ hiểu."
+                : request.getPrompt().trim();
+        if (question.length() > MAX_PROMPT_CHARS) question = question.substring(0, MAX_PROMPT_CHARS);
+
+        // Mỗi bệnh án một phiên riêng: bookingId vốn đã là khoá duy nhất, không cần ghép userId.
+        String answer = aiService.getConversationalResponse(systemPrompt, question, "record_" + bookingId);
+        return ResponseEntity.ok(Map.of("answer", answer));
+    }
+
+    /** Chuỗi ngữ cảnh cho AI — ưu tiên đơn thuốc có cấu trúc, chỉ dùng text tự do khi bảng rỗng. */
+    private String formatRecordForAi(com.bookinghealthy.model.MedicalRecord record) {
+        StringBuilder sb = new StringBuilder();
+        if (record.getDiagnosisCode() != null && !record.getDiagnosisCode().isBlank()) {
+            sb.append("Mã chẩn đoán (ICD-10): ").append(record.getDiagnosisCode()).append("\n");
+        }
+        sb.append("Chẩn đoán: ").append(nullToEmpty(record.getDiagnosis())).append("\n");
+        sb.append("Triệu chứng: ").append(nullToEmpty(record.getSymptoms())).append("\n");
+
+        java.util.List<com.bookinghealthy.model.PrescriptionItem> items =
+                prescriptionItemRepository.findByMedicalRecordId(record.getId());
+        if (!items.isEmpty()) {
+            sb.append("Đơn thuốc:\n");
+            for (com.bookinghealthy.model.PrescriptionItem item : items) {
+                sb.append("- ").append(item.getMedicineName());
+                if (item.getDosage() != null) sb.append(" (").append(item.getDosage()).append(")");
+                if (item.getQuantity() != null) sb.append(", số lượng ").append(item.getQuantity());
+                if (item.getUnit() != null) sb.append(" ").append(item.getUnit());
+                if (item.getInstructions() != null && !item.getInstructions().isBlank()) {
+                    sb.append(" — cách dùng: ").append(item.getInstructions());
+                }
+                sb.append("\n");
+            }
+        } else {
+            sb.append("Đơn thuốc: ").append(nullToEmpty(record.getPrescription())).append("\n");
+        }
+
+        sb.append("Lời dặn của bác sĩ: ").append(nullToEmpty(record.getDoctorNotes())).append("\n");
+        return sb.toString();
+    }
+
+    private String nullToEmpty(String s) {
+        return (s == null || s.isBlank()) ? "(không có)" : s;
+    }
+
+    /** Cùng logic UserDetails/OAuth2User/fallback đã lặp lại 2 lần trong file này (/history, /welcome). */
+    private java.util.Optional<com.bookinghealthy.model.User> resolveCurrentUser(
+            org.springframework.security.core.Authentication auth) {
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            return java.util.Optional.empty();
+        }
+        Object principal = auth.getPrincipal();
+        if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+            String username = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+            return userRepository.findByUsername(username);
+        } else if (principal instanceof org.springframework.security.oauth2.core.user.OAuth2User) {
+            String email = ((org.springframework.security.oauth2.core.user.OAuth2User) principal).getAttribute("email");
+            return email != null ? userRepository.findByEmail(email) : java.util.Optional.empty();
+        }
+        String name = auth.getName();
+        java.util.Optional<com.bookinghealthy.model.User> byUsername = userRepository.findByUsername(name);
+        return byUsername.isPresent() ? byUsername : userRepository.findByEmail(name);
     }
 
     // BỘ KHUNG GIỜ CHUẨN (Copy y hệt từ BookingApi của mày)
