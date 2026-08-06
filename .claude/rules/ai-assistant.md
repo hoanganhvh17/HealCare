@@ -156,5 +156,16 @@ Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiContro
 
 **`/api/doctor/chat/**` is DOCTOR-only and `/api/admin/chat/**` is ADMIN-only, declared in block 0 of `SecurityConfig`** — see the matcher-order section in [authentication-and-roles.md](authentication-and-roles.md) for why they cannot live lower down.
 
+## The doctor dashboard "AI Insight" boxes are NOT AI
+
+All 8 boxes on `/doctor/dashboard` are **deterministic Java rules** in `DoctorInsightService` — no LLM call, no network, no cost. The label says "AI Insight" but the sentence is `if/else` on the numbers already computed for the page. **The AI is the click**: each `DoctorInsightDTO` carries a `prompt`, the template puts it in `data-ai-prompt`, and one delegated listener in `dashboard.html` opens the doctor chat widget and sends it to `/api/doctor/chat/ask`. Do not "upgrade" a box to call the model inline without pricing 8 calls per dashboard load.
+
+This was already how the single original box worked; it just wasn't written down, which is exactly why it read as a real AI feature. Two things followed from making it explicit:
+
+- **`/quick-review-advice` is gone from `DoctorAiController`** (and its byte-identical dead twin from `DoctorDashboardController`). Insights are rendered server-side by Thymeleaf now, so the fetch, its spinner and its network-error branch no longer exist. The card's number and its sentence read the **same variable** and therefore cannot disagree.
+- **Rules key off `reviewCount`, never `avgRating != null`.** `ReviewServiceImpl.getAverageRating` returns **0.0, not null**, when a doctor has no reviews — so the old "Chưa có đủ đánh giá" branch was unreachable and every brand-new doctor was greeted with a red "Điểm đánh giá đang thấp, cần khắc phục ngay".
+
+The insight text must agree with the number printed above it. `countToday` counts **CONFIRMED only**, so the "Cần khám hôm nay" box counts the same set — an earlier draft included PENDING and printed "Còn 3/4 ca" under a card reading 2.
+
 ## Housekeeping
 A `@Scheduled` job (`0 0 2 * * ?`) purges guest chat sessions older than 7 days. Scheduling is enabled by `SchedulerConfig`; async support by `@EnableAsync` on the main application class.

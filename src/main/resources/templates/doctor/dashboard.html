@@ -117,6 +117,16 @@
         .ai-insight-box:hover {
             background-color: #DCFCE7;
         }
+        .ai-insight-label {
+            color: #047857;
+            font-weight: 700;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+        .ai-insight-text {
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
 
         /* --- Lịch trực UI --- */
         .schedule-row {
@@ -212,16 +222,18 @@
             <div class="col-xl-3 col-md-6 mb-4 mb-xl-0">
                 <a th:href="@{/doctor/examinations(date=${#dates.format(#dates.createNow(), 'yyyy-MM-dd')})}" class="text-decoration-none">
                     <div class="custom-card h-100">
-                        <div class="card-body">
+                        <div class="card-body p-3">
                             <i class="bi bi-person faded-bg-icon"></i>
-                            <div class="d-flex align-items-center mb-3">
+                            <div class="d-flex align-items-center mb-2">
                                 <div class="icon-box-circle bg-teal" style="background-color: #006B63;"><i class="bi bi-person-fill"></i></div>
                                 <div class="ms-3 card-stat-title">Cần khám<br>hôm nay</div>
                             </div>
-                            <div class="d-flex align-items-baseline">
+                            <div class="d-flex align-items-baseline ms-1">
                                 <h2 class="card-stat-value me-2 mb-0" th:text="${countToday}">12</h2>
                                 <span class="badge rounded-pill" style="background-color: #DCFCE7; color: #16A34A; font-weight: 600;">+ Mới</span>
                             </div>
+
+                            <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.today})}"></div>
                         </div>
                     </div>
                 </a>
@@ -230,16 +242,18 @@
             <div class="col-xl-3 col-md-6 mb-4 mb-xl-0">
                 <a th:href="@{/doctor/booking-requests}" class="text-decoration-none">
                     <div class="custom-card card-left-border h-100">
-                        <div class="card-body">
+                        <div class="card-body p-3">
                             <i class="bi bi-hourglass-split faded-bg-icon"></i>
-                            <div class="d-flex align-items-center mb-3">
+                            <div class="d-flex align-items-center mb-2">
                                 <div class="icon-box-circle" style="background-color: #3B82F6;"><i class="bi bi-hourglass-split"></i></div>
                                 <div class="ms-3 card-stat-title">Yêu cầu<br>mới</div>
                             </div>
-                            <div class="d-flex align-items-baseline">
+                            <div class="d-flex align-items-baseline ms-1">
                                 <h2 class="card-stat-value me-2 mb-0" th:text="${countPending}">5</h2>
                                 <span class="text-muted small fw-medium">Chờ duyệt</span>
                             </div>
+
+                            <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.pending})}"></div>
                         </div>
                     </div>
                 </a>
@@ -247,16 +261,18 @@
 
             <div class="col-xl-3 col-md-6 mb-4 mb-xl-0">
                 <div class="custom-card h-100">
-                    <div class="card-body">
+                    <div class="card-body p-3">
                         <i class="bi bi-check-circle faded-bg-icon"></i>
-                        <div class="d-flex align-items-center mb-3">
+                        <div class="d-flex align-items-center mb-2">
                             <div class="icon-box-circle" style="background-color: #10B981;"><i class="bi bi-check-circle"></i></div>
                             <div class="ms-3 card-stat-title">Đã hoàn<br>thành</div>
                         </div>
-                        <div class="d-flex align-items-baseline">
+                        <div class="d-flex align-items-baseline ms-1">
                             <h2 class="card-stat-value me-2 mb-0" th:text="${countCompleted}">148</h2>
                             <span class="text-muted small fw-medium">Tháng này</span>
                         </div>
+
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.completed})}"></div>
                     </div>
                 </div>
             </div>
@@ -273,15 +289,7 @@
                             <span class="text-muted small fw-medium">/ 5.0</span>
                         </div>
 
-                        <div id="ai-review-advice" onclick="triggerAiReviewAnalysis()" class="ai-insight-box">
-                            <div style="color: #047857; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px;">
-                                <i class="bi bi-magic me-1"></i> AI Insight
-                            </div>
-                            <div class="text-muted" style="font-size: 0.75rem; line-height: 1.4;">
-                                <span class="spinner-border spinner-border-sm text-success" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
-                                <span>Đang phân tích...</span>
-                            </div>
-                        </div>
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.rating})}"></div>
                     </div>
                 </div>
             </div>
@@ -324,6 +332,8 @@
                                 }).render();
                             });
                         </script>
+
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.status})}"></div>
                     </div>
                 </div>
             </div>
@@ -355,7 +365,10 @@
                                     },
                                     dataLabels: { enabled: false },
                                     xaxis: {
-                                        categories: ['1 Sao', '2 Sao', '3 Sao', '4 Sao', '5 Sao'],
+                                        // Thứ tự PHẢI khớp ReviewServiceImpl.getRatingDistribution(),
+                                        // vốn đếm từ 5 sao xuống 1 sao. Nhãn tăng dần như trước làm
+                                        // cột 5 sao bị dán nhãn "1 Sao" — biểu đồ đọc ngược hoàn toàn.
+                                        categories: ['5 Sao', '4 Sao', '3 Sao', '2 Sao', '1 Sao'],
                                         axisBorder: { show: false },
                                         axisTicks: { show: false },
                                         labels: { style: { colors: '#64748B', fontSize: '11px' } }
@@ -372,6 +385,8 @@
                                 }).render();
                             });
                         </script>
+
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.ratingDist})}"></div>
                     </div>
                 </div>
             </div>
@@ -410,6 +425,8 @@
                                 Xem toàn bộ lịch
                             </a>
                         </div>
+
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.schedule})}"></div>
                     </div>
                 </div>
 
@@ -435,6 +452,10 @@
                             </div>
                             <div th:if="${recentReviews.isEmpty()}" class="text-center text-muted small py-3">Chưa có đánh giá nào.</div>
                         </div>
+
+                        <!-- Đặt NGOÀI div.activity: khối đó có overflow-y:auto nên ô insight
+                             nhét vào trong sẽ bị cuộn khuất khi danh sách phản hồi dài. -->
+                        <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.feedback})}"></div>
                     </div>
                 </div>
 
@@ -452,28 +473,27 @@
      kể cả chuông thông báo — trông như bấm không ăn. -->
 
 <script th:inline="javascript">
-    document.addEventListener("DOMContentLoaded", () => {
-        fetch('/api/doctor/chat/quick-review-advice')
-            .then(response => response.json())
-            .then(data => {
-                const adviceDiv = document.getElementById('ai-review-advice');
-                if (adviceDiv) {
-                    adviceDiv.innerHTML = `
-                        <div style="color: #047857; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px;">
-                            <i class="bi bi-magic me-1"></i> AI Insight
-                        </div>
-                        <div class="${data.colorClass}" style="font-size: 0.75rem; line-height: 1.4;">
-                            ${data.advice}
-                        </div>`;
-                }
-            })
-            .catch(error => {
-                const adviceDiv = document.getElementById('ai-review-advice');
-                if (adviceDiv) adviceDiv.innerHTML = "<div class='text-muted small'>Không thể tải gợi ý.</div>";
-            });
+    /*
+     * Chữ trong các ô "AI Insight" đã được server render sẵn (DoctorInsightService), không còn
+     * fetch gì nữa. Phần AI THẬT nằm ở đây: bấm vào ô thì mở khung chat bác sĩ và gửi câu hỏi
+     * gắn trong `data-ai-prompt` của chính ô đó sang /api/doctor/chat/ask.
+     *
+     * Bắt buộc dùng listener UỶ QUYỀN chứ không gắn onclick từng ô: hai thẻ "Cần khám hôm nay"
+     * và "Yêu cầu mới" nằm TRONG thẻ <a>, nên phải chặn sự kiện tại một chỗ, bằng không bấm vào
+     * ô insight là trang vừa mở chat vừa điều hướng đi mất.
+     */
+    document.addEventListener('click', (e) => {
+        const box = e.target.closest('.ai-insight-box');
+        if (!box) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        triggerDoctorAiPrompt(box.dataset.aiPrompt);
     });
 
-    function triggerAiReviewAnalysis() {
+    function triggerDoctorAiPrompt(promptText) {
+        if (!promptText) return;
+
         const chatBox = document.getElementById('ai-chat-box-doctor');
         const chatInput = document.getElementById('ai-chat-input-doctor');
         const sendBtn = document.getElementById('ai-chat-send-doctor');
@@ -492,9 +512,8 @@
             }
         }
 
+        // Chờ khung chat mở xong rồi mới gửi, nếu không tin nhắn bị bắn vào lúc widget chưa sẵn sàng.
         setTimeout(() => {
-            const promptText = "Hãy phân tích các đánh giá bằng chữ gần đây của bệnh nhân và chỉ ra điểm tôi làm tốt, điểm cần cải thiện.";
-
             if (typeof window.sendQuickReplyDoctor === 'function') {
                 window.sendQuickReplyDoctor(promptText, null);
             } else {
