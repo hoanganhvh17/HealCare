@@ -7,9 +7,7 @@ Standard Spring MVC layering under `com.bookinghealthy`:
   `controller/head` holds two controllers on purpose: `HeadApprovalController` (reactive — duyệt đơn nghỉ, duyệt ca trực) and `HeadRosterController` (proactive — xếp ca khám cho khoa, phân công trực). Splitting them keeps either from growing into a 400-line class of unrelated screens.
 
   `controller/staff/StaffWorkScheduleController` is an **abstract superclass**, not a mapped controller: `DoctorWorkScheduleController` and `ReceptionistWorkScheduleController` extend it and only supply `basePath()` and `sidebarFragment()`. Use this shape when a screen is identical for two roles — duplicating the mappings instead would double every future fix.
-- **`service/`** — interfaces live directly in `service/`; implementations in `service/impl/`. A few services (`AiService`, `ImageService`, `GlobalHelper`) are concrete classes. **When adding a service, follow the interface + `impl` pattern** used by `BookingService`, `WalletService`, `DoctorService`, `MedicalRecordService`, `DoctorInsightService`.
-
-  `DoctorInsightService` + `DoctorInsightServiceImpl` build the 8 "AI Insight" boxes of `/doctor/dashboard` (`DoctorInsightDTO` per box, fed by `DoctorDashboardStatsDTO`). Pure functions over numbers the controller already has — no repository, no network. See [ai-assistant.md](ai-assistant.md) for why they are deliberately not LLM calls. `DoctorDashboardStatsDTO` **omits `@AllArgsConstructor` on purpose**: 14 same-typed fields make positional construction a silent-corruption trap.
+- **`service/`** — interfaces live directly in `service/`; implementations in `service/impl/`. A few services (`AiService`, `ImageService`, `GlobalHelper`) are concrete classes. **When adding a service, follow the interface + `impl` pattern** used by `BookingService`, `WalletService`, `DoctorService`, `MedicalRecordService`.
 - **`repository/`** — Spring Data JPA repositories.
 - **`model/`** — JPA entities plus enums (`Role`, `BookingStatus`, `MedicalRecordStatus`, `TransactionType`, `AuthProvider`, `CandidateStatus`).
 - **`dto/`** — request/response shapes, including `dto/ai/` for the OpenAI-compatible payloads.
