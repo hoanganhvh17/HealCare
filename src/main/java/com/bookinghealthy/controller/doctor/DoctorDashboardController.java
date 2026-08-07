@@ -1,5 +1,6 @@
 package com.bookinghealthy.controller.doctor;
 
+import com.bookinghealthy.dto.DoctorDashboardStatsDTO;
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.*;
@@ -29,6 +30,7 @@ public class DoctorDashboardController {
     @Autowired private NotificationService notificationService;
     @Autowired private DoctorBlockTimeService doctorBlockTimeService;
     @Autowired private ReviewService reviewService;
+    @Autowired private DoctorInsightService doctorInsightService;
 
     // Không inject WalletService ở đây: việc hoàn tiền nằm trong BookingService.cancelWithRefund.
 
@@ -116,6 +118,31 @@ public class DoctorDashboardController {
             }
         }
         model.addAttribute("weeklyScheduleMap", weeklyScheduleMap);
+
+        // Các ô "AI Insight" trên trang. Luật cố định, KHÔNG gọi LLM — AI thật chỉ chạy khi
+        // bác sĩ bấm vào ô (JS mở khung chat và gửi câu hỏi kèm theo trong mỗi insight).
+        // Tính ngay tại đây thay vì để trình duyệt fetch: mọi số liệu đã có sẵn trong tay,
+        // nên câu nhận định không bao giờ lệch với con số in ngay phía trên nó.
+        DoctorDashboardStatsDTO insightStats = new DoctorDashboardStatsDTO();
+        insightStats.setRange(range);
+        insightStats.setCountPending(countPending);
+        insightStats.setCountConfirmed(countConfirmed);
+        insightStats.setCountCompleted(countCompleted);
+        insightStats.setCountCancelled(countCancelled);
+        insightStats.setCountToday(countToday);
+        insightStats.setIncompleteRecords(bookingRepository.countIncompleteRecordsByDoctor(
+                currentDoctor.getId(), BookingStatus.COMPLETED, today));
+        insightStats.setAvgRating(avgRating);
+        Long reviewCount = reviewService.countReviews(currentDoctor.getId());
+        insightStats.setReviewCount(reviewCount != null ? reviewCount : 0L);
+        insightStats.setRatingDist(ratingDist);
+        insightStats.setRecentReviews(recentReviews);
+        insightStats.setWeeklySchedule(weeklyScheduleMap);
+        insightStats.setAllBookings(allBookings);
+        insightStats.setFilteredBookings(filteredBookings);
+
+        model.addAttribute("insights", doctorInsightService.buildDashboardInsights(insightStats));
+
         model.addAttribute("activePage", "dashboard");
         return "doctor/dashboard";
     }
@@ -219,31 +246,8 @@ public class DoctorDashboardController {
     // tuần lẫn ràng buộc "mỗi ngày tối thiểu 1 ca".
 
     // === THÊM API ĐỂ TRẢ VỀ LỜI NHẮC NHỞ NHANH TRÊN DASHBOARD ===
-    @GetMapping("/api/quick-review-advice")
-    @ResponseBody
-    public Map<String, String> getQuickReviewAdvice(Authentication authentication) {
-        Doctor currentDoctor = getLoggedInDoctor(authentication);
-        Double avgRating = reviewService.getAverageRating(currentDoctor.getId());
-
-        String advice = "Chưa có đủ đánh giá.";
-        String colorClass = "text-muted";
-
-        if (avgRating != null) {
-            if (avgRating >= 4.5) {
-                advice = "Tuyệt vời! Hãy tiếp tục duy trì thái độ tích cực nhé.";
-                colorClass = "text-success fw-bold";
-            } else if (avgRating >= 3.5) {
-                advice = "Tốt! Nhưng có vài điểm nhỏ cần cải thiện để đạt 5 sao.";
-                colorClass = "text-warning text-dark fw-bold";
-            } else {
-                advice = "Cảnh báo! Điểm đánh giá đang thấp, cần khắc phục ngay.";
-                colorClass = "text-danger fw-bold";
-            }
-        }
-
-        Map<String, String> response = new HashMap<>();
-        response.put("advice", advice);
-        response.put("colorClass", colorClass);
-        return response;
-    }
+    // Bản sao chết của /api/doctor/chat/quick-review-advice từng nằm ở đây (route
+    // /doctor/api/quick-review-advice) và KHÔNG có ai gọi. Nay câu nhận định của cả 8 ô do
+    // DoctorInsightService dựng sẵn lúc render trang, nên hai endpoint đó đều đã bị xoá:
+    // giữ lại là có hai nguồn cho cùng một câu chữ và chúng sẽ trôi khỏi nhau.
 }

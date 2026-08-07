@@ -167,5 +167,32 @@ This was already how the single original box worked; it just wasn't written down
 
 The insight text must agree with the number printed above it. `countToday` counts **CONFIRMED only**, so the "Cần khám hôm nay" box counts the same set — an earlier draft included PENDING and printed "Còn 3/4 ca" under a card reading 2.
 
+Two things in `dashboard.html` are load-bearing and easy to undo by accident:
+
+- **The click handler must be ONE delegated listener with `preventDefault()`.** The "Cần khám hôm nay" and "Yêu cầu mới" cards are wrapped in `<a>`, so a per-box `onclick` makes one tap both open the chat *and* navigate away.
+- **The question travels in `data-ai-prompt` via `th:attr`, never `th:onclick`.** Vietnamese prompts contain apostrophes ("bác sĩ nào cũng được"), which break the script when inlined into JS; an attribute is escaped by Thymeleaf.
+
+This whole feature was built in `2287cc2`, reverted by `25d2a3a`, then restored — if the boxes ever go missing again, check git before rewriting `DoctorInsightServiceImpl` from scratch.
+
+## The doctor's exam form has 4 AI assists — and those ARE real LLM calls
+
+Unlike the dashboard boxes, `DoctorExamAiController` (`/api/doctor/chat/exam/**`) does call the model. It is a **separate controller from `DoctorAiController`** on purpose: that one serves the floating chat widget and was already long. The path still sits under `/api/doctor/chat/`, so the block-0 rule `/api/doctor/chat/**` → `hasRole("DOCTOR")` covers it and **no new security matcher is needed** — keep any further exam endpoints under that prefix for the same reason.
+
+| Endpoint | Does |
+|---|---|
+| `POST /check-prescription` | Cross-checks the prescription being typed against the patient's real `Allergy` rows, then drug interactions |
+| `POST /draft-notes` | Drafts `doctorNotes` |
+| `POST /suggest-icd` | Suggests ICD-10 codes from the diagnosis text |
+| `GET /patient-summary/{bookingId}` | 3-bullet summary of the patient's previous records |
+
+Rules that must survive any edit:
+
+- **None of them is `@Transactional`.** Each calls the network mid-method; a transaction here pins a HikariCP connection (pool of 10) for the whole wait — the same reason `AiService.getConversationalResponse` has none.
+- **Allergies are read from the DB by `bookingId`, never accepted from the request body.** This is patient-safety data; a hand-made request with an empty list would silently turn the warning into "nothing found". The typed-in medicines *do* come from the browser, because `MedicalRecord` does not exist yet at that point — the form saves once, at the end.
+- **`requireOwnedBooking` gates every endpoint that touches patient data**, and returns the same 403 for "not yours" and "does not exist" so the API cannot be used to probe booking ids.
+- **`draft-notes` must force the exact phrase `"Tái khám sau N ngày/tuần/tháng"`.** That is the pattern `FollowUpReminderTask.REVISIT_PATTERN` extracts from `doctorNotes`; the regex deliberately does not read absolute dates, so free-form advice makes the follow-up reminder silently never fire. See [medical-records.md](medical-records.md).
+- **Everything is a suggestion.** No endpoint writes to `MedicalRecord`; the doctor edits and presses save. The ICD box only fills the input — a wrong diagnosis code is a wrong legal record.
+- **Answers render with `textContent`, not `innerHTML`** — model output must never become live markup inside a medical record page.
+
 ## Housekeeping
 A `@Scheduled` job (`0 0 2 * * ?`) purges guest chat sessions older than 7 days. Scheduling is enabled by `SchedulerConfig`; async support by `@EnableAsync` on the main application class.

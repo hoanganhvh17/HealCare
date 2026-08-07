@@ -18,7 +18,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import com.bookinghealthy.model.Review;
 import com.bookinghealthy.repository.ReviewRepository;
-import com.bookinghealthy.service.ReviewService;
 import org.springframework.http.HttpHeaders;
 
 import java.time.LocalDate;
@@ -34,7 +33,6 @@ public class DoctorAiController {
     @Autowired private DoctorRepository doctorRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private ReviewRepository reviewRepository;
-    @Autowired private ReviewService reviewService;
 
     /** Nguồn lưới khung giờ dùng chung — xem chú thích ở chỗ tính "giờ trống gần nhất". */
     @Autowired private com.bookinghealthy.service.TimeSlotService timeSlotService;
@@ -99,35 +97,10 @@ public class DoctorAiController {
                 .body(message);
     }
 
-    @GetMapping("/quick-review-advice")
-    public ResponseEntity<Map<String, String>> getQuickReviewAdvice() {
-        Optional<Doctor> doctorOpt = getCurrentDoctor();
-        if (doctorOpt.isEmpty()) return ResponseEntity.status(403).build();
-
-        Doctor currentDoctor = doctorOpt.get();
-        Double avgRating = reviewService.getAverageRating(currentDoctor.getId());
-
-        String advice = "Chưa có đủ đánh giá.";
-        String colorClass = "text-muted";
-
-        if (avgRating != null) {
-            if (avgRating >= 4.5) {
-                advice = "Tuyệt vời! Hãy tiếp tục duy trì thái độ tích cực nhé.";
-                colorClass = "text-success fw-bold";
-            } else if (avgRating >= 3.5) {
-                advice = "Tốt! Nhưng có vài điểm nhỏ cần cải thiện để đạt 5 sao.";
-                colorClass = "text-warning text-dark fw-bold";
-            } else {
-                advice = "Cảnh báo! Điểm đánh giá đang thấp, cần khắc phục ngay.";
-                colorClass = "text-danger fw-bold";
-            }
-        }
-
-        Map<String, String> response = new HashMap<>();
-        response.put("advice", advice);
-        response.put("colorClass", colorClass);
-        return ResponseEntity.ok(response);
-    }
+    // /quick-review-advice đã bị xoá: 8 ô "AI Insight" nay do DoctorInsightService dựng sẵn
+    // lúc render dashboard, nên con số trên thẻ và câu nhận định dưới nó dùng chung một biến
+    // và không thể lệch nhau. Endpoint cũ còn mang lỗi "avgRating != null" — getAverageRating
+    // trả 0.0 chứ không trả null, nên bác sĩ chưa có đánh giá nào bị báo đỏ "cần khắc phục ngay".
 
     @PostMapping("/ask")
     public ResponseEntity<Map<String, String>> askAi(@RequestBody ChatRequest request) {

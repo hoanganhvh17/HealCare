@@ -60,6 +60,23 @@
           </div>
         </div>
 
+        <!-- C4: TÓM TẮT BỆNH SỬ (AI).
+             Đặt NGAY TRÊN timeline: timeline là danh sách thô phải đọc từng mục, còn ô này gói
+             lại thành 3 gạch đầu dòng để bác sĩ nắm trước khi khám. Nạp theo yêu cầu chứ không
+             tự chạy khi mở trang — mỗi lần nạp là một lượt gọi LLM. -->
+        <div class="card mb-3 border-success" th:if="${historyRecords != null and !historyRecords.isEmpty()}">
+          <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-success"><i class="bi bi-magic me-1"></i> Tóm tắt bệnh sử (AI)</span>
+            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2"
+                    id="btnPatientSummary" th:attr="data-booking-id=${booking.id}">
+              Tóm tắt
+            </button>
+          </div>
+          <div class="card-body py-2 px-3 small text-muted" id="patientSummaryBox">
+            Bấm "Tóm tắt" để AI đọc các lần khám trước và tóm tắt lại.
+          </div>
+        </div>
+
         <!-- TIMELINE LỊCH SỬ KHÁM BỆNH -->
         <div class="card">
           <div class="card-header bg-light py-2 fw-bold text-secondary">
@@ -126,8 +143,17 @@
                   <input type="text" name="diagnosis" class="form-control" placeholder="Ví dụ: Viêm phế quản cấp" required>
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label text-muted small fw-bold">Mã bệnh (ICD-10)</label>
+                  <label class="form-label text-muted small fw-bold">
+                    Mã bệnh (ICD-10)
+                    <!-- C3: gợi ý mã từ chữ ở ô "Kết luận bệnh". Chỉ ĐIỀN GỢI Ý, bác sĩ tự chọn
+                         rồi mới lưu — mã chẩn đoán sai là sai hồ sơ pháp lý. -->
+                    <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-success align-baseline"
+                            id="btnSuggestIcd" title="Gợi ý mã ICD-10 bằng AI">
+                      <i class="bi bi-magic"></i>
+                    </button>
+                  </label>
                   <input type="text" name="diagnosisCode" class="form-control" placeholder="VD: J20.9">
+                  <div class="small mt-1 d-none" id="icdSuggestBox"></div>
                 </div>
               </div>
             </div>
@@ -160,13 +186,34 @@
               <div class="mt-2">
                 <textarea name="prescriptionText" class="form-control form-control-sm" rows="1" placeholder="Ghi chú thêm về đơn thuốc (nếu có)..."></textarea>
               </div>
+
+              <!-- C1: đối chiếu đơn đang kê với DỊ ỨNG CÓ THẬT trong hồ sơ, rồi mới xét tương tác.
+                   Thẻ đỏ "CẢNH BÁO DỊ ỨNG" ở cột trái chỉ liệt kê danh sách; việc so từng tên thuốc
+                   với danh sách đó là việc của nút này. Cảnh báo KHÔNG chặn lưu — bác sĩ quyết định. -->
+              <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btnCheckRx"
+                        th:attr="data-booking-id=${booking.id}">
+                  <i class="bi bi-shield-exclamation me-1"></i> Kiểm tra dị ứng & tương tác thuốc
+                </button>
+                <div class="alert alert-warning py-2 px-3 mt-2 mb-0 small d-none" id="rxCheckBox"></div>
+              </div>
             </div>
           </div>
 
           <div class="card mb-3">
             <div class="card-body pt-3">
-              <h6 class="fw-bold text-primary mb-2"><i class="bi bi-journal-text me-2"></i>Lời dặn của Bác sĩ</h6>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-journal-text me-2"></i>Lời dặn của Bác sĩ</h6>
+                <!-- C2: soạn nháp để bác sĩ SỬA rồi mới lưu. Prompt bắt model kết bằng đúng cụm
+                     "Tái khám sau N ngày" — chính là mẫu FollowUpReminderTask bóc ra khỏi
+                     doctorNotes để nhắc bệnh nhân; viết tự do thì việc nhắc im lặng không chạy. -->
+                <button type="button" class="btn btn-sm btn-outline-success" id="btnDraftNotes"
+                        th:attr="data-booking-id=${booking.id}">
+                  <i class="bi bi-magic me-1"></i> Soạn nháp bằng AI
+                </button>
+              </div>
               <textarea name="doctorNotes" class="form-control" rows="2" placeholder="Nghỉ ngơi, ăn uống, hẹn tái khám..."></textarea>
+              <div class="form-text d-none" id="draftNotesHint"></div>
             </div>
           </div>
 
@@ -209,6 +256,154 @@
         addMedicineRow();
 
         btnAdd.addEventListener('click', addMedicineRow);
+      });
+    </script>
+
+    <!-- =====================================================================
+         4 TRỢ LÝ AI CỦA FORM KHÁM -> /api/doctor/chat/exam/**
+
+         Tất cả đều là GỢI Ý: không cái nào tự ghi vào bệnh án, bác sĩ vẫn phải bấm
+         "Lưu Bệnh Án". Mọi nút đều type="button" — để mặc định sẽ submit form.
+
+         Kết quả đổ ra bằng textContent chứ KHÔNG innerHTML: nội dung do model sinh ra,
+         nhét thẳng vào HTML là mở đường cho markup lạ chạy trong trang bệnh án.
+         ===================================================================== -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+
+        function readMedicines() {
+          const rows = document.querySelectorAll('#prescriptionTable tbody tr');
+          const list = [];
+          rows.forEach(function (tr) {
+            const name = tr.querySelector('input[name="medName[]"]');
+            if (!name || !name.value.trim()) return; // dòng trống thì bỏ qua
+            const dosage = tr.querySelector('input[name="medDosage[]"]');
+            const instruction = tr.querySelector('input[name="medInstruction[]"]');
+            list.push({
+              name: name.value.trim(),
+              dosage: dosage ? dosage.value.trim() : '',
+              instructions: instruction ? instruction.value.trim() : ''
+            });
+          });
+          return list;
+        }
+
+        /** Khoá nút trong lúc chờ để một cú bấm đúp không thành hai lượt gọi LLM. */
+        function busy(btn, on, idleHtml) {
+          btn.disabled = on;
+          btn.innerHTML = on
+            ? '<span class="spinner-border spinner-border-sm me-1"></span>Đang phân tích…'
+            : idleHtml;
+        }
+
+        function callAi(url, options) {
+          return fetch(url, options)
+            .then(function (res) { return res.json(); })
+            .then(function (data) { return (data && data.answer) ? data.answer : 'Không nhận được phản hồi.'; })
+            .catch(function () { return 'Không kết nối được trợ lý AI. Bác sĩ thử lại sau nhé.'; });
+        }
+
+        function postJson(body) {
+          return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+        }
+
+        // --- C4: Tóm tắt bệnh sử ---
+        const btnSummary = document.getElementById('btnPatientSummary');
+        if (btnSummary) {
+          btnSummary.addEventListener('click', function () {
+            const box = document.getElementById('patientSummaryBox');
+            const idle = btnSummary.innerHTML;
+            busy(btnSummary, true, idle);
+            box.textContent = 'Đang đọc lại các lần khám trước…';
+
+            callAi('/api/doctor/chat/exam/patient-summary/' + btnSummary.dataset.bookingId, {})
+              .then(function (answer) {
+                box.textContent = answer;
+                box.classList.remove('text-muted');
+              })
+              .finally(function () { busy(btnSummary, false, idle); });
+          });
+        }
+
+        // --- C3: Gợi ý mã ICD-10 ---
+        const btnIcd = document.getElementById('btnSuggestIcd');
+        if (btnIcd) {
+          btnIcd.addEventListener('click', function () {
+            const diagnosis = document.querySelector('input[name="diagnosis"]');
+            const box = document.getElementById('icdSuggestBox');
+            box.classList.remove('d-none');
+
+            if (!diagnosis || !diagnosis.value.trim()) {
+              box.textContent = 'Nhập "Kết luận bệnh" trước đã.';
+              box.className = 'small mt-1 text-danger';
+              return;
+            }
+
+            const idle = btnIcd.innerHTML;
+            btnIcd.disabled = true;
+            box.textContent = 'Đang tra mã…';
+            box.className = 'small mt-1 text-muted';
+
+            callAi('/api/doctor/chat/exam/suggest-icd', postJson({ diagnosis: diagnosis.value }))
+              .then(function (answer) {
+                box.textContent = answer;
+                box.className = 'small mt-1 text-success';
+              })
+              .finally(function () { btnIcd.disabled = false; btnIcd.innerHTML = idle; });
+          });
+        }
+
+        // --- C1: Kiểm tra dị ứng & tương tác thuốc ---
+        const btnRx = document.getElementById('btnCheckRx');
+        if (btnRx) {
+          btnRx.addEventListener('click', function () {
+            const box = document.getElementById('rxCheckBox');
+            const idle = btnRx.innerHTML;
+            box.classList.remove('d-none');
+            box.textContent = 'Đang đối chiếu với hồ sơ dị ứng của bệnh nhân…';
+            busy(btnRx, true, idle);
+
+            callAi('/api/doctor/chat/exam/check-prescription', postJson({
+              bookingId: btnRx.dataset.bookingId,
+              medicines: readMedicines()
+            }))
+              .then(function (answer) { box.textContent = answer; })
+              .finally(function () { busy(btnRx, false, idle); });
+          });
+        }
+
+        // --- C2: Soạn nháp lời dặn dò ---
+        const btnDraft = document.getElementById('btnDraftNotes');
+        if (btnDraft) {
+          btnDraft.addEventListener('click', function () {
+            const notes = document.querySelector('textarea[name="doctorNotes"]');
+            const hint = document.getElementById('draftNotesHint');
+            const diagnosis = document.querySelector('input[name="diagnosis"]');
+            const symptoms = document.querySelector('textarea[name="symptoms"]');
+
+            // Không ghi đè thứ bác sĩ đã tự viết mà không hỏi.
+            if (notes.value.trim() && !confirm('Ô lời dặn đang có nội dung. Thay bằng bản nháp của AI?')) {
+              return;
+            }
+
+            const idle = btnDraft.innerHTML;
+            busy(btnDraft, true, idle);
+            hint.classList.add('d-none');
+
+            callAi('/api/doctor/chat/exam/draft-notes', postJson({
+              bookingId: btnDraft.dataset.bookingId,
+              symptoms: symptoms ? symptoms.value : '',
+              diagnosis: diagnosis ? diagnosis.value : '',
+              medicines: readMedicines()
+            }))
+              .then(function (answer) {
+                notes.value = answer;
+                hint.textContent = 'Đây là bản nháp — bác sĩ đọc lại và sửa trước khi lưu.';
+                hint.classList.remove('d-none');
+              })
+              .finally(function () { busy(btnDraft, false, idle); });
+          });
+        }
       });
     </script>
 

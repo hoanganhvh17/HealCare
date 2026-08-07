@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Một ô "AI Insight" trên dashboard bác sĩ.
+
+  Cách dùng:
+      <div th:replace="~{doctor/include/ai-insight :: ai-insight(${insights.today})}"></div>
+
+  `i` là một DoctorInsightDTO do DoctorInsightService dựng sẵn. Câu chữ trong ô là LUẬT CỐ ĐỊNH
+  bên Java, không gọi LLM; AI thật chỉ chạy khi bác sĩ BẤM vào ô — `data-ai-prompt` mang câu hỏi
+  và listener uỷ quyền ở cuối dashboard.html sẽ mở khung chat rồi gửi nó đi.
+
+  Câu hỏi đi qua `th:attr` chứ KHÔNG qua `th:onclick`: câu tiếng Việt có dấu nháy đơn ("bác sĩ
+  nào cũng được"...) nhét thẳng vào JS là vỡ script, còn thuộc tính thì Thymeleaf tự escape.
+-->
+<div th:fragment="ai-insight(i)" th:if="${i != null}"
+     class="ai-insight-box" th:attr="data-ai-prompt=${i.prompt}">
+    <div class="ai-insight-label">
+        <i class="bi bi-magic me-1"></i> AI Insight
+    </div>
+    <div th:class="'ai-insight-text ' + ${i.colorClass}" th:text="${i.advice}">
+        Nội dung phân tích sẽ hiển thị ở đây.
+    </div>
+</div>
+
+</body>
+</html>

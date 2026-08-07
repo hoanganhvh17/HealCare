@@ -14,6 +14,10 @@ The mirror-image trap on the patient side is **zero** copies: `checkout-qr.html`
 
 **`~{user/index :: footer}` is a fragment that does not exist** — `user/index.html` declares no `th:fragment` whatsoever. Six templates referenced it (`career-details`, `careers`, `doctor-schedule`, `medical-process`, `payment-result`, `working-hours`), and Thymeleaf aborts the render at that tag: the page lost its footer **and every `<script>` declared after it**, which is where Bootstrap sits. That is why the notification bell rendered but would not open on those pages. The real fragment is `~{user/include/footer :: footer}`. Grep for the bad form before adding a footer to a new patient page.
 
+**Pass Vietnamese strings to JS through `th:attr`, never `th:onclick`.** Vietnamese copy is full of apostrophes ("bác sĩ nào cũng được"), and inlining such a string into an `onclick` breaks the whole script; an attribute (`data-ai-prompt`) is escaped by Thymeleaf and read back with `dataset`. The 8 dashboard insight boxes do it this way.
+
+**A clickable element nested inside `<a>` needs a delegated listener with `preventDefault()`.** Two doctor-dashboard stat cards wrap their whole body in `<a>`; without it, one tap both runs the handler and navigates away, so the handler's effect is never seen.
+
 **`doctor/include/header :: header-nav` is shared by 13 templates** — every doctor, staff and head page plus `user/medical-record-detail.html`. It is the right place for anything that must appear app-wide for staff (the notification bell lives there, with its `<script>` next to its markup so no page has to opt in), but the patient page means role-specific items need `sec:authorize`. It is also **not** covered by `work-schedule.css`, so build shared header widgets from plain Bootstrap classes.
 
 ## Secrets

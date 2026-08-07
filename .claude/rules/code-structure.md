@@ -6,6 +6,8 @@ Standard Spring MVC layering under `com.bookinghealthy`:
 
   `controller/head` holds two controllers on purpose: `HeadApprovalController` (reactive — duyệt đơn nghỉ, duyệt ca trực) and `HeadRosterController` (proactive — xếp ca khám cho khoa, phân công trực). Splitting them keeps either from growing into a 400-line class of unrelated screens.
 
+  The doctor AI is split the same way: `DoctorAiController` (floating chat widget) and `DoctorExamAiController` (the four assists on the exam form). Both stay under `/api/doctor/chat/` so one `SecurityConfig` block-0 rule covers them — **a new doctor-facing AI endpoint belongs under that prefix**, otherwise it needs its own matcher.
+
   `controller/staff/StaffWorkScheduleController` is an **abstract superclass**, not a mapped controller: `DoctorWorkScheduleController` and `ReceptionistWorkScheduleController` extend it and only supply `basePath()` and `sidebarFragment()`. Use this shape when a screen is identical for two roles — duplicating the mappings instead would double every future fix.
 - **`service/`** — interfaces live directly in `service/`; implementations in `service/impl/`. A few services (`AiService`, `ImageService`, `GlobalHelper`) are concrete classes. **When adding a service, follow the interface + `impl` pattern** used by `BookingService`, `WalletService`, `DoctorService`, `MedicalRecordService`.
 - **`repository/`** — Spring Data JPA repositories.
