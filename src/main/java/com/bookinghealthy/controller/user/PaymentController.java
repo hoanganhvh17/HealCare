@@ -4,6 +4,7 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,6 +16,7 @@ public class PaymentController {
 
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     @GetMapping("/payment-return")
     public String paymentReturn(
@@ -34,8 +36,10 @@ public class PaymentController {
                     booking.setStatus(BookingStatus.CONFIRMED); // Tự động xác nhận luôn
                     bookingService.save(booking);
 
-                    // Gửi mail vé khám
+                    // Gửi mail vé khám + thông báo trong ứng dụng (luôn đi thành cặp)
                     emailService.sendBookingConfirmation(booking);
+                    notificationService.pushBookingEvent(booking, "bi-calendar-check text-success",
+                            "Đặt lịch thành công");
 
                     model.addAttribute("successMessage", "Thanh toán thành công! Lịch khám của bạn đã được xác nhận.");
                 }

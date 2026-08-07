@@ -30,6 +30,7 @@ public class BookingController {
     @Autowired private EmailService emailService;
     @Autowired private PaymentService paymentService;
     @Autowired private WalletService walletService; // <-- 1. Inject WalletService
+    @Autowired private NotificationService notificationService;
 
     private User getCurrentUser(Authentication authentication) {
         Object principal = authentication.getPrincipal();
@@ -120,6 +121,8 @@ public class BookingController {
                     reservedBooking.setPaymentStatus("PAID");
                     Booking savedBooking = bookingService.save(reservedBooking);
                     emailService.sendBookingConfirmation(savedBooking);
+                    notificationService.pushBookingEvent(savedBooking, "bi-calendar-check text-success",
+                            "Đặt lịch thành công");
 
                     redirectAttributes.addFlashAttribute("successMessage", "Đặt lịch và thanh toán bằng Ví thành công!");
                     return "redirect:/user/profile"; // Về trang lịch sử

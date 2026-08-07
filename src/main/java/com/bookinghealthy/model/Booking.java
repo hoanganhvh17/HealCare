@@ -89,4 +89,13 @@ public class Booking {
 
     @Column(name = "last_rescheduled_at")
     private LocalDateTime lastRescheduledAt;
+
+    // === NHẮC LỊCH KHÁM TRƯỚC 1 NGÀY ===
+    // Cờ chống nhắc lặp cho AppointmentReminderTask, KHÔNG phải dữ liệu nghiệp vụ — cùng vai
+    // trò với MedicalRecord.followUpReminderSent. Thêm cột vào Booking là an toàn: entity này
+    // có @AllArgsConstructor nhưng cả dự án chỉ dựng nó bằng new Booking() rồi set từng
+    // trường, nên không dính bẫy khởi tạo theo vị trí của User/Doctor/Department/Schedule
+    // trong DataInitializer.
+    @Column(name = "reminder_sent", nullable = false)
+    private boolean reminderSent = false;
 }

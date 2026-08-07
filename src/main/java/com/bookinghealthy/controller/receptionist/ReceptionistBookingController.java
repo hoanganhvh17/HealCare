@@ -5,6 +5,7 @@ import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,6 +27,7 @@ public class ReceptionistBookingController {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     @GetMapping
     public String list(@RequestParam(value = "status", required = false) String status, Model model) {
@@ -57,6 +59,8 @@ public class ReceptionistBookingController {
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingService.save(booking);
             emailService.sendBookingConfirmation(booking);
+            notificationService.pushBookingEvent(booking, "bi-check-circle text-success",
+                    "Lịch hẹn đã được xác nhận");
 
             ra.addFlashAttribute("successMessage", "Đã xác nhận lịch hẹn #" + id);
         } catch (Exception e) {

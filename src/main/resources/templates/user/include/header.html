@@ -46,10 +46,30 @@
             </a>
 
             <div class="d-flex align-items-center gap-3">
-                <!-- Icon Thông báo (Bell) -->
-                <a href="#" class="text-dark fs-5 position-relative" style="color: #00796b !important;">
-                    <i class="bi bi-bell"></i>
-                </a>
+                <!-- CHUÔNG THÔNG BÁO (bệnh nhân).
+                     Chỉ render khi đã đăng nhập: khách vãng lai không có thông báo nào, hiện
+                     chuông chỉ tạo ra một cú bấm hụt. Trước đây đây là thẻ <a href="#"> chết —
+                     không dropdown, không badge, không script — nên các thông báo mà hệ thống
+                     ĐÃ ghi cho bệnh nhân (nhắc tái khám) không có đường nào tới được họ.
+                     Id để userNotif* chứ không staffNotif*: medical-record-detail.html nhúng
+                     cả header này lẫn khu quản trị, hai chuông phải sống chung được. -->
+                <div sec:authorize="isAuthenticated()" class="dropdown">
+                    <a href="#" class="text-dark fs-5 position-relative" id="userNotifToggle"
+                       data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                       aria-expanded="false" title="Thông báo" style="color: #00796b !important;">
+                        <i class="bi bi-bell"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                              id="userNotifBadge" style="font-size: .6rem;">0</span>
+                    </a>
+
+                    <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-3"
+                         style="width: 340px; max-height: 420px; overflow-y: auto;">
+                        <h6 class="fw-bold mb-2">Thông báo</h6>
+                        <div id="userNotifList">
+                            <div class="text-muted small py-2">Đang tải…</div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Chưa đăng nhập -->
                 <div sec:authorize="!isAuthenticated()">
@@ -112,5 +132,10 @@
         </div>
 
     </div>
+
+    <!-- Script đi kèm markup chuông ở trên: nạp ngay trong fragment để cả 22 template
+         bệnh nhân đều có chuông chạy mà không phải sửa từng file. Script tự thoát khi
+         trang không render chuông (khách chưa đăng nhập). -->
+    <script th:src="@{/assets/js/user-notifications.js}"></script>
 </header>
 </html>

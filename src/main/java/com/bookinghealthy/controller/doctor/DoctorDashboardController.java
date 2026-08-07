@@ -26,6 +26,7 @@ public class DoctorDashboardController {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
     @Autowired private DoctorBlockTimeService doctorBlockTimeService;
     @Autowired private ReviewService reviewService;
 
@@ -142,6 +143,8 @@ public class DoctorDashboardController {
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingService.save(booking);
             emailService.sendBookingConfirmation(booking);
+            notificationService.pushBookingEvent(booking, "bi-check-circle text-success",
+                    "Lịch hẹn đã được xác nhận");
             ra.addFlashAttribute("successMessage", "Đã xác nhận lịch hẹn thành công.");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", e.getMessage());

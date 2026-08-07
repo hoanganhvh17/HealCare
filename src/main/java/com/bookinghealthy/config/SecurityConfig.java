@@ -51,6 +51,11 @@ public class SecurityConfig {
                         // bên dưới — nếu không lại rơi vào whitelist công khai, đúng bẫy đã từng xảy ra
                         // với /api/doctor/chat/** (xem authentication-and-roles.md).
                         .requestMatchers("/api/chat/medical-record/**").authenticated()
+                        // Chuông thông báo (bệnh nhân + mọi vai trò). Controller tự lọc theo
+                        // người đang đăng nhập. Khai ở đây cho tường minh: rơi xuống
+                        // anyRequest().authenticated() thì cũng đúng, nhưng quy ước của khối 0
+                        // là mọi luật /api/... có ràng buộc đều phải nhìn thấy được ngay đầu file.
+                        .requestMatchers("/api/notifications/**").authenticated()
 
                         // --- 1. CÁC TRANG CÔNG KHAI (AI CŨNG XEM ĐƯỢC) ---
                         .requestMatchers(

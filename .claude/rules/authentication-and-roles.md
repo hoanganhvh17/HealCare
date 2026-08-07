@@ -8,6 +8,7 @@
 - `/head/**` → HEAD_DOCTOR
 - `/receptionist/**` → RECEPTIONIST
 - `/api/staff/**` → any authenticated user (the controller filters by the logged-in user)
+- `/api/notifications/**` → any authenticated user (patient notification bell; `UserNotificationApiController` filters by the logged-in user). Declared in **block 0** even though `anyRequest().authenticated()` would already cover it — block 0 is where every constrained `/api/...` rule must be visible.
 - Public pages (home, doctors, services, departments, news, `/api/chat/**`, `/api/bookings/booked-slots`, payment webhooks) are explicitly `permitAll`
 - Patient account pages (`/appointment`, `/user/profile`, `/user/change-password`, `/user/review/**`) are `authenticated`
 

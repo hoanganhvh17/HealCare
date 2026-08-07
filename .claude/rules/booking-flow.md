@@ -68,6 +68,11 @@ It compares the **full `LocalDateTime`**, not just the date, so an 08:00 slot is
 
 **The guard is deliberately NOT inside `cancelWithRefund`.** The receptionist bulk-cancel tool exists exactly for "doctor called in sick mid-day", where some of the day's slots have already passed — a guard there would break that flow.
 
+## 4c. Every booking event reaches the patient twice
+Each patient-facing `emailService.*` call is now paired with `NotificationService.pushBookingEvent(booking, icon, title)` **on the adjacent line** — email is `@Async` and fails into `System.err`, so it alone was never proof the patient was told. The pairs are: booking confirmed (wallet in `BookingController`, VNPay in `PaymentController`, VietQR in `VietQRController`, walk-in in `ReceptionistWalkInController`), staff confirmation (`DoctorDashboardController`, `AdminBookingController`, `ReceptionistBookingController`), `rescheduleByUser` and `cancelWithRefund` in `BookingServiceImpl`, self-cancel in `ProfileController`, and doctor transfer in `ReceptionServiceImpl`.
+
+**`ProfileController.cancelBooking` needs its own push** because it hand-rolls the refund instead of going through `cancelWithRefund` — the one cancel path the shared method does not cover. See [supporting-subsystems.md](supporting-subsystems.md) for the bell that renders these.
+
 ## 5. Shared cancel logic
 `BookingServiceImpl.cancelWithRefund(bookingId, reason)` is the single place that cancels a booking: sets `CANCELED`, refunds `bookingPrice` to the wallet when `paymentStatus == "PAID"` (marking it `REFUNDED`, otherwise `FAILED`), and sends the cancellation email. `AdminBookingController`, the receptionist bulk-cancel flow **and `DoctorDashboardController.cancelBooking`** all call it — put any change to cancellation behaviour here, not in a controller. The doctor path used to hand-roll its own copy of the refund, which is how it ended up with none of the guards.
 

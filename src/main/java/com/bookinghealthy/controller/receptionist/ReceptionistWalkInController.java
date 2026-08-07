@@ -12,6 +12,7 @@ import com.bookinghealthy.repository.RoleRepository;
 import com.bookinghealthy.repository.UserRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,6 +45,7 @@ public class ReceptionistWalkInController {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     @GetMapping
     public String showForm(Model model) {
@@ -92,6 +94,8 @@ public class ReceptionistWalkInController {
             Booking saved = bookingService.reserve(booking);
 
             emailService.sendBookingConfirmation(saved);
+            notificationService.pushBookingEvent(saved, "bi-calendar-check text-success",
+                    "Đặt lịch thành công");
 
             ra.addFlashAttribute("successMessage",
                     "Đã tạo lịch khám #" + saved.getId() + " cho " + patientName + ". Hãy in phiếu thu cho bệnh nhân.");

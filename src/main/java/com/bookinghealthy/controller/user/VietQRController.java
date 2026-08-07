@@ -4,6 +4,7 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -17,6 +18,7 @@ public class VietQRController {
 
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
 
     // 1. HIỂN THỊ TRANG QUÉT MÃ QR
     @GetMapping("/checkout-qr")
@@ -81,6 +83,8 @@ public class VietQRController {
                     bookingService.save(booking);
 
                     emailService.sendBookingConfirmation(booking);
+                    notificationService.pushBookingEvent(booking, "bi-calendar-check text-success",
+                            "Đặt lịch thành công");
                     System.out.println(">>> Đã duyệt tự động Booking #" + bookingId);
                 }
             }

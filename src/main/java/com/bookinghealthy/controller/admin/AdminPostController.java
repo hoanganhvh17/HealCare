@@ -2,6 +2,7 @@ package com.bookinghealthy.controller.admin;
 
 import com.bookinghealthy.model.Post;
 import com.bookinghealthy.model.User;
+import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.PostService;
 import com.bookinghealthy.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ public class AdminPostController {
 
     @Autowired private PostService postService;
     @Autowired private UserService userService;
+    @Autowired private NotificationService notificationService;
+
+    private static final String PUBLISHED = "PUBLISHED";
 
     // 1. HIỂN THỊ DANH SÁCH TIN TỨC
     @GetMapping
@@ -86,6 +90,12 @@ public class AdminPostController {
                 }
             }
 
+            // Trạng thái TRƯỚC khi lưu, để biết bài này có VỪA được xuất bản hay không.
+            // Bài mới -> coi như trước đó là nháp; sửa lại một bài đã xuất bản thì không
+            // được bắn thông báo lần nữa cho toàn bộ bệnh nhân.
+            String previousStatus = (post.getId() == null) ? "DRAFT"
+                    : postService.findById(post.getId()).map(Post::getStatus).orElse("DRAFT");
+
             // --- B. XỬ LÝ NGÀY ĐĂNG & TÁC GIẢ (QUAN TRỌNG) ---
             if (post.getId() != null) {
                 // == TRƯỜNG HỢP SỬA BÀI ==
@@ -115,6 +125,10 @@ public class AdminPostController {
             // --- C. LƯU ---
             postService.save(post);
 
+            if (PUBLISHED.equals(post.getStatus()) && !PUBLISHED.equals(previousStatus)) {
+                notifyPatients(post);
+            }
+
             ra.addFlashAttribute("successMessage", "Đã lưu bài viết thành công.");
             return "redirect:/admin/manage-news";
 
@@ -143,12 +157,35 @@ public class AdminPostController {
         Optional<Post> postOpt = postService.findById(id);
         if (postOpt.isPresent()) {
             Post post = postOpt.get();
-            post.setStatus("PUBLISHED");
+
+            // Đọc trạng thái TRƯỚC khi ghi đè: route này là GET nên bấm lại / F5 / trình duyệt
+            // prefetch đều gọi được lần nữa, mà mỗi lần gọi là một lượt fan-out tới TOÀN BỘ
+            // bệnh nhân. Bài đã xuất bản rồi thì không thông báo lại.
+            boolean firstPublish = !PUBLISHED.equals(post.getStatus());
+
+            post.setStatus(PUBLISHED);
             postService.save(post);
+
+            if (firstPublish) {
+                notifyPatients(post);
+            }
+
             ra.addFlashAttribute("successMessage", "Đã xuất bản bài viết thành công: " + post.getTitle());
         } else {
             ra.addFlashAttribute("errorMessage", "Không tìm thấy bài viết để duyệt.");
         }
         return "redirect:/admin/manage-news";
+    }
+
+    /**
+     * Báo tin mới cho toàn bộ bệnh nhân. Chạy bất đồng bộ bên trong service nên không làm
+     * chậm redirect của admin. Chỗ gọi chịu trách nhiệm chỉ gọi ĐÚNG MỘT LẦN cho mỗi bài.
+     */
+    private void notifyPatients(Post post) {
+        notificationService.pushToAllPatients(
+                "bi-newspaper text-info",
+                post.getTitle(),
+                post.getSummary(),
+                "/news/" + post.getId());
     }
 }

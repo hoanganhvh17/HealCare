@@ -68,6 +68,14 @@ Every head-doctor decision now writes a row to `notifications` **in addition to*
 - The old *computed* "đơn nghỉ đã có quyết định trong 7 ngày" contributor was **removed**: with decisions persisted it would list every decision twice.
 - The bell markup moved into the shared `doctor/include/header :: header-nav` fragment (see [coding-conventions.md](coding-conventions.md)) so it appears on every doctor / head / receptionist page, not only the calendar page.
 
+#### The bell serves PATIENTS too
+The same `Notification` table backs a second bell in `user/include/header :: header-nav`, rendered under `sec:authorize="isAuthenticated()"` and driven by `assets/js/user-notifications.js` (a port of `staff-notifications.js`; ids are `userNotif*`, **never** `staffNotif*`, because `user/medical-record-detail.html` embeds both the patient header and the admin footer).
+
+- **`GET /api/notifications` + `POST /api/notifications/read`** (`UserNotificationApiController`) serve it. Deliberately **not** `/api/staff/notifications`: that endpoint bolts on four staff-only computed reminders, and the path prefix is a lie when the caller is a patient. It returns stored rows only — every patient event is persisted when it happens, so there is nothing to recompute.
+- Before this the patient bell was a dead `<a href="#">`. `FollowUpReminderTask` had been writing `Notification` rows for patients all along, so **the nhắc-tái-khám notification existed but was unreachable** — the reason to check both ends whenever a `push` target is not a staff member.
+- **`NotificationService.pushBookingEvent(booking, icon, title)`** is the one place that formats a booking event ("BS. X — 09:00 - 09:30, dd/MM/yyyy", link `/user/profile#booking-history`). Eleven call sites use it; do not hand-roll a twelfth summary string.
+- **`pushToAllPatients(...)`** fans a published article out to every `ROLE_USER` (`@Async`, `saveAll` in batches of 500). It carries **no** de-duplication — `AdminPostController` owns that, reading the previous status before the write in both `publishPost` and `savePost`, since `/publish/{id}` is a GET that a refresh or a prefetch can fire twice. It is deliberately **not** `@Transactional`: paired with `@Async` the proxy order is unspecified, and the losing order opens the transaction on the caller's thread while the work runs on another.
+
 ### Approved leave blocks the booking calendar
 `LeaveServiceImpl.approve()` generates `DoctorBlockTime` rows tagged with `leaveRequestId` for every date in range (full day, or the half-day window from `HalfDaySession`). Rejecting or cancelling deletes them by that tag, so a doctor's own manual blocks are never touched. **This is the only integration point with booking — reuse it rather than teaching booking code about leave.** Emergency requests ("Báo bận đột xuất", `emergency = true`) create the blocks immediately at submit time and are approved afterwards.
 
@@ -95,10 +103,14 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 ## Email
 `EmailServiceImpl` sends HTML mail rendered from Thymeleaf templates in `templates/email/`: booking confirmation, booking cancellation, candidate confirmation, a follow-up-reminder template, and a general notification template. Sending is asynchronous (`@EnableAsync`), so failures surface in logs rather than in the request.
 
+`general-notification.html` is rendered by a private `EmailServiceImpl.sendGeneral(...)` shared by `sendStaffNotification` and `sendAppointmentReminder` — two callers, one renderer; add a third the same way rather than copying the MimeMessage boilerplate.
+
 **No template under `templates/email/` may use a `@{...}` link expression.** `EmailServiceImpl` renders through a plain `org.thymeleaf.context.Context`, not an `IWebContext` — `@{...}` needs the latter and throws `TemplateProcessingException` at send time, silently swallowed by the same try/catch that catches every other mail-sending failure (easy to miss: it looks exactly like an SMTP error in the log). Every existing template routes a call-to-action through plain text ("truy cập website để...") instead, since the app has no configured base URL to build an absolute link from even if `IWebContext` were available.
 
 ## Scheduled tasks (`task/`)
-Each cron job is its own `@Component` in `task/` (`ClinicRegistrationTask`, `BookingCleanupTask`, `MedicalNewsTask`, `FollowUpReminderTask`) — the one exception is the AI chat-session cleanup, a `@Scheduled` method living directly inside `AiService`. `SchedulerConfig` just flips on `@EnableScheduling`.
+Each cron job is its own `@Component` in `task/` (`ClinicRegistrationTask`, `BookingCleanupTask`, `MedicalNewsTask`, `FollowUpReminderTask`, `AppointmentReminderTask`) — the one exception is the AI chat-session cleanup, a `@Scheduled` method living directly inside `AiService`. `SchedulerConfig` just flips on `@EnableScheduling`.
+
+`AppointmentReminderTask` (daily, `0 30 7 * * ?`) reminds patients of **tomorrow's** appointment by email + bell, over `PENDING`/`CONFIRMED` bookings only, once each (`Booking.reminderSent`). It runs half an hour before `FollowUpReminderTask` so the two mail bursts do not overlap. Its finder carries an `@EntityGraph` for `user` / `doctor.user` on purpose: a cron thread has no open-in-view, and both `pushBookingEvent` and the mail body read those.
 
 `FollowUpReminderTask` (daily, `0 0 8 * * ?`) reads a doctor's "tái khám sau N ngày/tuần/tháng" instruction out of `MedicalRecord.doctorNotes` and reminds the patient once the computed date is close — see [ai-assistant.md](ai-assistant.md) for the regex scope (deliberately narrow — no absolute dates) and [medical-records.md](medical-records.md) for the `followUpReminderSent` flag it uses for idempotency. Follows the same "email + `NotificationService.push` together" convention documented above under "Thông báo trong ứng dụng".
 

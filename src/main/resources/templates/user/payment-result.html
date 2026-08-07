@@ -27,6 +27,11 @@
     </div>
 </main>
 
-<footer th:replace="~{user/index :: footer}"></footer>
+<footer th:replace="~{user/include/footer :: footer}"></footer>
+
+<!-- Trang này trước đây không nạp Bootstrap JS: chuông thông báo ở header dùng dropdown
+     của Bootstrap nên không có bản này thì bấm vào chuông không ra gì. Nạp ĐÚNG MỘT bản —
+     hai bản làm data-api chạy toggle() hai lần và mọi dropdown như bị liệt. -->
+<script th:src="@{/assets/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 </body>
 </html>

@@ -5,6 +5,18 @@
 
 **Gotcha — `ddl-auto=update` never widens a column either.** It only *adds* tables and columns. Declaring `@Column(length = 500)` on a field whose column already exists as `varchar(255)` compiles and boots fine, then fails at runtime with "Data truncated" the first time a long value arrives — and only on databases that already had the table. `Notification.message` is pinned to 255 for exactly this reason: the dev database already contained a leftover `notifications` table from an earlier iteration of the project, with narrower columns and two now-unused ones (`user_id`, `target_url`) that Hibernate left in place.
 
+**Gotcha — a column left behind by a field you deleted will break every INSERT.** The mirror image of the one above, and it does not announce itself. `ddl-auto=update` adds a `NOT NULL` column with **no DEFAULT**; delete or revert the field later and Hibernate simply stops naming it in the INSERT, so MySQL rejects the row with `Field 'x' doesn't have a default value` — surfacing as a plain HTTP 500 with the real cause buried under `UnexpectedRollbackException` (the controller's catch-all swallows the original and the *commit* is what finally throws). The dev database carries two such orphans on `bookings`, `review_reminder_sent` and `upcoming_reminder_sent`, from an experiment that never reached git — while they are there **no booking can be created at all**. Fix either way:
+
+```sql
+-- keep the columns, just let inserts through
+ALTER TABLE bookings ALTER COLUMN review_reminder_sent SET DEFAULT 0;
+ALTER TABLE bookings ALTER COLUMN upcoming_reminder_sent SET DEFAULT 0;
+-- or drop them, since no entity maps them
+ALTER TABLE bookings DROP COLUMN review_reminder_sent, DROP COLUMN upcoming_reminder_sent;
+```
+
+Check with `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='…'` whenever an insert starts failing right after a field was removed or a commit reverted.
+
 **Gotcha — renaming an `@Enumerated(EnumType.STRING)` value.** Hibernate 6 maps such a field to a **native MySQL `ENUM(...)` column** whose value list is fixed at table-creation time. `ddl-auto=update` **never rewrites that list**, so after you rename or remove an enum constant, inserting the new value fails with `Data truncated for column '…'` (surfaces as an HTTP 500). Fix it once by hand, e.g. `ALTER TABLE staff_shifts MODIFY COLUMN shift_type ENUM('CA_SANG','CA_CHIEU','TRUC_NGOAI_GIO','TRUC_12H_DEM','TRUC_24H','HOI_CHAN') NOT NULL;` — or drop the table and let it re-create. Adding a *new* constant to the end is safe; only renames/removals on an existing dev DB need this.
 
 ## Configuration file

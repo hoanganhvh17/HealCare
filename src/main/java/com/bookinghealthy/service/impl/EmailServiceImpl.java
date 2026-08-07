@@ -74,6 +74,52 @@ public class EmailServiceImpl implements EmailService {
     @Async
     @Override
     public void sendStaffNotification(String toEmail, String subject, String title, String bodyHtml) {
+        sendGeneral(toEmail, subject, title, bodyHtml, "thông báo nhân viên");
+    }
+
+    /**
+     * Nhắc bệnh nhân về lịch khám của NGÀY MAI. Gọi bởi {@code AppointmentReminderTask},
+     * luôn đi kèm {@code NotificationService.pushBookingEvent}.
+     */
+    @Async
+    @Override
+    public void sendAppointmentReminder(Booking booking) {
+        if (booking == null || booking.getUser() == null) {
+            return;
+        }
+
+        java.time.format.DateTimeFormatter dateFormatter =
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String doctorName = (booking.getDoctor() != null && booking.getDoctor().getUser() != null)
+                ? booking.getDoctor().getUser().getFullName() : "bác sĩ phụ trách";
+
+        // KHÔNG dùng @{...} trong thân thư: EmailServiceImpl render bằng Context thuần chứ
+        // không phải IWebContext, @{...} sẽ ném lỗi và bị nuốt lặng trong catch bên dưới.
+        String body = "<p>Xin chào <b>" + booking.getUser().getFullName() + "</b>,</p>"
+                + "<p>Ngày mai anh/chị có lịch khám tại MediTrust:</p>"
+                + "<ul>"
+                + "<li>Bác sĩ: <b>BS. " + doctorName + "</b></li>"
+                + "<li>Thời gian: <b>" + booking.getAppointmentTime() + ", "
+                + booking.getAppointmentDate().format(dateFormatter) + "</b></li>"
+                + "</ul>"
+                + "<p>Anh/chị vui lòng đến trước giờ hẹn 15 phút và mang theo giấy tờ tùy thân. "
+                + "Nếu cần đổi hoặc hủy lịch, xin truy cập website và vào mục Hồ sơ cá nhân.</p>";
+
+        sendGeneral(booking.getUser().getEmail(),
+                "MediTrust - Nhắc lịch khám ngày mai",
+                "Nhắc lịch khám ngày mai",
+                body,
+                "nhắc lịch khám");
+    }
+
+    /**
+     * Gửi một thư dựng từ {@code templates/email/general-notification.html}.
+     * Dùng chung cho thông báo nhân viên và nhắc lịch khám — hai chỗ chỉ khác nhau ở nội dung.
+     *
+     * @param logLabel mô tả ngắn để dòng log nói rõ loại thư nào hỏng
+     */
+    private void sendGeneral(String toEmail, String subject, String title,
+                             String bodyHtml, String logLabel) {
         if (toEmail == null || toEmail.isBlank()) {
             return;
         }
@@ -93,7 +139,7 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(mimeMessage);
 
         } catch (Exception e) {
-            System.err.println("Lỗi gửi mail thông báo nhân viên: " + e.getMessage());
+            System.err.println("Lỗi gửi mail " + logLabel + ": " + e.getMessage());
         }
     }
 

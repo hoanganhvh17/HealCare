@@ -13,6 +13,7 @@ import com.bookinghealthy.repository.DoctorRepository;
 import com.bookinghealthy.repository.ScheduleRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,11 @@ public class BookingServiceImpl implements BookingService {
 
     @Autowired
     private EmailService emailService;
+
+    // Thông báo trong ứng dụng đi CẶP với email: email gửi @Async và lỗi chỉ nằm trong log,
+    // nên bệnh nhân không có cách nào chắc chắn biết lịch của mình vừa đổi hay bị hủy.
+    @Autowired
+    private NotificationService notificationService;
 
     private final ConcurrentMap<String, ReentrantLock> slotLocks = new ConcurrentHashMap<>();
 
@@ -268,6 +274,7 @@ public class BookingServiceImpl implements BookingService {
 
         bookingRepository.save(booking);
         emailService.sendBookingCancellation(booking, reason);
+        notificationService.pushBookingEvent(booking, "bi-x-circle text-danger", "Lịch hẹn đã bị hủy");
 
         return refunded;
     }
@@ -469,6 +476,8 @@ public class BookingServiceImpl implements BookingService {
             Booking savedBooking = bookingRepository.save(booking);
 
             emailService.sendBookingRescheduled(savedBooking, oldDoctorName, oldDate, oldTime);
+            notificationService.pushBookingEvent(savedBooking, "bi-arrow-repeat text-primary",
+                    "Dời lịch thành công");
 
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 releaseAfterReturn[0] = false;

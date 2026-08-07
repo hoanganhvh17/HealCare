@@ -40,6 +40,14 @@ public interface EmailService {
     void sendFollowUpReminder(Booking lastBooking, java.time.LocalDate revisitDate);
 
     /**
+     * Nhắc bệnh nhân về lịch khám của NGÀY MAI.
+     * Gọi bởi {@code AppointmentReminderTask}, luôn đi kèm
+     * {@code NotificationService.pushBookingEvent} — email có thể vào spam hoặc hỏng âm thầm,
+     * chuông thì bệnh nhân chắc chắn thấy khi mở web.
+     */
+    void sendAppointmentReminder(Booking booking);
+
+    /**
      * Thông báo chung gửi cho nhân viên, dựng từ {@code templates/email/general-notification.html}.
      * Dùng cho các sự kiện của lịch làm việc: đơn nghỉ được duyệt / bị từ chối,
      * lời mời nhận ca, ca trực đã có người thay.

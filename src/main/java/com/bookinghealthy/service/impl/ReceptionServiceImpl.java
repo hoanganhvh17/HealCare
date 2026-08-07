@@ -9,6 +9,7 @@ import com.bookinghealthy.repository.DoctorRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.DoctorBlockTimeService;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.ReceptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class ReceptionServiceImpl implements ReceptionService {
     @Autowired private DoctorRepository doctorRepository;
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
     @Autowired private DoctorBlockTimeService doctorBlockTimeService;
 
     private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -114,6 +116,8 @@ public class ReceptionServiceImpl implements ReceptionService {
 
                 // Thư xin lỗi + thông báo đổi bác sĩ, kèm lý do và lịch hẹn giữ nguyên
                 emailService.sendBookingDoctorChange(transferred, oldDoctorName, finalReason);
+                notificationService.pushBookingEvent(transferred, "bi-person-badge text-warning",
+                        "Lịch hẹn đã đổi bác sĩ");
                 result.addSuccess();
             } catch (Exception e) {
                 result.addError("Lịch #" + id + ": " + e.getMessage());

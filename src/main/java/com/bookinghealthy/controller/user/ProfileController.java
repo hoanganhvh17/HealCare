@@ -39,6 +39,7 @@ public class ProfileController {
     @Autowired private BookingService bookingService;
     @Autowired private UserService userService;
     @Autowired private EmailService emailService;
+    @Autowired private NotificationService notificationService;
     @Autowired private WalletService walletService;
 
     // Helper lấy User
@@ -229,6 +230,9 @@ public class ProfileController {
 
             bookingService.save(booking);
             emailService.sendBookingCancellation(booking, "Người bệnh tự hủy (Đúng quy định trước 24h).");
+            // Đường tự hủy này KHÔNG đi qua cancelWithRefund (nó hoàn tiền tại chỗ), nên phải
+            // tự bắn thông báo — nếu không thì hủy từ hồ sơ là lần hủy duy nhất không vào chuông.
+            notificationService.pushBookingEvent(booking, "bi-x-circle text-danger", "Lịch hẹn đã bị hủy");
 
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
