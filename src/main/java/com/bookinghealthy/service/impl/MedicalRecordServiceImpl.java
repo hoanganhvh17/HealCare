@@ -13,12 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bookinghealthy.model.VitalSign;
 import com.bookinghealthy.model.PrescriptionItem;
 import com.bookinghealthy.model.MedicalAttachment;
-import com.bookinghealthy.model.Allergy;
 import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.VitalSignRepository;
 import com.bookinghealthy.repository.PrescriptionItemRepository;
 import com.bookinghealthy.repository.MedicalAttachmentRepository;
-import com.bookinghealthy.repository.AllergyRepository;
 import com.bookinghealthy.repository.UserRepository;
 import java.util.List;
 import com.bookinghealthy.model.MedicalAddendum;
@@ -38,8 +36,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     @Autowired private VitalSignRepository vitalSignRepository;
     @Autowired private PrescriptionItemRepository prescriptionItemRepository;
     @Autowired private MedicalAttachmentRepository medicalAttachmentRepository;
-    @Autowired private AllergyRepository allergyRepository;
-    // Thêm khai báo Autowired (Dán ngay dưới dòng @Autowired private AllergyRepository...)
+    // Dị ứng nay do AllergyService quản lý, service này không còn ghi vào bảng allergies nữa.
     @Autowired
     private MedicalAddendumRepository medicalAddendumRepository;
     @Autowired private UserRepository userRepository;
@@ -145,13 +142,6 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         bookingRepository.save(booking);
     }
 
-    @Override
-    public void addPatientAllergy(Long userId, Allergy allergy) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bệnh nhân."));
-        allergy.setUser(user);
-        allergyRepository.save(allergy);
-    }
     @Override
     public void addMedicalAddendum(Long recordId, String notes) {
         // Tìm bệnh án gốc

@@ -4,9 +4,11 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
 import com.bookinghealthy.repository.BookingRepository;
+import com.bookinghealthy.service.AllergyService;
 import com.bookinghealthy.service.DoctorService;
 import com.bookinghealthy.service.MedicalRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -17,7 +19,9 @@ import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.AllergyRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/doctor/medical-record")
@@ -34,6 +38,8 @@ public class DoctorMedicalRecordController {
     // Thêm Dependency cho phần Dị ứng
     @Autowired
     private AllergyRepository allergyRepository;
+    @Autowired
+    private AllergyService allergyService;
     @Autowired
     private com.bookinghealthy.repository.MedicalAddendumRepository medicalAddendumRepository;
 
@@ -145,6 +151,50 @@ public class DoctorMedicalRecordController {
         model.addAttribute("historyRecords", historyRecords);
 
         return "doctor/medical-record-form";
+    }
+
+    /**
+     * Bác sĩ ghi nhận một dị ứng mới ngay giữa ca khám.
+     *
+     * Trả JSON chứ không redirect: form khám là MỘT thẻ &lt;form&gt; lớn (triệu chứng, chẩn đoán,
+     * bảng thuốc, lời dặn), một lần tải lại trang là xoá sạch mọi thứ bác sĩ đang gõ dở.
+     * Trình duyệt gọi bằng fetch rồi tự chèn dòng mới vào thẻ cảnh báo.
+     */
+    @PostMapping("/allergy/add")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> addAllergyDuringExam(
+            @RequestParam("bookingId") Long bookingId,
+            @RequestParam("allergen") String allergen,
+            @RequestParam(value = "reaction", required = false) String reaction,
+            @RequestParam(value = "severity", required = false) String severity,
+            Authentication authentication) {
+
+        Doctor currentDoctor = getLoggedInDoctor(authentication);
+        Booking booking = bookingRepository.findById(bookingId).orElse(null);
+
+        // Cùng phép kiểm quyền sở hữu ca khám mà showCreateForm dùng — bác sĩ chỉ ghi được vào
+        // hồ sơ của bệnh nhân mình đang khám.
+        if (booking == null || booking.getDoctor() == null
+                || !booking.getDoctor().getId().equals(currentDoctor.getId())) {
+            return ResponseEntity.status(403)
+                    .body(Map.of("error", "Bác sĩ không có quyền ghi vào hồ sơ của ca khám này."));
+        }
+
+        try {
+            Allergy saved = allergyService.add(booking.getUser().getId(),
+                    allergen, reaction, severity, Allergy.SOURCE_DOCTOR);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("allergen", saved.getAllergen());
+            body.put("reaction", saved.getReaction());
+            body.put("severity", saved.getSeverity());
+            return ResponseEntity.ok(body);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", "Không lưu được. Vui lòng thử lại."));
+        }
     }
 
     // 2. XỬ LÝ LƯU BỆNH ÁN EMR (POST NÂNG CẤP)

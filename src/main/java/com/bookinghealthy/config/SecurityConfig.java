@@ -116,7 +116,8 @@ public class SecurityConfig {
                                 "/user/update-profile",   // <-- Thêm các action update
                                 "/user/upload-avatar",
                                 "/user/review/**",        // <-- Cho phép gửi review
-                                "/user/booking/**"        // <-- Bệnh nhân tự sửa lịch hẹn của mình
+                                "/user/booking/**",       // <-- Bệnh nhân tự sửa lịch hẹn của mình
+                                "/user/allergy/**"        // <-- Bệnh nhân tự khai dị ứng
                         ).authenticated()
 
                         // 6. Mọi request CÒN LẠI đều phải đăng nhập

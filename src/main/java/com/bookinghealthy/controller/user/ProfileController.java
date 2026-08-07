@@ -1,6 +1,7 @@
 package com.bookinghealthy.controller.user;
 
 import com.bookinghealthy.dto.UpdateProfileDTO;
+import com.bookinghealthy.model.Allergy;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.User;
@@ -41,6 +42,7 @@ public class ProfileController {
     @Autowired private EmailService emailService;
     @Autowired private NotificationService notificationService;
     @Autowired private WalletService walletService;
+    @Autowired private AllergyService allergyService;
 
     // Helper lấy User
     private User getCurrentUser(Authentication authentication) {
@@ -117,6 +119,18 @@ public class ProfileController {
         model.addAttribute("editBlockReasons", editBlockReasons);
         model.addAttribute("cancelBlockReasons", cancelBlockReasons);
         model.addAttribute("hoursLeft", hoursLeft);
+
+        // Tab "Hồ sơ y tế". Lý do không xoá được tính sẵn ở đây rồi truyền xuống, cùng khuôn
+        // cancelBlockReasons ở trên: template ẩn nút theo đúng hàm mà controller xoá cũng gọi,
+        // nên giao diện và server không thể nói khác nhau.
+        List<Allergy> allergies = allergyService.findForUser(user.getId());
+        Map<Long, String> allergyBlockReasons = new HashMap<>();
+        for (Allergy allergy : allergies) {
+            allergyBlockReasons.put(allergy.getId(), allergyService.whyCannotDelete(allergy, user));
+        }
+        model.addAttribute("allergies", allergies);
+        model.addAttribute("allergyBlockReasons", allergyBlockReasons);
+
         return "user/profile";
     }
 

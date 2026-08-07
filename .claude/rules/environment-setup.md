@@ -17,6 +17,8 @@ ALTER TABLE bookings DROP COLUMN review_reminder_sent, DROP COLUMN upcoming_remi
 
 Check with `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='…'` whenever an insert starts failing right after a field was removed or a commit reverted.
 
+This is why `Allergy.source` is declared **nullable** even though Java always sets it: a new `NOT NULL` column on an existing table is exactly the shape that breaks every INSERT later. Prefer nullable + a Java-side default when adding a column to a table that already exists.
+
 **Gotcha — renaming an `@Enumerated(EnumType.STRING)` value.** Hibernate 6 maps such a field to a **native MySQL `ENUM(...)` column** whose value list is fixed at table-creation time. `ddl-auto=update` **never rewrites that list**, so after you rename or remove an enum constant, inserting the new value fails with `Data truncated for column '…'` (surfaces as an HTTP 500). Fix it once by hand, e.g. `ALTER TABLE staff_shifts MODIFY COLUMN shift_type ENUM('CA_SANG','CA_CHIEU','TRUC_NGOAI_GIO','TRUC_12H_DEM','TRUC_24H','HOI_CHAN') NOT NULL;` — or drop the table and let it re-create. Adding a *new* constant to the end is safe; only renames/removals on an existing dev DB need this.
 
 ## Configuration file

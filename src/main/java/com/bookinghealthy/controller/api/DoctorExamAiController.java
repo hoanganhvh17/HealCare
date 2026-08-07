@@ -98,9 +98,14 @@ public class DoctorExamAiController {
             allergyText.append("(Hồ sơ không ghi nhận dị ứng nào)");
         } else {
             for (Allergy a : allergies) {
+                // Kèm NGUỒN để model nói đúng mức độ chắc chắn: "bệnh nhân tự khai" là lời kể,
+                // "bác sĩ ghi nhận" là dữ liệu lâm sàng đã được xác nhận.
+                String source = Allergy.SOURCE_DOCTOR.equals(a.getSource())
+                        ? "bác sĩ ghi nhận" : "bệnh nhân tự khai";
                 allergyText.append("- ").append(a.getAllergen())
                         .append(" | phản ứng: ").append(a.getReaction())
-                        .append(" | mức độ: ").append(a.getSeverity()).append("\n");
+                        .append(" | mức độ: ").append(a.getSeverity())
+                        .append(" | nguồn: ").append(source).append("\n");
             }
         }
 
@@ -112,7 +117,7 @@ public class DoctorExamAiController {
                 + "1. Ưu tiên số một: đối chiếu từng thuốc với danh sách dị ứng ở trên. Nếu có thuốc trùng hoặc cùng nhóm với tác nhân gây dị ứng, cảnh báo NGAY ở dòng đầu tiên, ghi rõ tên thuốc và tác nhân.\n"
                 + "2. Sau đó mới xét tương tác giữa các thuốc trong đơn, và liều dùng bất thường nếu thấy rõ.\n"
                 + "3. Mỗi cảnh báo một gạch đầu dòng, tối đa 5 gạch. Không có vấn đề gì thì trả lời đúng một câu: 'Không phát hiện xung đột với dị ứng đã ghi nhận và không thấy tương tác đáng lưu ý.'\n"
-                + "4. TUYỆT ĐỐI không bịa dị ứng không có trong danh sách trên.\n"
+                + "4. TUYỆT ĐỐI không bịa dị ứng không có trong danh sách trên. Với mục ghi 'bệnh nhân tự khai', nói rõ đó là thông tin do bệnh nhân cung cấp, chưa được xác nhận lâm sàng.\n"
                 + "5. Không kê thay đơn, không đề nghị thuốc khác — chỉ cảnh báo. Bác sĩ là người quyết định.";
 
         return respond(systemPrompt,

@@ -23,7 +23,9 @@ public interface MedicalRecordService {
                                      java.util.List<com.bookinghealthy.model.MedicalAttachment> attachments);
 
     // 3. Thêm cảnh báo dị ứng cho bệnh nhân
-    void addPatientAllergy(Long userId, com.bookinghealthy.model.Allergy allergy);
+    // addPatientAllergy đã chuyển sang AllergyService.add: bản cũ chưa từng có ai gọi, lại
+    // không kiểm trùng tác nhân và không ghi "ai khai" — để cạnh đường ghi mới là có hai lối
+    // vào cùng một bảng mà chỉ một lối áp luật.
 
     // 4. Bổ sung ghi chú vào bệnh án đã đóng (Cơ chế Addendum)
     void addMedicalAddendum(Long recordId, String notes);

@@ -17,6 +17,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Allergy {
 
+    /** Bệnh nhân tự khai trong hồ sơ cá nhân. */
+    public static final String SOURCE_PATIENT = "PATIENT";
+    /** Bác sĩ ghi nhận trong lúc khám. */
+    public static final String SOURCE_DOCTOR = "DOCTOR";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,6 +39,23 @@ public class Allergy {
 
     @Column(length = 50)
     private String severity; // Mức độ (Ví dụ: Nhẹ, Trung bình, Nặng - Sốc phản vệ)
+
+    /**
+     * Ai đưa thông tin này vào hồ sơ: {@link #SOURCE_PATIENT} hay {@link #SOURCE_DOCTOR}.
+     * Bác sĩ nhìn thẻ cảnh báo đỏ cần biết mục nào đã được đồng nghiệp xác nhận, mục nào chỉ
+     * là lời bệnh nhân kể; đây cũng là căn cứ để bệnh nhân KHÔNG tự xoá được mục bác sĩ ghi.
+     * <p>
+     * Là {@code String} chứ KHÔNG phải enum: Hibernate 6 map {@code @Enumerated(EnumType.STRING)}
+     * thành cột {@code ENUM(...)} native của MySQL với danh sách giá trị chốt lúc tạo bảng, nên
+     * thêm/đổi giá trị về sau sẽ vỡ trên DB dev đã có bảng (cùng lý do {@code Notification}
+     * không dùng enum cho "loại thông báo").
+     * <p>
+     * Cố ý ĐỂ NULL ĐƯỢC: {@code ddl-auto=update} thêm cột {@code NOT NULL} mà không kèm
+     * DEFAULT, đúng cái bẫy mà hai cột mồ côi trên bảng {@code bookings} từng gây ra — mọi
+     * INSERT bị MySQL từ chối. Java luôn set giá trị; chỗ hiển thị coi null là "Không rõ".
+     */
+    @Column(length = 20)
+    private String source;
 
     @CreationTimestamp
     @Column(updatable = false)

@@ -676,8 +676,78 @@
             <div class="tab-pane fade" id="family-management">
               <p class="text-muted mt-3">Tính năng quản lý gia đình đang được phát triển.</p>
             </div>
+            <!-- HỒ SƠ Y TẾ: khai báo dị ứng.
+                 Dữ liệu ở đây chảy thẳng vào thẻ "CẢNH BÁO DỊ ỨNG" mà bác sĩ thấy khi khám, và
+                 vào phần đối chiếu đơn thuốc của trợ lý AI — nên nói rõ điều đó cho người dùng
+                 biết vì sao nên khai. -->
             <div class="tab-pane fade" id="medical-records">
-              <p class="text-muted mt-3">Tài liệu hồ sơ y tế sẽ hiển thị ở đây.</p>
+
+              <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                <h6 class="fw-normal text-dark mb-0">Hồ sơ dị ứng</h6>
+                <button type="button" class="btn btn-sm btn-teal" data-bs-toggle="modal" data-bs-target="#addAllergyModal">
+                  <i class="bi bi-plus-circle me-1"></i> Khai báo dị ứng
+                </button>
+              </div>
+
+              <p class="text-muted small mb-3">
+                Thông tin này hiện lên màn hình của bác sĩ ngay khi anh/chị tới khám, và được dùng
+                để đối chiếu với đơn thuốc trước khi kê. Khai càng đầy đủ càng an toàn.
+              </p>
+
+              <div th:if="${allergies == null or allergies.isEmpty()}"
+                   class="alert alert-light border text-muted small">
+                <i class="bi bi-info-circle me-1"></i>
+                Anh/chị chưa khai dị ứng nào. Nếu từng dị ứng thuốc, thức ăn hay bất cứ thứ gì,
+                hãy bấm "Khai báo dị ứng" ở trên.
+              </div>
+
+              <div class="table-responsive" th:if="${allergies != null and !allergies.isEmpty()}">
+                <table class="table align-middle">
+                  <thead class="table-light">
+                  <tr class="small text-muted">
+                    <th>Tác nhân</th>
+                    <th>Biểu hiện</th>
+                    <th>Mức độ</th>
+                    <th>Nguồn</th>
+                    <th class="text-end">Thao tác</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="alg : ${allergies}">
+                    <td class="fw-bold" th:text="${alg.allergen}">Penicillin</td>
+                    <td class="small text-muted" th:text="${alg.reaction} ?: '—'">Nổi mề đay</td>
+                    <td>
+                      <span class="badge"
+                            th:classappend="${alg.severity == 'Nặng'} ? 'bg-danger'
+                                          : (${alg.severity == 'Trung bình'} ? 'bg-warning text-dark' : 'bg-secondary')"
+                            th:text="${alg.severity} ?: 'Không rõ'">Nặng</span>
+                    </td>
+                    <td>
+                      <span th:if="${alg.source == 'DOCTOR'}" class="badge bg-info text-dark">
+                        <i class="bi bi-clipboard2-pulse me-1"></i>Bác sĩ ghi nhận
+                      </span>
+                      <span th:unless="${alg.source == 'DOCTOR'}" class="badge bg-light text-dark border">
+                        Tôi tự khai
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <!-- Nút chỉ hiện khi server nói là xoá được. Cùng hàm mà controller gọi lại
+                           trước khi xoá thật, nên POST tự chế cũng bị từ chối đúng lý do này. -->
+                      <form th:if="${allergyBlockReasons[alg.id] == null}"
+                            th:action="@{'/user/allergy/delete/' + ${alg.id}}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Xoá mục dị ứng này khỏi hồ sơ?')">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                      <span th:if="${allergyBlockReasons[alg.id] != null}"
+                            class="small text-muted fst-italic"
+                            th:title="${allergyBlockReasons[alg.id]}">Không thể xoá</span>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div class="tab-pane fade" id="security-pane">
               <p class="text-muted mt-3">Cài đặt bảo mật hai lớp và khóa tài khoản.</p>
@@ -690,6 +760,50 @@
     </div>
   </section>
 </main>
+
+<!-- Modal Khai báo dị ứng -->
+<div class="modal fade" id="addAllergyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-teal text-white border-0">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Khai báo dị ứng</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form th:action="@{/user/allergy/add}" method="post">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label">Tác nhân gây dị ứng <span class="text-danger">*</span></label>
+            <input type="text" name="allergen" class="form-control" required maxlength="255"
+                   placeholder="VD: Penicillin, Hải sản, Phấn hoa...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Biểu hiện khi bị dị ứng</label>
+            <textarea name="reaction" class="form-control" rows="2"
+                      placeholder="VD: Nổi mề đay, khó thở, sưng môi..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Mức độ</label>
+            <!-- Danh sách cố định thay vì gõ tự do: chuỗi tự do làm việc tô màu cảnh báo bên
+                 màn hình bác sĩ và câu prompt gửi trợ lý AI trở nên không đoán được. -->
+            <select name="severity" class="form-select">
+              <option value="Nhẹ">Nhẹ — khó chịu, tự hết</option>
+              <option value="Trung bình" selected>Trung bình — cần dùng thuốc</option>
+              <option value="Nặng">Nặng — từng phải cấp cứu / sốc phản vệ</option>
+            </select>
+          </div>
+          <div class="alert alert-light border small text-muted mb-0">
+            <i class="bi bi-shield-check me-1"></i>
+            Bác sĩ sẽ thấy thông tin này ngay khi anh/chị tới khám.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Hủy</button>
+          <button type="submit" class="btn btn-teal" style="border-radius: 8px;">Lưu vào hồ sơ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Upload Avatar -->
 <div class="modal fade" id="uploadAvatarModal" tabindex="-1" aria-hidden="true">

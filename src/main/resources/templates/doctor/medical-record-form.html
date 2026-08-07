@@ -46,15 +46,31 @@
           </div>
         </div>
 
-        <!-- CẢNH BÁO DỊ ỨNG (ALLERGY ALERT) -->
-        <div class="card mb-3 border-danger" th:if="${allergies != null and !allergies.isEmpty()}">
-          <div class="card-header bg-danger text-white py-2 fw-bold">
-            <i class="bi bi-exclamation-triangle-fill me-1"></i> CẢNH BÁO DỊ ỨNG
+        <!-- CẢNH BÁO DỊ ỨNG (ALLERGY ALERT).
+             Trước đây thẻ này có `th:if` nên ẩn hẳn khi danh sách rỗng — mà danh sách LUÔN rỗng
+             vì cả dự án không có chỗ nào ghi vào bảng allergies. Nay nó vừa cảnh báo vừa là chỗ
+             nhập, nên luôn hiện. -->
+        <div class="card mb-3 border-danger">
+          <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> CẢNH BÁO DỊ ỨNG</span>
+            <button type="button" class="btn btn-sm btn-light py-0 px-2"
+                    data-bs-toggle="modal" data-bs-target="#addAllergyDoctorModal" title="Ghi nhận dị ứng mới">
+              <i class="bi bi-plus-lg"></i>
+            </button>
           </div>
           <div class="card-body py-2 px-3 small">
-            <ul class="mb-0 ps-3 text-danger fw-bold">
+            <div id="allergyEmptyNote" class="text-muted"
+                 th:classappend="${allergies != null and !allergies.isEmpty()} ? 'd-none'">
+              Hồ sơ chưa ghi nhận dị ứng nào.
+            </div>
+            <ul class="mb-0 ps-3 text-danger fw-bold" id="allergyList">
               <li th:each="alg : ${allergies}">
-                <span th:text="${alg.allergen}"></span> - <span th:text="${alg.reaction}"></span>
+                <span th:text="${alg.allergen}"></span>
+                <span th:if="${alg.reaction}" th:text="' - ' + ${alg.reaction}"></span>
+                <!-- Nguồn tin: bác sĩ cần phân biệt lời bệnh nhân kể với thứ đồng nghiệp đã xác nhận -->
+                <span class="badge ms-1 fw-normal"
+                      th:classappend="${alg.source == 'DOCTOR'} ? 'bg-info text-dark' : 'bg-secondary'"
+                      th:text="${alg.source == 'DOCTOR'} ? 'BS ghi nhận' : 'BN tự khai'">BN tự khai</span>
               </li>
             </ul>
           </div>
@@ -409,6 +425,106 @@
 
 
   </section>
+
+  <!-- Modal: bác sĩ ghi nhận dị ứng mới giữa ca khám.
+       Đặt NGOÀI thẻ <form> khám (form nằm ở cột phải) nên không lồng form. -->
+  <div class="modal fade" id="addAllergyDoctorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Ghi nhận dị ứng</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Tác nhân <span class="text-danger">*</span></label>
+            <input type="text" id="algAllergen" class="form-control" maxlength="255"
+                   placeholder="VD: Penicillin, Hải sản...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Biểu hiện</label>
+            <input type="text" id="algReaction" class="form-control" placeholder="VD: Nổi mề đay, khó thở">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold">Mức độ</label>
+            <select id="algSeverity" class="form-select">
+              <option value="Nhẹ">Nhẹ</option>
+              <option value="Trung bình" selected>Trung bình</option>
+              <option value="Nặng">Nặng — sốc phản vệ</option>
+            </select>
+          </div>
+          <div class="alert alert-danger py-2 px-3 small mb-0 d-none" id="algError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="button" class="btn btn-danger" id="btnSaveAllergy"
+                  th:attr="data-booking-id=${booking.id}">Ghi vào hồ sơ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       Ghi dị ứng bằng AJAX — KHÔNG được để form POST bình thường.
+       Form khám là một thẻ <form> lớn: một lần tải lại trang là bác sĩ mất sạch
+       triệu chứng, chẩn đoán, bảng thuốc và lời dặn đang gõ dở giữa ca khám.
+       ===================================================================== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const btnSave = document.getElementById('btnSaveAllergy');
+      if (!btnSave) return;
+
+      btnSave.addEventListener('click', function () {
+        const allergen = document.getElementById('algAllergen');
+        const reaction = document.getElementById('algReaction');
+        const severity = document.getElementById('algSeverity');
+        const errorBox = document.getElementById('algError');
+
+        errorBox.classList.add('d-none');
+        if (!allergen.value.trim()) {
+          errorBox.textContent = 'Vui lòng nhập tác nhân gây dị ứng.';
+          errorBox.classList.remove('d-none');
+          return;
+        }
+
+        const body = new URLSearchParams();
+        body.append('bookingId', btnSave.dataset.bookingId);
+        body.append('allergen', allergen.value.trim());
+        body.append('reaction', reaction.value.trim());
+        body.append('severity', severity.value);
+
+        btnSave.disabled = true;
+        fetch('/doctor/medical-record/allergy/add', { method: 'POST', body: body })
+          .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+          .then(function (r) {
+            if (!r.ok) {
+              errorBox.textContent = r.data.error || 'Không lưu được.';
+              errorBox.classList.remove('d-none');
+              return;
+            }
+
+            // Chèn thẳng vào danh sách, không tải lại trang.
+            // Dùng textContent chứ không innerHTML: tên thuốc do người dùng gõ.
+            const li = document.createElement('li');
+            li.textContent = r.data.allergen + (r.data.reaction ? ' - ' + r.data.reaction : '') + ' ';
+            const badge = document.createElement('span');
+            badge.className = 'badge ms-1 fw-normal bg-info text-dark';
+            badge.textContent = 'BS ghi nhận';
+            li.appendChild(badge);
+            document.getElementById('allergyList').appendChild(li);
+            document.getElementById('allergyEmptyNote').classList.add('d-none');
+
+            allergen.value = ''; reaction.value = '';
+            bootstrap.Modal.getInstance(document.getElementById('addAllergyDoctorModal')).hide();
+          })
+          .catch(function () {
+            errorBox.textContent = 'Không kết nối được máy chủ.';
+            errorBox.classList.remove('d-none');
+          })
+          .finally(function () { btnSave.disabled = false; });
+      });
+    });
+  </script>
 
 </main>
 <th:block th:replace="~{admin/include/footer :: footer}"></th:block>
