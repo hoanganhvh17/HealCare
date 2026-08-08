@@ -32,9 +32,19 @@
                             <span th:text="${errorMessage}"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
 
-                        <a th:href="@{/admin/manage-news/add}" class="btn btn-primary mb-3">
-                            <i class="bi bi-pencil-square"></i> Viết bài mới
-                        </a>
+                        <div class="d-flex gap-2 mb-3">
+                            <a th:href="@{/admin/manage-news/add}" class="btn btn-primary">
+                                <i class="bi bi-pencil-square"></i> Viết bài mới
+                            </a>
+                            <!-- Chạy tay đúng việc mà cron 6h/18h vẫn làm. Có nút này thì không phải
+                                 ngồi đợi tới giờ mới biết việc thu thập có chạy được không. -->
+                            <form th:action="@{/admin/manage-news/fetch-now}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-outline-success"
+                                        onclick="this.disabled=true; this.form.submit();">
+                                    <i class="bi bi-cloud-download"></i> Thu thập tin ngay
+                                </button>
+                            </form>
+                        </div>
 
                         <table class="table datatable">
                             <thead>

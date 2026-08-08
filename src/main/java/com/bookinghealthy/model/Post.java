@@ -43,6 +43,22 @@ public class Post {
     @JoinColumn(name = "author_id")
     private User author; // Người đăng (Admin)
 
+    /**
+     * Link bài gốc trên báo, với bài do MedicalNewsTask thu thập. Bài admin tự viết thì để null.
+     *
+     * Đây cũng là KHÓA CHỐNG TRÙNG thật sự khi thu thập ({@code existsBySourceUrl}) — trước đây
+     * task so trùng bằng chuỗi con của nguyên cái tiêu đề, cách đó gần như không bao giờ khớp.
+     *
+     * Cả hai cột đều CỐ Ý nullable: đây là cột thêm vào bảng posts vốn đã có dữ liệu, mà
+     * ddl-auto=update thì thêm cột NOT NULL không kèm DEFAULT — đúng cái bẫy đã làm hỏng toàn bộ
+     * việc đặt lịch (xem environment-setup.md).
+     */
+    @Column(length = 500)
+    private String sourceUrl;
+
+    /** Tên tòa soạn để hiện ở khối "Nguồn:" cuối bài, vd "VnExpress Sức khỏe". */
+    private String sourceName;
+
     // Tự động gán ngày giờ hiện tại khi tạo mới
     @PrePersist
     protected void onCreate() {

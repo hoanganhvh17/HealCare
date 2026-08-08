@@ -144,14 +144,14 @@ public class ShiftCoverServiceImpl implements ShiftCoverService {
 
         if (request.getTargetUser() != null) {
             emailService.sendStaffNotification(request.getTargetUser().getEmail(),
-                    "MediTrust - Lời mời nhận ca trực", "Có đồng nghiệp cần người thay ca", body);
+                    "NNL Hospital - Lời mời nhận ca trực", "Có đồng nghiệp cần người thay ca", body);
             return;
         }
 
         // Mở cho cả khoa: báo cho mọi người đủ điều kiện.
         for (User candidate : findCandidates(shift.getId())) {
             emailService.sendStaffNotification(candidate.getEmail(),
-                    "MediTrust - Lời mời nhận ca trực", "Có đồng nghiệp cần người thay ca", body);
+                    "NNL Hospital - Lời mời nhận ca trực", "Có đồng nghiệp cần người thay ca", body);
         }
     }
 
@@ -194,7 +194,7 @@ public class ShiftCoverServiceImpl implements ShiftCoverService {
                 + shift.getShiftType().getLabel() + " ngày "
                 + shift.getShiftDate().format(DATE_FORMAT) + " giúp anh/chị.</p>";
         emailService.sendStaffNotification(previousOwner.getEmail(),
-                "MediTrust - Đã có người nhận ca", "Ca của anh/chị đã có người thay", body);
+                "NNL Hospital - Đã có người nhận ca", "Ca của anh/chị đã có người thay", body);
 
         return null;
     }

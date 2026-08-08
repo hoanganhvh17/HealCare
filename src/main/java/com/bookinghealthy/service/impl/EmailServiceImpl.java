@@ -33,7 +33,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(booking.getUser().getEmail());
-            helper.setSubject("MediTrust - Xác nhận đặt lịch khám thành công");
+            helper.setSubject("NNL Hospital - Xác nhận đặt lịch khám thành công");
 
             // Đổ dữ liệu vào Template HTML
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
@@ -96,7 +96,7 @@ public class EmailServiceImpl implements EmailService {
         // KHÔNG dùng @{...} trong thân thư: EmailServiceImpl render bằng Context thuần chứ
         // không phải IWebContext, @{...} sẽ ném lỗi và bị nuốt lặng trong catch bên dưới.
         String body = "<p>Xin chào <b>" + booking.getUser().getFullName() + "</b>,</p>"
-                + "<p>Ngày mai anh/chị có lịch khám tại MediTrust:</p>"
+                + "<p>Ngày mai anh/chị có lịch khám tại NNL Hospital:</p>"
                 + "<ul>"
                 + "<li>Bác sĩ: <b>BS. " + doctorName + "</b></li>"
                 + "<li>Thời gian: <b>" + booking.getAppointmentTime() + ", "
@@ -106,10 +106,51 @@ public class EmailServiceImpl implements EmailService {
                 + "Nếu cần đổi hoặc hủy lịch, xin truy cập website và vào mục Hồ sơ cá nhân.</p>";
 
         sendGeneral(booking.getUser().getEmail(),
-                "MediTrust - Nhắc lịch khám ngày mai",
+                "NNL Hospital - Nhắc lịch khám ngày mai",
                 "Nhắc lịch khám ngày mai",
                 body,
                 "nhắc lịch khám");
+    }
+
+    /**
+     * Hồ sơ bệnh án + đơn thuốc điện tử, gửi ngay sau khi bác sĩ lưu bệnh án.
+     *
+     * Chỉ đọc {@link com.bookinghealthy.dto.MedicalRecordMailDTO} — tuyệt đối không chạm vào
+     * entity ở đây: hàm này chạy trên luồng khác, mọi quan hệ LAZY sẽ nổ
+     * {@code LazyInitializationException} và bị chính khối catch bên dưới nuốt mất.
+     */
+    @Async
+    @Override
+    public void sendMedicalRecordReady(com.bookinghealthy.dto.MedicalRecordMailDTO mail,
+                                       byte[] prescriptionPdf) {
+        if (mail == null || mail.getToEmail() == null || mail.getToEmail().isBlank()) {
+            return;
+        }
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(mail.getToEmail());
+            helper.setSubject("NNL Hospital - Hồ sơ bệnh án & đơn thuốc lần khám #" + mail.getBookingId());
+
+            org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+            context.setVariable("mail", mail);
+
+            helper.setText(templateEngine.process("email/medical-record-ready", context), true);
+
+            // Thiếu font in PDF thì buildPrescription không dựng được tệp; thư vẫn phải tới tay
+            // bệnh nhân vì toàn bộ đơn thuốc đã nằm trong thân thư.
+            if (prescriptionPdf != null && prescriptionPdf.length > 0) {
+                helper.addAttachment("don-thuoc-" + mail.getBookingId() + ".pdf",
+                        new org.springframework.core.io.ByteArrayResource(prescriptionPdf),
+                        "application/pdf");
+            }
+
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi mail HỒ SƠ BỆNH ÁN: " + e.getMessage());
+        }
     }
 
     /**
@@ -153,7 +194,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(booking.getUser().getEmail());
-            helper.setSubject("MediTrust - Thông báo hủy lịch hẹn");
+            helper.setSubject("NNL Hospital - Thông báo hủy lịch hẹn");
 
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
             context.setVariable("patientName", booking.getUser().getFullName());
@@ -182,7 +223,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(booking.getUser().getEmail());
-            helper.setSubject("MediTrust - Xin lỗi quý khách: lịch khám #" + booking.getId() + " đã đổi bác sĩ");
+            helper.setSubject("NNL Hospital - Xin lỗi quý khách: lịch khám #" + booking.getId() + " đã đổi bác sĩ");
 
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
             context.setVariable("patientName",
@@ -227,7 +268,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(booking.getUser().getEmail());
-            helper.setSubject("MediTrust - Đã đổi lịch khám #" + booking.getId() + " thành công");
+            helper.setSubject("NNL Hospital - Đã đổi lịch khám #" + booking.getId() + " thành công");
 
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
             context.setVariable("patientName",
@@ -280,7 +321,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(lastBooking.getUser().getEmail());
-            helper.setSubject("MediTrust - Nhắc lịch tái khám");
+            helper.setSubject("NNL Hospital - Nhắc lịch tái khám");
 
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
             context.setVariable("patientName", lastBooking.getUser().getFullName());
@@ -310,7 +351,7 @@ public class EmailServiceImpl implements EmailService {
                     new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(candidate.getEmail());
-            helper.setSubject("MediTrust - Xác nhận ứng tuyển: " + candidate.getJobPosting().getTitle());
+            helper.setSubject("NNL Hospital - Xác nhận ứng tuyển: " + candidate.getJobPosting().getTitle());
 
             org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
             context.setVariable("candidateName", candidate.getFullName());

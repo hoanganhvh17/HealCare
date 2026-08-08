@@ -185,7 +185,7 @@ public class AiController {
     // =========================================================================
 
     private static final String RECORD_EXPLAIN_PROMPT_TEMPLATE =
-            "Bạn là trợ lý AI của phòng khám MediTrust, đang giúp một bệnh nhân hiểu hồ sơ bệnh án của chính họ. " +
+            "Bạn là trợ lý AI của phòng khám NNL Hospital, đang giúp một bệnh nhân hiểu hồ sơ bệnh án của chính họ. " +
             "Luôn xưng là 'em' và gọi bệnh nhân là 'anh/chị'.\n\n" +
             "Dưới đây là NỘI DUNG HỒ SƠ BỆNH ÁN (trích từ hệ thống, chỉ đúng bệnh nhân đang hỏi mới xem được):\n\n" +
             "%s\n\n" +
@@ -638,6 +638,8 @@ public class AiController {
      * Câu giải thích cho khách, dùng CHUNG cho thẻ chat và câu đọc của trợ lý giọng nói.
      * Cố ý viết theo đúng định dạng máy ("T3 28/07", "13:30 - 17:30") để
      * {@code MediTrustVoice.humanizeSchedule()} tự đọc thành lời — đừng thêm một bản riêng cho loa.
+     * (Tên biến JS vẫn là MediTrustVoice trong {@code meditrust-voice.js}; đừng đổi theo tên
+     * hiển thị của bệnh viện, một lần replace nhầm là thành "NNL HospitalVoice" — sai ký hiệu.)
      * Xưng hô theo mục 0 của prompt: em / anh-chị.
      */
     private String buildReasonText(String reason, String doctorName, java.time.LocalDate date,

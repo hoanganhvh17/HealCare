@@ -220,7 +220,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
                 continue;
             }
             emailService.sendStaffNotification(staff.getEmail(),
-                    "MediTrust - Nhắc đăng ký lịch khám tuần sau",
+                    "NNL Hospital - Nhắc đăng ký lịch khám tuần sau",
                     "Chưa đăng ký lịch khám tuần sau",
                     "<p>Anh/chị chưa đăng ký lịch khám cho tuần <strong>" + weekLabel(week) + "</strong>.</p>"
                             + "<p>Vui lòng vào mục <em>Lịch làm việc &amp; Nghỉ phép → Ca khám</em> để đăng ký "
@@ -245,7 +245,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
             autoFillFullWeek(doctor, week);
             markRegisteredForNextWeek(staff);
             emailService.sendStaffNotification(staff.getEmail(),
-                    "MediTrust - Đã tự động xếp lịch khám tuần sau",
+                    "NNL Hospital - Đã tự động xếp lịch khám tuần sau",
                     "Tự động xếp lịch khám cả tuần",
                     "<p>Do chưa đăng ký, hệ thống đã tự xếp cho anh/chị lịch khám cả tuần <strong>"
                             + weekLabel(week) + "</strong> (mỗi ngày tối thiểu một ca sáng).</p>"
@@ -529,7 +529,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         String headName = (head != null) ? head.getFullName() : "Trưởng khoa";
 
         emailService.sendStaffNotification(staff.getEmail(),
-                "MediTrust - Lịch khám tuần sau đã được trưởng khoa xếp",
+                "NNL Hospital - Lịch khám tuần sau đã được trưởng khoa xếp",
                 "Lịch khám tuần " + weekLabel(weekStart),
                 "<p>" + headName + " đã xếp lịch khám tuần <strong>" + weekLabel(weekStart)
                         + "</strong> cho anh/chị.</p><p>" + summary + "</p>"
@@ -615,7 +615,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
                 + shift.getEndTime().format(TIME_FORMAT);
 
         emailService.sendStaffNotification(shift.getUser().getEmail(),
-                "MediTrust - Anh/chị được phân công phiên trực",
+                "NNL Hospital - Anh/chị được phân công phiên trực",
                 "Phân công phiên trực",
                 "<p>" + headName + " đã phân công anh/chị <strong>"
                         + shift.getShiftType().getLabel() + "</strong> ngày " + when + ".</p>"
@@ -1050,7 +1050,7 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
 
         emailService.sendStaffNotification(
                 shift.getUser().getEmail(),
-                "MediTrust - Kết quả đăng ký ca trực",
+                "NNL Hospital - Kết quả đăng ký ca trực",
                 "Ca trực " + verb,
                 body.toString());
 

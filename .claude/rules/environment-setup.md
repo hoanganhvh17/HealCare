@@ -24,6 +24,9 @@ This is why `Allergy.source` is declared **nullable** even though Java always se
 ## Configuration file
 Connection settings, credentials, Gmail SMTP, Google/Facebook OAuth2 client secrets, and the OpenRouter AI key all live in [application.properties](src/main/resources/application.properties). The app listens on port **8090**.
 
+### Thu thập tin tức (`news.fetch.*`)
+Four keys drive `MedicalNewsTask`: `enabled` (kill switch), `cron` (default `0 0 6,18 * * ?`), `max-per-run` (2 — each article costs one AI call), `max-age-days` (3). The **list of newspapers is not here** — it is `config/NewsSourceCatalog.SOURCES`, kept in Java for the same reason as `DoctorSeedData`. Set `news.fetch.enabled=false` to develop without the task firing. See [supporting-subsystems.md](supporting-subsystems.md).
+
 ## Seed data
 [DataInitializer.java](src/main/java/com/bookinghealthy/config/DataInitializer.java) is a `CommandLineRunner` that populates roles, users, 22 departments, doctors, and schedules — but **only when the `users` table is empty**. To re-seed that block, drop the schema and restart.
 
@@ -33,11 +36,20 @@ Four blocks run **outside** that guard and are idempotent, so they also apply to
 - `ensureHeadDoctors()` — `ROLE_HEAD_DOCTOR` plus one trưởng khoa per department (the doctor with the highest `experienceYears`), recorded via `StaffProfile.headOfDepartment`. They **keep** `ROLE_DOCTOR`, so log in with their normal `bs_<slug>` / `123456` account and the "Phê duyệt của khoa" item appears in the doctor sidebar.
 
   Both must run **after** `ensureExtraDoctors()` so the 110 seeded doctors are included.
-- `ensureExtraDoctors()` — 5 extra doctors for **every** department (22 × 5 = 110), with bio, degree, price, phone and 3 weekly `Schedule` rows each. The data table lives in [DoctorSeedData.java](src/main/java/com/bookinghealthy/config/DoctorSeedData.java) keyed by **department name**, so a renamed department silently skips its five doctors (a warning is printed). Username / email / avatar filename are all derived from the full name via `slugify()` (`Nguyễn Đức Toàn` → `bs_nguyenductoan`, `nguyenductoan@meditrust.vn`, `bs-nguyenductoan.jpg`), which is what makes re-running safe — the check is `existsByUsername`. The BCrypt hash is computed **once** and reused; encoding per doctor would add ~10s to every boot.
+- `ensureExtraDoctors()` — 5 extra doctors for **every** department (22 × 5 = 110), with bio, degree, price, phone and 3 weekly `Schedule` rows each. The data table lives in [DoctorSeedData.java](src/main/java/com/bookinghealthy/config/DoctorSeedData.java) keyed by **department name**, so a renamed department silently skips its five doctors (a warning is printed). Username / email / avatar filename are all derived from the full name via `slugify()` (`Nguyễn Đức Toàn` → `bs_nguyenductoan`, `nguyenductoan@nnlhospital.vn`, `bs-nguyenductoan.jpg`), which is what makes re-running safe — the check is `existsByUsername`.
+
+  **The email domain is a machine string — no spaces, ever.** `User.email` carries `@Email`, and `DataInitializer` is a `CommandLineRunner`, so a bad address does not merely skip a doctor: the `ConstraintViolationException` kills the whole boot with `Application run failed`. A brand rename done by find-and-replace turned this into `"@NNL Hospital.vn"` and the app would not start at all. Doctors seeded **before** that rename keep their old `@meditrust.vn` address — the idempotency check is `existsByUsername`, not email, so the domain change only applies to newly created rows. Harmless in dev; `UPDATE users SET email = REPLACE(email,'@meditrust.vn','@nnlhospital.vn')` if you want them uniform. The BCrypt hash is computed **once** and reused; encoding per doctor would add ~10s to every boot.
 
 Default logins: `admin`/`admin123`, `patient_tom`/`123456`, doctors such as `doctor_walter`/`123456`, and every seeded doctor with `bs_<slug>`/`123456`.
 
 `data.sql` also exists but is disabled (`spring.sql.init.mode=never`).
+
+## Font in PDF — `src/main/resources/fonts/`
+`PdfExportServiceImpl` cần **`DejaVuSans.ttf` + `DejaVuSans-Bold.ttf`** ở đó (kèm `LICENSE.txt` của bộ font). Thư mục này từng **rỗng**, và hậu quả rất kín tiếng: font nạp lười ở lần in đầu tiên chứ **không** `@PostConstruct` (cố ý — thiếu tệp thì chỉ chức năng in báo lỗi, không được phép làm sập ứng dụng lúc khởi động), nên `buildReceipt` / `buildPrescription` chỉ ném `IllegalStateException("Thiếu font in PDF…")` đúng lúc lễ tân bấm in, còn thư "đã có hồ sơ bệnh án" thì chỉ lặng lẽ **thiếu tệp đính kèm** mà vẫn gửi bình thường. `PdfFontTest` giờ canh chỗ này: quên commit font là build đỏ.
+
+Chọn DejaVu vì giấy phép cho phép phát hành lại (nhúng thẳng vào PDF phát cho bệnh nhân) — **đừng thay bằng font hệ điều hành** như `arial.ttf`: đó là font có bản quyền của Microsoft, commit vào repo là phát hành lại trái phép.
+
+`IDENTITY_H + EMBEDDED` là bắt buộc: 14 font chuẩn của PDF dùng WinAnsi, không vẽ nổi "ế", "ộ", "ữ".
 
 ## Testing the voice agent
 The mic only works in a **secure context**. `http://localhost:8090` qualifies, so normal local dev is fine — but reaching the same dev server from another device over `http://192.168.x.x:8090` silently disables every voice feature. Test on `localhost` in Chrome or Edge, and put the app behind HTTPS before demoing voice off-machine.
@@ -46,6 +58,8 @@ Reading answers aloud also needs a Vietnamese voice installed on the OS (Windows
 
 ## Uploads
 Uploaded images are written to an `uploads/` directory beside the running process and served at `/uploads/**` (see [WebConfig.java](src/main/java/com/bookinghealthy/config/WebConfig.java)). Multipart limit is 10MB.
+
+Not everything there arrives by upload: `NewsFeedService.downloadImage` **downloads** the illustration of a collected news article into the same folder (named `<millis>_news.<ext>`, capped at 5MB). Its extension comes from the response `Content-Type`, not the URL — Spring picks the served Content-Type from the file extension, so a `.jpg` holding WebP bytes would mislabel the image to every browser.
 
 **`/uploads/**` is resolved only from `file:uploads/`.** The copies under `src/main/resources/static/uploads/` are never served — the more specific `/uploads/**` handler wins over the default `/**` static handler and returns 404 instead of falling through. So a doctor avatar must sit in the runtime `uploads/` folder, i.e. the app must be started with the project root as its working directory. Seeded doctor portraits (`doctor-*.jpg`, `bs-*.jpg`) are committed there for that reason.
 

@@ -30,4 +30,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     // Lấy bài viết mới nhất theo trạng thái và tiêu đề chứa từ khóa
     Optional<Post> findFirstByStatusAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(String status, String keyword);
+
+    /**
+     * Đã thu thập bài này từ báo chưa? Dùng ở MedicalNewsTask để không lấy trùng.
+     *
+     * URL bài gốc là khóa tự nhiên duy nhất đáng tin: cùng một bài báo có thể xuất hiện lại trong
+     * RSS nhiều lần trong ngày, và tiêu đề thì tòa soạn sửa được sau khi đăng.
+     */
+    boolean existsBySourceUrl(String sourceUrl);
 }

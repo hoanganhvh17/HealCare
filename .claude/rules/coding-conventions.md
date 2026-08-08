@@ -14,6 +14,10 @@ The mirror-image trap on the patient side is **zero** copies: `checkout-qr.html`
 
 **`~{user/index :: footer}` is a fragment that does not exist** — `user/index.html` declares no `th:fragment` whatsoever. Six templates referenced it (`career-details`, `careers`, `doctor-schedule`, `medical-process`, `payment-result`, `working-hours`), and Thymeleaf aborts the render at that tag: the page lost its footer **and every `<script>` declared after it**, which is where Bootstrap sits. That is why the notification bell rendered but would not open on those pages. The real fragment is `~{user/include/footer :: footer}`. Grep for the bad form before adding a footer to a new patient page.
 
+**`th:if="${a} and ${b}"` blows up when either side is a String.** Thymeleaf runs on **SpEL** here (Spring Boot injects a `SpringTemplateEngine`), and SpEL's `and` / `or` coerce each operand with the conversion service — `StringToBooleanConverter` only accepts `true/false/on/off/yes/no/1/0`, so a diagnosis string throws. Write one expression with explicit comparisons instead: `th:if="${a != null and b != null}"`. A *single* `${someString}` in `th:if` is fine — Thymeleaf applies its own null/empty rules to the finished value; it is only the operators that are strict. Same for a ternary: `th:text="${x} != null ? ... "` is parsed as a value followed by literal text, so the whole thing must live inside the braces.
+
+In email templates this is invisible until it reaches a real inbox — `EmailServiceImpl` swallows the render exception. `MedicalRecordMailTemplateTest` renders `email/medical-record-ready.html` with a `SpringTemplateEngine` for exactly that reason; a bare `new TemplateEngine()` would use **OGNL**, which is laxer *and* is not even on the classpath (`NoClassDefFoundError: ognl/PropertyAccessor`).
+
 **Pass Vietnamese strings to JS through `th:attr`, never `th:onclick`.** Vietnamese copy is full of apostrophes ("bác sĩ nào cũng được"), and inlining such a string into an `onclick` breaks the whole script; an attribute (`data-ai-prompt`) is escaped by Thymeleaf and read back with `dataset`. The 8 dashboard insight boxes do it this way.
 
 **A clickable element nested inside `<a>` needs a delegated listener with `preventDefault()`.** Two doctor-dashboard stat cards wrap their whole body in `<a>`; without it, one tap both runs the handler and navigates away, so the handler's effect is never seen.
@@ -37,4 +41,8 @@ The voice layer relies on browser-only APIs, so anything touching it must degrad
 Controllers largely catch broad `Exception`, call `printStackTrace()`, and surface a message through `RedirectAttributes` flash attributes. There is no global `@ControllerAdvice`; custom error pages exist at `templates/error/{403,404,500}.html`.
 
 ## Testing & tooling
-**No test suite currently exists** — `src/test` contains no classes, though `spring-boot-starter-test` and `spring-security-test` are on the classpath. There is no linter or formatter configured beyond the Maven compiler. Do not claim tests pass without actually adding and running them.
+**There are two test classes**: `MedicalRecordMailTemplateTest` (renders the medical-record email template — see the SpEL note above) and `PdfFontTest` (the embedded PDF fonts). Both exist for the same reason and it is the reason worth copying: **each guards a failure that the app swallows into a log line**, where "no error on screen" and "working" look identical. Everything else is untested, and there is no linter or formatter configured beyond the Maven compiler. Do not claim tests pass without actually adding and running them.
+
+Two things about running them:
+- Prefer **plain JUnit over `@SpringBootTest`** where possible. Booting the context needs a live MySQL (`ddl-auto=update`) and fires `DataInitializer`, so a context test is a migration against the dev database, not a unit test.
+- **The first `./mvnw test` must run online.** `maven-surefire-plugin` resolves its `surefire-junit-platform` provider lazily, so `-o` fails with "artifact has not been downloaded from it before" until one online run has cached it.

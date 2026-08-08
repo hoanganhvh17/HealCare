@@ -110,7 +110,7 @@ public class DoctorExamAiController {
         }
 
         String systemPrompt =
-                "Bạn là dược sĩ lâm sàng hỗ trợ bác sĩ tại phòng khám MediTrust. Trả lời bằng tiếng Việt, ngắn gọn.\n\n"
+                "Bạn là dược sĩ lâm sàng hỗ trợ bác sĩ tại phòng khám NNL Hospital. Trả lời bằng tiếng Việt, ngắn gọn.\n\n"
                 + "DỊ ỨNG ĐÃ GHI NHẬN CỦA BỆNH NHÂN:\n" + allergyText + "\n"
                 + "ĐƠN THUỐC BÁC SĨ ĐANG KÊ:\n" + medicines + "\n\n"
                 + "--- QUY TẮC ---\n"

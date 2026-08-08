@@ -10,6 +10,7 @@ import com.bookinghealthy.repository.PrescriptionItemRepository;
 import com.bookinghealthy.repository.VitalSignRepository;
 import com.bookinghealthy.service.PdfExportService;
 import com.bookinghealthy.util.QRCodeGenerator;
+import com.bookinghealthy.util.VitalSignFormatter;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
@@ -34,7 +35,6 @@ import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,7 +46,7 @@ public class PdfExportServiceImpl implements PdfExportService {
     @Autowired private PrescriptionItemRepository prescriptionItemRepository;
     @Autowired private VitalSignRepository vitalSignRepository;
 
-    private static final String CLINIC_NAME = "PHÒNG KHÁM MEDITRUST";
+    private static final String CLINIC_NAME = "PHÒNG KHÁM NNL Hospital";
     private static final String CLINIC_ADDRESS = "123 Đường Sức Khỏe, Quận 1, TP. Hồ Chí Minh · Hotline: 1900 1234";
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -246,7 +246,9 @@ public class PdfExportServiceImpl implements PdfExportService {
             addInfoRow(clinical, "Chẩn đoán", diagnosis);
             addInfoRow(clinical, "Triệu chứng", safe(record.getSymptoms()));
 
-            String vitals = describeVitalSign(vitalSign.orElse(null));
+            // Dùng chung bộ định dạng với thư "đã có hồ sơ bệnh án": đơn thuốc cầm trên tay và
+            // thư trong hộp mail không được ghi chỉ số sinh tồn theo hai kiểu khác nhau.
+            String vitals = VitalSignFormatter.describe(vitalSign.orElse(null));
             if (vitals != null) {
                 addInfoRow(clinical, "Chỉ số sinh tồn", vitals);
             }
@@ -424,31 +426,6 @@ public class PdfExportServiceImpl implements PdfExportService {
         return "-";
     }
 
-    private String describeVitalSign(VitalSign vs) {
-        if (vs == null) {
-            return null;
-        }
-        List<String> parts = new ArrayList<>();
-        if (vs.getHeartRate() != null) parts.add("Mạch " + vs.getHeartRate() + " l/p");
-        if (vs.getSystolicBp() != null && vs.getDiastolicBp() != null) {
-            parts.add("Huyết áp " + trimDecimal(vs.getSystolicBp()) + "/" + trimDecimal(vs.getDiastolicBp()) + " mmHg");
-        }
-        if (vs.getTemperature() != null) parts.add("Nhiệt độ " + trimDecimal(vs.getTemperature()) + " °C");
-        if (vs.getSpo2() != null) parts.add("SpO2 " + trimDecimal(vs.getSpo2()) + " %");
-        if (vs.getHeight() != null) parts.add("Cao " + trimDecimal(vs.getHeight()) + " cm");
-        if (vs.getWeight() != null) parts.add("Nặng " + trimDecimal(vs.getWeight()) + " kg");
-
-        return parts.isEmpty() ? null : String.join("  ·  ", parts);
-    }
-
-    private String trimDecimal(Double value) {
-        if (value == null) return "-";
-        if (value == Math.floor(value)) {
-            return String.valueOf(value.longValue());
-        }
-        return String.valueOf(value);
-    }
-
     private String formatMoney(BigDecimal amount) {
         if (amount == null) {
             return "0 đ";
@@ -461,7 +438,7 @@ public class PdfExportServiceImpl implements PdfExportService {
     private String describePaymentMethod(String method) {
         if (method == null) return "-";
         return switch (method) {
-            case "WALLET" -> "Ví MediTrust";
+            case "WALLET" -> "Ví NNL Hospital";
             case "VNPAY" -> "VNPay";
             case "BANK_TRANSFER" -> "Chuyển khoản ngân hàng";
             case "CASH" -> "Tiền mặt tại quầy";

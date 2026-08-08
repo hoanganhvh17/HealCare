@@ -319,7 +319,7 @@ public class DataInitializer implements CommandLineRunner {
             // Thứ tự tham số theo @AllArgsConstructor của User:
             // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
             User receptionist = new User(null, "receptionist", "receptionist@gmail.com",
-                    passwordEncoder.encode("123456"), "Lễ tân MediTrust", "0900000009", null,
+                    passwordEncoder.encode("123456"), "Lễ tân NNL Hospital", "0900000009", null,
                     "Nữ", AuthProvider.LOCAL, Set.of(receptionistRole), BigDecimal.ZERO);
             userRepository.save(receptionist);
             System.out.println(">>> Tạo mới tài khoản lễ tân: receptionist / 123456");
@@ -339,10 +339,10 @@ public class DataInitializer implements CommandLineRunner {
 
     /** Câu kết của tiểu sử, xoay vòng theo thứ tự bác sĩ trong khoa để bio không lặp y hệt nhau. */
     private static final String[] BIO_CLOSINGS = {
-            "Bác sĩ nhận khám theo lịch hẹn tại MediTrust, tư vấn rõ phác đồ và chi phí trước khi điều trị.",
+            "Bác sĩ nhận khám theo lịch hẹn tại NNL Hospital, tư vấn rõ phác đồ và chi phí trước khi điều trị.",
             "Bác sĩ ưu tiên điều trị bảo tồn, chỉ định cận lâm sàng hợp lý và theo dõi sát sau điều trị.",
             "Bác sĩ khám và tư vấn bằng tiếng Việt, tiếng Anh; hỗ trợ tái khám trực tuyến khi người bệnh ở xa.",
-            "Bác sĩ có kinh nghiệm xử trí ca khó và phối hợp hội chẩn đa chuyên khoa tại MediTrust.",
+            "Bác sĩ có kinh nghiệm xử trí ca khó và phối hợp hội chẩn đa chuyên khoa tại NNL Hospital.",
             "Bác sĩ dành thời gian giải thích rõ tình trạng bệnh và hướng dẫn chăm sóc tại nhà cho người bệnh."
     };
 
@@ -406,7 +406,7 @@ public class DataInitializer implements CommandLineRunner {
 
                 // Thứ tự tham số theo @AllArgsConstructor của User:
                 // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
-                User user = userRepository.save(new User(null, username, slug + "@meditrust.vn", pass123,
+                User user = userRepository.save(new User(null, username, slug + "@nnlhospital.vn", pass123,
                         seed.fullName(), generatePhone(seq), "bs-" + slug + ".jpg", seed.gender(),
                         AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO));
 

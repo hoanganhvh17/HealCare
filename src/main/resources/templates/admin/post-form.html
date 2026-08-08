@@ -31,18 +31,48 @@
             <form th:action="@{/admin/manage-news/save}" th:object="${post}" method="post" enctype="multipart/form-data">
               <input type="hidden" th:field="*{id}" />
               <input type="hidden" th:field="*{image}" />
+              <!-- Form này bind @ModelAttribute Post: field nào KHÔNG có ô ở đây sẽ bị ghi RỖNG khi lưu.
+                   Đó là lý do image phải có input hidden, và nguồn tin cũng vậy — thiếu hai dòng dưới
+                   là admin sửa một bản nháp AI thu thập về là mất sạch phần dẫn nguồn của bài. -->
+              <input type="hidden" th:field="*{sourceUrl}" />
+              <input type="hidden" th:field="*{sourceName}" />
+
+              <div class="alert alert-light border-start border-4 border-info d-flex align-items-center"
+                   th:if="${post.sourceUrl != null and !post.sourceUrl.isEmpty()}">
+                <i class="bi bi-robot fs-4 me-3 text-info"></i>
+                <div>
+                  <strong>Bài do hệ thống tự thu thập.</strong>
+                  Nguồn: <span th:text="${post.sourceName}">Báo</span> —
+                  <a th:href="${post.sourceUrl}" target="_blank" rel="noopener">đối chiếu bản gốc</a>
+                  trước khi duyệt.
+                </div>
+              </div>
+
               <div class="mb-3">
               <label class="form-label fw-bold">Tiêu đề bài viết</label>
               <input type="text" th:field="*{title}" class="form-control" required>
               <div class="form-text text-primary"><i class="bi bi-info-circle"></i> Nếu là tin y tế khẩn cấp, vui lòng thêm tiền tố <strong>[Cảnh báo y tế]</strong> vào đầu tiêu đề để hệ thống tự động thông báo cho người dùng.</div>
             </div>
-              <div class="mb-3">
-                <label class="form-label fw-bold">Chuyên mục <span class="text-danger">*</span></label>
-                <select th:field="*{category}" class="form-select" required>
-                  <option value="">-- Chọn chuyên mục --</option>
-                  <option value="NEWS">Hoạt động & Sự kiện</option>
-                  <option value="KNOWLEDGE">Y học thường thức</option>
-                </select>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Chuyên mục <span class="text-danger">*</span></label>
+                  <select th:field="*{category}" class="form-select" required>
+                    <option value="">-- Chọn chuyên mục --</option>
+                    <option value="NEWS">Hoạt động & Sự kiện</option>
+                    <option value="KNOWLEDGE">Y học thường thức</option>
+                  </select>
+                </div>
+
+                <!-- Trước đây form KHÔNG có ô này, mà Post.status lại khởi tạo sẵn "PUBLISHED":
+                     mở một bản nháp ra sửa một chữ rồi bấm Lưu là bài tự xuất bản VÀ bắn thông báo
+                     tới toàn bộ bệnh nhân, dù admin chưa hề bấm "Duyệt". -->
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Trạng thái <span class="text-danger">*</span></label>
+                  <select th:field="*{status}" class="form-select" required>
+                    <option value="DRAFT">Bản nháp (chưa hiện với bệnh nhân)</option>
+                    <option value="PUBLISHED">Xuất bản (gửi thông báo tới bệnh nhân)</option>
+                  </select>
+                </div>
               </div>
 
               <div class="mb-3">

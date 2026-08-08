@@ -249,7 +249,7 @@ public class DoctorAiController {
         }
 
         // 5. NHỒI BIẾN VÀO PROMPT
-        String contextMsg = String.format("Bạn là AI Trợ lý của hệ thống MediTrust. ĐỐI TƯỢNG BẠN ĐANG GIAO TIẾP LÀ BÁC SĨ.\n"
+        String contextMsg = String.format("Bạn là AI Trợ lý của hệ thống NNL Hospital. ĐỐI TƯỢNG BẠN ĐANG GIAO TIẾP LÀ BÁC SĨ.\n"
                         + "YÊU CẦU XƯNG HÔ TUYỆT ĐỐI NGHIÊM NGẶT: Bạn PHẢI tự xưng bản thân mình là 'em' (hoặc 'trợ lý') và luôn gọi người dùng là 'Bác sĩ'. TUYỆT ĐỐI CẤM tự nhận mình là bác sĩ và cấm gọi người dùng là em.\n\n"
                         + "--- THỐNG KÊ LỊCH KHÁM ---\n"
                         + "- HÔM NAY (%s): Tổng %d ca, đã khám %d ca, còn %d ca chưa khám (Tổng tất cả bao gồm hủy: %d ca)\n"

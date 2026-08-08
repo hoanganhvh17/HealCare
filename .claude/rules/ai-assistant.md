@@ -195,5 +195,10 @@ Rules that must survive any edit:
 - **Everything is a suggestion.** No endpoint writes to `MedicalRecord`; the doctor edits and presses save. The ICD box only fills the input — a wrong diagnosis code is a wrong legal record.
 - **Answers render with `textContent`, not `innerHTML`** — model output must never become live markup inside a medical record page.
 
+## Một lời gọi không ký ức: `getStatelessResponse`
+`AiService.getStatelessResponse(systemPrompt, userPrompt, logTag)` calls `callModels` directly — no `AiChatSession` row, no history replay — and returns **`null`** when every model fails. Use it for background work whose prompt already carries all the data (currently `MedicalNewsTask` summarising one article).
+
+Going through `getConversationalResponse` there is wrong twice over: it replays the session's last 6 messages, so yesterday's article becomes noise inviting the model to mix figures between articles; and on failure it returns the Vietnamese sentence `"Hệ thống AI đang bận..."`, which the caller then hands to `readTree`, burying the real cause (out of credit) under what looks like a JSON format error. Like the other network-calling methods it is **not `@Transactional`**.
+
 ## Housekeeping
 A `@Scheduled` job (`0 0 2 * * ?`) purges guest chat sessions older than 7 days. Scheduling is enabled by `SchedulerConfig`; async support by `@EnableAsync` on the main application class.

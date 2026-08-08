@@ -110,7 +110,7 @@ public class AiService {
     }
 
     private static final String PATIENT_BASE_PROMPT =
-            "Bạn là Chuyên gia Phân luồng Bệnh nhân (Triage AI Agent) của hệ thống y tế MediTrust.\n" +
+            "Bạn là Chuyên gia Phân luồng Bệnh nhân (Triage AI Agent) của hệ thống y tế NNL Hospital.\n" +
             "MỤC TIÊU CỦA BẠN: Lắng nghe triệu chứng, an ủi bệnh nhân và ĐIỀU HƯỚNG họ đến đúng Chuyên khoa phù hợp nhất.\n\n" +
             "BẮT BUỘC TỐI THƯỢNG: Trả lời của bạn phải là MỘT CHUỖI JSON HỢP LỆ. KHÔNG ĐƯỢC CHỨA VĂN BẢN NÀO NGOÀI JSON.\n\n" +
 
@@ -201,7 +201,7 @@ public class AiService {
                     "- Nếu triệu chứng mông lung, không rõ chuyên khoa (VD: mệt mỏi, sụt cân, chán ăn, đau chung chung), BẮT BUỘC chọn Khoa Y học gia đình hoặc Tổng quát (ID: 22).\n" +
                     "- Nếu cấp cứu nguy hiểm (đau tim, khó thở, tai nạn), chọn Khoa Cấp cứu (ID: 21).\n" +
                     "- Nếu chỉ hỏi thông tin bình thường (giờ làm, địa chỉ) hoặc chào hỏi, mảng ID Khoa để rỗng []. (TUYỆT ĐỐI KHÔNG để rỗng nếu khách có bất kỳ phàn nàn nào về sức khỏe).\n\n" +
-                    "=== 7. DANH SÁCH CHUYÊN KHOA HIỆN CÓ CỦA MEDITRUST ===\n";
+                    "=== 7. DANH SÁCH CHUYÊN KHOA HIỆN CÓ CỦA NNL Hospital ===\n";
 
     /** Không @Transactional — cùng lý do đã ghi ở chatWithMemory (gọi mạng giữa hàm). */
     public String getConversationalResponse(String systemPrompt, String userPrompt, String sessionId) {
@@ -235,6 +235,29 @@ public class AiService {
             return "Lỗi khi xử lý dữ liệu hệ thống. Vui lòng thử lại sau.";
         }
         return "Hệ thống AI đang bận hoặc quá tải API. Vui lòng thử lại sau.";
+    }
+
+    /**
+     * Gọi model MỘT LẦN, KHÔNG ký ức: không đọc, không ghi, không tạo {@code AiChatSession}.
+     *
+     * Dành cho các việc chạy nền có đủ dữ liệu ngay trong prompt (hiện là MedicalNewsTask tóm tắt
+     * một bài báo cụ thể). Ở những việc đó, đi qua {@link #getConversationalResponse} là sai theo
+     * hai hướng:
+     *  - Nó phát lại 6 tin nhắn cũ của phiên: với việc tóm tắt bài A thì nội dung bài B hôm trước
+     *    chỉ là nhiễu, tốn token, mà tệ nhất là mời model trộn số liệu của bài này sang bài kia.
+     *  - Khi mọi model đều hỏng, nó trả về CÂU TIẾNG VIỆT "Hệ thống AI đang bận..." chứ không phải
+     *    null. Chỗ gọi đem chuỗi đó đi JSON.parse thì nổ exception, và lý do thật (hết credit) bị
+     *    che sau một lỗi parse trông như lỗi định dạng.
+     *
+     * @return nội dung model trả về, hoặc {@code null} nếu không model nào trả lời được.
+     *
+     * Không @Transactional — cùng lý do đã ghi ở chatWithMemory (gọi mạng giữa hàm).
+     */
+    public String getStatelessResponse(String systemPrompt, String userPrompt, String logTag) {
+        List<AiMessage> messages = new ArrayList<>();
+        messages.add(new AiMessage("system", systemPrompt));
+        messages.add(new AiMessage("user", userPrompt));
+        return callModels(messages, 0.3, logTag);
     }
 
     /**

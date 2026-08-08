@@ -44,12 +44,12 @@ public class AdminCandidateController {
             candidateRepository.save(candidate);
 
             // Gửi mail mời phỏng vấn
-            String subject = "MediTrust - Thư mời phỏng vấn: " + candidate.getJobPosting().getTitle();
+            String subject = "NNL Hospital - Thư mời phỏng vấn: " + candidate.getJobPosting().getTitle();
             String content = "Chào " + candidate.getFullName() + ",\n\n" +
                     "Chúc mừng bạn! Hồ sơ ứng tuyển của bạn cho vị trí " + candidate.getJobPosting().getTitle() + " đã được thông qua.\n" +
                     "Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp.\n\n" +
                     "Bộ phận Nhân sự sẽ liên hệ qua điện thoại để sắp xếp lịch cụ thể.\n\n" +
-                    "Trân trọng,\nMediTrust HR Team";
+                    "Trân trọng,\nNNL Hospital HR Team";
 
             emailService.sendCandidateResult(candidate, subject, content);
 
@@ -71,13 +71,13 @@ public class AdminCandidateController {
             candidateRepository.save(candidate);
 
             // Gửi mail từ chối khéo
-            String subject = "MediTrust - Thông báo kết quả ứng tuyển: " + candidate.getJobPosting().getTitle();
+            String subject = "NNL Hospital - Thông báo kết quả ứng tuyển: " + candidate.getJobPosting().getTitle();
             String content = "Chào " + candidate.getFullName() + ",\n\n" +
-                    "Cảm ơn bạn đã quan tâm đến vị trí " + candidate.getJobPosting().getTitle() + " tại MediTrust.\n" +
+                    "Cảm ơn bạn đã quan tâm đến vị trí " + candidate.getJobPosting().getTitle() + " tại NNL Hospital.\n" +
                     "Sau khi xem xét kỹ lưỡng, chúng tôi rất tiếc phải thông báo rằng hồ sơ của bạn chưa phù hợp với yêu cầu hiện tại của chúng tôi.\n\n" +
                     "Chúng tôi sẽ lưu hồ sơ của bạn và liên hệ lại nếu có vị trí phù hợp trong tương lai.\n\n" +
                     "Chúc bạn sớm tìm được công việc như ý.\n\n" +
-                    "Trân trọng,\nMediTrust HR Team";
+                    "Trân trọng,\nNNL Hospital HR Team";
 
             emailService.sendCandidateResult(candidate, subject, content);
 

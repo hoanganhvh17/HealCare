@@ -1,5 +1,6 @@
 package com.bookinghealthy.service;
 
+import com.bookinghealthy.dto.MedicalRecordMailDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.Candidate;
 
@@ -46,6 +47,17 @@ public interface EmailService {
      * chuông thì bệnh nhân chắc chắn thấy khi mở web.
      */
     void sendAppointmentReminder(Booking booking);
+
+    /**
+     * Gửi hồ sơ bệnh án + đơn thuốc điện tử cho bệnh nhân ngay sau khi bác sĩ khám xong.
+     * Gọi bởi {@code MedicalRecordDeliveryService}, luôn đi kèm {@code NotificationService.push}.
+     *
+     * Nhận DTO chứ KHÔNG nhận entity: hàm chạy {@code @Async} nên ở luồng khác, mà
+     * {@code Booking.user} / {@code Booking.doctor} đều LAZY — xem {@link MedicalRecordMailDTO}.
+     *
+     * @param prescriptionPdf đơn thuốc PDF đính kèm; null thì thư vẫn gửi, chỉ thiếu tệp đính kèm
+     */
+    void sendMedicalRecordReady(MedicalRecordMailDTO mail, byte[] prescriptionPdf);
 
     /**
      * Thông báo chung gửi cho nhân viên, dựng từ {@code templates/email/general-notification.html}.

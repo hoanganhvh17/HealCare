@@ -11,16 +11,20 @@ Standard Spring MVC layering under `com.bookinghealthy`:
   `controller/staff/StaffWorkScheduleController` is an **abstract superclass**, not a mapped controller: `DoctorWorkScheduleController` and `ReceptionistWorkScheduleController` extend it and only supply `basePath()` and `sidebarFragment()`. Use this shape when a screen is identical for two roles — duplicating the mappings instead would double every future fix.
   `controller/user/UserAllergyController` is split out of `ProfileController` for the same reason — that class already carries the profile, booking history and password screens.
 
-- **`service/`** — interfaces live directly in `service/`; implementations in `service/impl/`. A few services (`AiService`, `ImageService`, `GlobalHelper`) are concrete classes. **When adding a service, follow the interface + `impl` pattern** used by `BookingService`, `WalletService`, `DoctorService`, `MedicalRecordService`, `AllergyService`.
+- **`service/`** — interfaces live directly in `service/`; implementations in `service/impl/`. A few services (`AiService`, `ImageService`, `GlobalHelper`) are concrete classes. **When adding a service, follow the interface + `impl` pattern** used by `BookingService`, `WalletService`, `DoctorService`, `MedicalRecordService`, `AllergyService`, `MedicalRecordDeliveryService`.
+
+  `MedicalRecordDeliveryService` shows why a *delivery* step gets its own service rather than living inside `MedicalRecordServiceImpl`: it must run **after** that class's `@Transactional` method has committed, and it must stay on the request thread to read lazy associations before handing plain strings to the `@Async` mail sender. See [medical-records.md](medical-records.md).
 - **`repository/`** — Spring Data JPA repositories.
 - **`model/`** — JPA entities plus enums (`Role`, `BookingStatus`, `MedicalRecordStatus`, `TransactionType`, `AuthProvider`, `CandidateStatus`).
 - **`dto/`** — request/response shapes, including `dto/ai/` for the OpenAI-compatible payloads.
-- **`security/`**, **`config/`**, **`util/`**.
+- **`security/`**, **`config/`**, **`util/`**. `util/VitalSignFormatter` renders one bộ chỉ số sinh tồn as a single Vietnamese line and is shared by `PdfExportServiceImpl` (đơn thuốc in ra giấy) and `MedicalRecordDeliveryServiceImpl` (thư gửi bệnh nhân) — it was extracted the moment the second consumer appeared, so the paper the patient holds and the mail in their inbox cannot print blood pressure two different ways.
 
 Entities use Lombok (`@Getter`/`@Setter`/`@NoArgsConstructor`/`@AllArgsConstructor`) — note that `@AllArgsConstructor` is used positionally in `DataInitializer` (in both the main seed block and `ensureExtraDoctors`), so **adding a field to `User`, `Doctor`, `Department` or `Schedule` breaks that seeding code** and it must be updated in the same change.
 
 That trap is why per-employee HR data (ngày vào làm, điều kiện lao động, trưởng khoa) lives in a separate `StaffProfile` entity keyed on `User` rather than as new columns on `User`/`Doctor`. The newer entities (`StaffProfile`, `StaffShift`, `LeaveRequest`, `ShiftCoverRequest`, `Notification`) deliberately **omit `@AllArgsConstructor`** so they can never acquire the same problem.
 
 `Notification` + `NotificationService` (interface + impl) carry in-app notifications; see [supporting-subsystems.md](supporting-subsystems.md) for why they exist alongside email and where `push` must be called.
+
+`config/NewsSourceCatalog` follows the same data/logic split for a different feature: it holds only the allow-list of newspapers (and the outbreak keywords), while `NewsFeedServiceImpl` does the fetching and `MedicalNewsTask` turns the result into `Post` rows. See [supporting-subsystems.md](supporting-subsystems.md).
 
 Bulk seed data is kept out of `DataInitializer`: `config/DoctorSeedData` holds only the `SeedDoctor` table (department → 5 doctors), while the logic that turns it into `User`/`Doctor`/`Schedule` rows stays in `DataInitializer`. It is called from `run()` rather than being its own `CommandLineRunner`, because a separate runner could execute *before* `DataInitializer` and create users, which would make `count() == 0` false and skip the entire main seed (no departments, no roles).

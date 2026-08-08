@@ -84,6 +84,21 @@
               <p>Nội dung đang cập nhật...</p>
             </div>
 
+            <!-- Dẫn nguồn cho bài do hệ thống thu thập từ báo chính thống.
+                 Để Ở ĐÂY chứ không nhét vào post.content: nguồn là dữ liệu có cấu trúc, admin sửa
+                 nội dung bài thoải mái mà không lỡ tay xoá mất phần ghi nguồn. -->
+            <div class="alert alert-light border-start border-4 border-success mt-4 mb-0"
+                 th:if="${post.sourceUrl != null and !post.sourceUrl.isEmpty()}">
+              <i class="bi bi-link-45deg me-1 text-success"></i>
+              <strong>Nguồn:</strong>
+              <span th:text="${post.sourceName}">Tên báo</span>
+              &mdash;
+              <a th:href="${post.sourceUrl}" target="_blank" rel="noopener nofollow">Đọc bản gốc</a>
+              <div class="small text-muted mt-1">
+                NNL Hospital tóm tắt lại từ bài gốc. Vui lòng xem bản gốc để có đầy đủ thông tin.
+              </div>
+            </div>
+
             <div class="mt-5 pt-4 border-top text-center">
               <a th:href="@{/news}" class="btn" style="background-color: #f1f5f9; color: #0d7b6a; font-weight: 500; border-radius: 8px; padding: 10px 20px;">
                 <i class="bi bi-arrow-left me-1"></i> Trở về trang tin tức

@@ -29,6 +29,7 @@ public class AdminPostController {
     @Autowired private PostService postService;
     @Autowired private UserService userService;
     @Autowired private NotificationService notificationService;
+    @Autowired private com.bookinghealthy.task.MedicalNewsTask medicalNewsTask;
 
     private static final String PUBLISHED = "PUBLISHED";
 
@@ -173,6 +174,30 @@ public class AdminPostController {
             ra.addFlashAttribute("successMessage", "Đã xuất bản bài viết thành công: " + post.getTitle());
         } else {
             ra.addFlashAttribute("errorMessage", "Không tìm thấy bài viết để duyệt.");
+        }
+        return "redirect:/admin/manage-news";
+    }
+
+    /**
+     * 7. THU THẬP TIN NGAY — chạy tay đúng việc mà cron news.fetch.cron vẫn làm.
+     *
+     * Là POST chứ không GET, khác với /publish/{id}: đây là thao tác GHI (tạo bản nháp mới, gọi AI,
+     * tải ảnh về đĩa), mà GET thì F5 hay trình duyệt prefetch đều kích hoạt lại được.
+     *
+     * Chạy đồng bộ, có thể mất vài chục giây vì phải tải bài và đợi AI. Chấp nhận được cho một nút
+     * admin bấm thủ công; việc chống trùng nằm ở existsBySourceUrl nên bấm hai lần cũng không tạo
+     * bài lặp. Bài vẫn vào dạng DRAFT — nút này KHÔNG xuất bản gì cả.
+     */
+    @PostMapping("/fetch-now")
+    public String fetchNow(RedirectAttributes ra) {
+        try {
+            medicalNewsTask.fetchAndDraftMedicalNews();
+            ra.addFlashAttribute("successMessage",
+                    "Đã chạy thu thập tin tức. Các bài lấy được nằm ở trạng thái Bản nháp bên dưới, "
+                            + "hãy đối chiếu bản gốc trước khi duyệt.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            ra.addFlashAttribute("errorMessage", "Lỗi khi thu thập tin tức: " + e.getMessage());
         }
         return "redirect:/admin/manage-news";
     }

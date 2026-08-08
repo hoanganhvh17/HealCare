@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!--/*
+  Thư gửi bệnh nhân ngay sau khi bác sĩ bấm "Lưu Bệnh Án".
+
+  KHÔNG dùng biểu thức @{...} ở đây: EmailServiceImpl render bằng Context thuần chứ không phải
+  IWebContext, @{...} sẽ ném TemplateProcessingException và bị nuốt trong catch gửi mail —
+  nhìn log y hệt lỗi SMTP. Mọi lời kêu gọi hành động đều viết bằng chữ.
+*/-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 640px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+        .header { background-color: #006B63; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; color: #333; line-height: 1.6; }
+        .section-title { font-weight: bold; color: #006B63; margin: 22px 0 8px; text-transform: uppercase; font-size: 13px; letter-spacing: .5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+        .label { font-weight: bold; color: #666; width: 35%; }
+        .diagnosis-box { background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 12px 15px; margin: 10px 0; }
+        .med-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .med-table th { background: #f1f5f9; padding: 8px; border: 1px solid #e2e8f0; font-size: 13px; text-align: left; }
+        .med-table td { padding: 8px; border: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
+        .note-box { background-color: #FFFBEB; border-left: 5px solid #F59E0B; padding: 12px 15px; margin: 10px 0; }
+        .warning { font-size: 12px; color: #666; background: #f8f9fa; padding: 12px 15px; margin-top: 24px; border-radius: 6px; }
+        .footer { text-align: center; padding: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>HỒ SƠ BỆNH ÁN &amp; ĐƠN THUỐC ĐIỆN TỬ</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${mail.patientName}"></strong>,</p>
+        <p>Ca khám của anh/chị tại <strong>NNL Hospital</strong> đã hoàn tất. Dưới đây là hồ sơ bệnh án
+            và đơn thuốc điện tử của lần khám này.</p>
+
+        <table class="info-table">
+            <tr><td class="label">Mã bệnh án:</td><td th:text="'#' + ${mail.recordId}"></td></tr>
+            <tr><td class="label">Mã lịch hẹn:</td><td th:text="'#' + ${mail.bookingId}"></td></tr>
+            <tr><td class="label">Bác sĩ khám:</td><td th:text="${mail.doctorName}"></td></tr>
+            <tr th:if="${mail.departmentName}"><td class="label">Chuyên khoa:</td><td th:text="${mail.departmentName}"></td></tr>
+            <tr><td class="label">Thời gian khám:</td>
+                <td th:text="${mail.visitTime != null ? mail.visitTime + ', ' + mail.visitDate : mail.visitDate}"></td></tr>
+        </table>
+
+        <div class="section-title">Chẩn đoán</div>
+        <div class="diagnosis-box">
+            <span th:text="${mail.diagnosis}">—</span>
+            <span th:if="${mail.diagnosisCode}" th:text="' (ICD-10: ' + ${mail.diagnosisCode} + ')'"></span>
+        </div>
+
+        <!--/* So sánh != null tường minh: toán tử and/or của SpEL đòi hai vế là boolean,
+               đưa thẳng chuỗi chẩn đoán vào sẽ ném lỗi ép kiểu ngay lúc gửi thư. */-->
+        <table class="info-table" th:if="${mail.symptoms != null or mail.vitals != null}">
+            <tr th:if="${mail.symptoms}"><td class="label">Triệu chứng:</td><td th:text="${mail.symptoms}"></td></tr>
+            <tr th:if="${mail.vitals}"><td class="label">Chỉ số sinh tồn:</td><td th:text="${mail.vitals}"></td></tr>
+        </table>
+
+        <div class="section-title">Đơn thuốc điện tử</div>
+
+        <table class="med-table" th:if="${!mail.medicines.isEmpty()}">
+            <tr>
+                <th style="width: 6%;">#</th>
+                <th style="width: 28%;">Tên thuốc</th>
+                <th style="width: 16%;">Hàm lượng</th>
+                <th style="width: 14%;">Số lượng</th>
+                <th>Cách dùng</th>
+            </tr>
+            <tr th:each="med, iter : ${mail.medicines}">
+                <td th:text="${iter.count}"></td>
+                <td th:text="${med.name}"></td>
+                <td th:text="${med.dosage}"></td>
+                <td th:text="${med.amount}"></td>
+                <td th:text="${med.instructions}"></td>
+            </tr>
+        </table>
+
+        <p th:if="${mail.medicines.isEmpty() and mail.prescriptionText != null}"
+           th:text="${mail.prescriptionText}"></p>
+        <p th:if="${mail.medicines.isEmpty() and mail.prescriptionText == null}"
+           style="color:#666;">Lần khám này bác sĩ không kê thuốc.</p>
+
+        <div th:if="${mail.doctorNotes}">
+            <div class="section-title">Lời dặn của bác sĩ</div>
+            <div class="note-box" th:text="${mail.doctorNotes}"></div>
+        </div>
+
+        <div class="warning">
+            Anh/chị có thể xem lại hồ sơ bất cứ lúc nào: đăng nhập website NNL Hospital, vào mục
+            <strong>Hồ sơ cá nhân &rarr; Lịch sử đặt lịch</strong> rồi chọn <strong>Xem bệnh án</strong>
+            của lần khám này. Bản PDF đơn thuốc được đính kèm trong thư (nếu có).<br><br>
+            Đơn thuốc chỉ dùng cho lần khám này và cho riêng anh/chị. Vui lòng uống thuốc đúng liều
+            theo hướng dẫn, không tự ý đổi thuốc hay chia lại cho người khác. Nếu có dấu hiệu bất
+            thường, hãy liên hệ ngay hotline của bệnh viện.
+        </div>
+    </div>
+    <div class="footer">
+        © 2026 NNL Hospital International Hospital<br>
+        Hotline: 0985 123 888 | Địa chỉ: Bắc Từ Liêm, Hà Nội.
+    </div>
+</div>
+</body>
+</html>

@@ -31,6 +31,20 @@ Rules that must survive any edit:
 
 Before this existed there was **no write path at all** — the red "CẢNH BÁO DỊ ỨNG" card and the AI prescription cross-check both ran against a permanently empty table.
 
+## Khám xong là bệnh nhân nhận được hồ sơ ngay
+`MedicalRecordDeliveryService.deliver(bookingId)` gửi bệnh nhân **email hồ sơ bệnh án + đơn thuốc điện tử** (kèm PDF đơn thuốc) **và** một `Notification` vào chuông, cùng một lượt. `DoctorMedicalRecordController.saveAdvancedMedicalRecord` là chỗ gọi duy nhất. Trước đó bệnh án lưu xong là nằm im trong DB: bệnh nhân chỉ biết nếu tự vào `/user/profile` bấm xem.
+
+Bốn điều phải sống sót qua mọi lần sửa:
+
+- **Gọi SAU KHI `createAdvancedMedicalRecord` trả về**, tức sau commit. Đặt vào trong service kia (`@Transactional`) là gửi thư cho một bệnh án còn có thể rollback — thư đã đi thì không rút lại được.
+- **Nằm NGOÀI khối `try/catch` của lời gọi lưu bệnh án** trong controller. Rơi vào nhánh catch đó là bác sĩ bị đá ngược về form khám, và lần bấm Lưu tiếp theo chắc chắn báo *"Lịch hẹn này đã có hồ sơ bệnh án!"* — ca khám kẹt cứng vì một lỗi gửi thư. Bản thân `deliver` cũng tự nuốt lỗi vào log, đây là lớp chặn thứ hai.
+- **`deliver` cố ý KHÔNG `@Async` và KHÔNG `@Transactional`.** Nó phải chạy trên luồng phục vụ request, nơi open-in-view còn mở session — cả `buildPrescription` lẫn `booking.getDoctor().getUser()` đều cần nạp quan hệ LAZY. Phần chậm thật (SMTP) đã `@Async` sẵn bên `EmailServiceImpl`.
+- **Thư nhận `MedicalRecordMailDTO` (chuỗi thuần), không nhận entity.** `EmailServiceImpl` gửi ở luồng khác; `Booking.user` / `Booking.doctor` / `Doctor.user` đều LAZY nên proxy chưa nạp sẽ ném `LazyInitializationException` **rơi đúng vào khối catch nuốt lỗi** của nó — thư im lặng không tới, log trông y hệt lỗi SMTP. Xem [supporting-subsystems.md](supporting-subsystems.md).
+
+Chuông dùng `NotificationService.push` chứ **không** `pushBookingEvent`, vì link phải trỏ thẳng `/user/medical-record/view/{bookingId}`; `pushBookingEvent` luôn gắn link về mục lịch sử đặt lịch, bắt bệnh nhân tự dò lại đúng ca vừa khám.
+
+PDF đơn thuốc dựng qua `PdfExportService.buildPrescription`, bọc try/catch **riêng**: hàm đó ném khi thiếu font Unicode trong `resources/fonts` (xem [environment-setup.md](environment-setup.md)). Thiếu tệp đính kèm thì chấp nhận được vì toàn bộ đơn thuốc đã nằm trong thân thư — mất luôn cả thư thì không. Giữ nguyên khối try/catch đó kể cả khi font đã có: nó là thứ giữ cho một sự cố in ấn không nuốt mất lá thư.
+
 ## AI assists on the exam form
 `doctor/medical-record-form.html` carries four AI buttons backed by `DoctorExamAiController` — allergy/interaction check, draft `doctorNotes`, ICD-10 suggestion, and a summary of the patient's prior records. They only ever *suggest*: nothing writes to `MedicalRecord`, the doctor still presses "Lưu Bệnh Án". Full rules in [ai-assistant.md](ai-assistant.md).
 

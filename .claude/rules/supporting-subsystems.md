@@ -73,7 +73,7 @@ The same `Notification` table backs a second bell in `user/include/header :: hea
 
 - **`GET /api/notifications` + `POST /api/notifications/read`** (`UserNotificationApiController`) serve it. Deliberately **not** `/api/staff/notifications`: that endpoint bolts on four staff-only computed reminders, and the path prefix is a lie when the caller is a patient. It returns stored rows only — every patient event is persisted when it happens, so there is nothing to recompute.
 - Before this the patient bell was a dead `<a href="#">`. `FollowUpReminderTask` had been writing `Notification` rows for patients all along, so **the nhắc-tái-khám notification existed but was unreachable** — the reason to check both ends whenever a `push` target is not a staff member.
-- **`NotificationService.pushBookingEvent(booking, icon, title)`** is the one place that formats a booking event ("BS. X — 09:00 - 09:30, dd/MM/yyyy", link `/user/profile#booking-history`). Eleven call sites use it; do not hand-roll a twelfth summary string.
+- **`NotificationService.pushBookingEvent(booking, icon, title)`** is the one place that formats a booking event ("BS. X — 09:00 - 09:30, dd/MM/yyyy", link `/user/profile#booking-history`). Eleven call sites use it; do not hand-roll a twelfth summary string. The exception is **`MedicalRecordDeliveryServiceImpl`**, which calls plain `push` on purpose: its link must be `/user/medical-record/view/{bookingId}`, and `pushBookingEvent`'s fixed link would drop the patient on the booking list to hunt for the visit themselves.
 - **`pushToAllPatients(...)`** fans a published article out to every `ROLE_USER` (`@Async`, `saveAll` in batches of 500). It carries **no** de-duplication — `AdminPostController` owns that, reading the previous status before the write in both `publishPost` and `savePost`, since `/publish/{id}` is a GET that a refresh or a prefetch can fire twice. It is deliberately **not** `@Transactional`: paired with `@Async` the proxy order is unspecified, and the losing order opens the transaction on the caller's thread while the work runs on another.
 
 ### Approved leave blocks the booking calendar
@@ -93,7 +93,9 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 `JobPosting` + `Candidate` (with `CandidateStatus`) — public careers pages plus admin management (`AdminJobController`, `AdminCandidateController`). Applicants receive a confirmation email.
 
 ## Content
-- `Post` — news/blog articles, authored in admin with TinyMCE rich text (vendored under `static/assets-admin/vendor/tinymce`).
+- `Post` — news/blog articles, authored in admin with TinyMCE rich text (vendored under `static/assets-admin/vendor/tinymce`), **or collected automatically from real newspapers** by `MedicalNewsTask` (see above), in which case `sourceUrl` / `sourceName` are set and `news-details.html` renders a "Nguồn: … — Đọc bản gốc" block. Both columns are nullable, so an admin-written post simply has none.
+
+  **`admin/post-form.html` binds `@ModelAttribute Post`, so any field without an input on the form is written back as empty.** That is why `image` is patched by hand in `AdminPostController.savePost`, and why `sourceUrl` / `sourceName` need hidden inputs. The form also carries a **`status` select**: without it `Post.status`'s field initialiser (`"PUBLISHED"`) meant that opening a draft, changing one word and pressing Lưu silently published it *and* fanned a notification out to every patient.
 - `Review` — patient ratings of doctors, submitted via `UserReviewController`.
 - `Service` and `Department` — catalog entities surfaced on public pages.
 
@@ -101,7 +103,11 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 `util/QRCodeGenerator` uses ZXing to render QR images — used for the VietQR bank-transfer payment page and booking tickets.
 
 ## Email
-`EmailServiceImpl` sends HTML mail rendered from Thymeleaf templates in `templates/email/`: booking confirmation, booking cancellation, candidate confirmation, a follow-up-reminder template, and a general notification template. Sending is asynchronous (`@EnableAsync`), so failures surface in logs rather than in the request.
+`EmailServiceImpl` sends HTML mail rendered from Thymeleaf templates in `templates/email/`: booking confirmation, booking cancellation, candidate confirmation, a follow-up-reminder template, **the medical-record/e-prescription mail**, and a general notification template. Sending is asynchronous (`@EnableAsync`), so failures surface in logs rather than in the request.
+
+**Because sending happens on another thread, a mail method must never touch a lazy association.** `Booking.user`, `Booking.doctor` and `Doctor.user` are all `@ManyToOne(fetch = LAZY)`; open-in-view only binds a session to the *request* thread, so an un-initialised proxy read inside an `@Async` method throws `LazyInitializationException` — and it lands in the very try/catch that swallows every mail failure, so the log looks exactly like an SMTP error while the patient gets nothing. `sendMedicalRecordReady` therefore takes a `MedicalRecordMailDTO` of plain strings, built by `MedicalRecordDeliveryServiceImpl` while still on the request thread. **Follow that shape for any new mail that needs more than the fields already loaded**; the older methods get away with passing `Booking` only as long as the request is still in flight.
+
+`sendMedicalRecordReady` is also the one mail with an **attachment** (`don-thuoc-<id>.pdf` from `PdfExportService`). The attachment is optional by design — a null `prescriptionPdf` still sends, since the prescription is in the body too. See [medical-records.md](medical-records.md).
 
 `general-notification.html` is rendered by a private `EmailServiceImpl.sendGeneral(...)` shared by `sendStaffNotification` and `sendAppointmentReminder` — two callers, one renderer; add a third the same way rather than copying the MimeMessage boilerplate.
 
@@ -113,6 +119,29 @@ Each cron job is its own `@Component` in `task/` (`ClinicRegistrationTask`, `Boo
 `AppointmentReminderTask` (daily, `0 30 7 * * ?`) reminds patients of **tomorrow's** appointment by email + bell, over `PENDING`/`CONFIRMED` bookings only, once each (`Booking.reminderSent`). It runs half an hour before `FollowUpReminderTask` so the two mail bursts do not overlap. Its finder carries an `@EntityGraph` for `user` / `doctor.user` on purpose: a cron thread has no open-in-view, and both `pushBookingEvent` and the mail body read those.
 
 `FollowUpReminderTask` (daily, `0 0 8 * * ?`) reads a doctor's "tái khám sau N ngày/tuần/tháng" instruction out of `MedicalRecord.doctorNotes` and reminds the patient once the computed date is close — see [ai-assistant.md](ai-assistant.md) for the regex scope (deliberately narrow — no absolute dates) and [medical-records.md](medical-records.md) for the `followUpReminderSent` flag it uses for idempotency. Follows the same "email + `NotificationService.push` together" convention documented above under "Thông báo trong ứng dụng".
+
+`MedicalNewsTask` (`news.fetch.cron`, default `0 0 6,18 * * ?`) collects real medical news — see the section below; it is the only task whose schedule is configurable.
+
+## Tin tức y tế tự thu thập (`MedicalNewsTask` + `NewsFeedService`)
+
+**The AI summarises; it does not write.** The old version of this task simply told the model *"hãy viết một bản tin cảnh báo về một dịch bệnh đang bùng phát"* and saved the result — no URL, no date, no source, so every case count and place name in the article was invented and published under the hospital's name. Now `NewsFeedServiceImpl` downloads the real article first and the model is only allowed to summarise what it was given.
+
+The pipeline: RSS (`NewsSourceCatalog.SOURCES`) → filter by age + `existsBySourceUrl` → `fetchArticleText` → `AiService.getStatelessResponse` → sanitize → save as **DRAFT**. Admin reviews at `/admin/manage-news` and presses "Duyệt", which is what fans the notification out to patients.
+
+Rules that must survive any edit:
+
+- **`NewsSourceCatalog` is an allow-list, not a suggestion.** The task never fetches outside it. Adding a source means verifying the RSS URL from the machine that runs the app first — a feed that 404s or returns HTML only shows up as "lấy được 0 bài". `NewsFeedServiceImpl` wraps **each source in its own try/catch** so one dead feed cannot empty the whole batch.
+- **`Post.sourceUrl` is the dedup key**, via `PostRepository.existsBySourceUrl`. The old check was `findByTitleContainingIgnoreCase(<the whole generated title>)`, a substring match that essentially never fired.
+- **The model's HTML is passed through `Jsoup.clean(content, Safelist.basic())`.** `news-details.html` renders `content` with `th:utext` — live HTML on a public page. Without this, anything the model emits becomes real markup in the patient's browser.
+- **Outbreak articles get the `[Cảnh báo y tế] ` prefix** (keywords in `NewsSourceCatalog.OUTBREAK_KEYWORDS`). That prefix is the *only* thing `PostServiceImpl.findLatestEmergencyAlert()` matches on to feed the alert banner in the AI chat widget (`GET /api/public/news/latest-alert`). Real headlines never contain it, so dropping this step kills the banner silently.
+
+  **`looksLikeOutbreak` matches whole words via the space-padded idiom, never a bare `contains`.** A plain substring test labelled *"Điều tra dấu hiệu lừa đảo tại thẩm mỹ viện Lucy, tìm khách mua **dịch vụ**…"* as an epidemic alert, because `"dịch"` sits inside `"dịch vụ"`. Same trap for `"tả"` in "mô tả" and `"dại"` in "dại dột" — so the list holds only unambiguous multi-word terms (`dịch bệnh`, `ổ dịch`, `dịch tả`, `bệnh dại`). It also drops `"cảnh báo"` / `"bộ y tế"` as far too broad: "Bộ Y tế hướng dẫn khám sàng lọc ung thư vú" is ordinary news, and labelling it an alert empties the banner of meaning. This is the same rule already documented for `extractSessionHint` in [coding-conventions.md](coding-conventions.md) — `\b` is ASCII-only and can never match a Vietnamese word with diacritics.
+- **Two things about outbound HTTP were found by testing against the live feeds and are easy to undo:**
+  - The `USER_AGENT` must stay a **plain browser string**. Appending `...NewsBot/1.0` made VnExpress's image CDN return HTTP 403 for every image while the identical URL with a browser UA returned 200.
+  - The saved file's extension comes from the response **Content-Type**, not the URL. That CDN serves WebP from a URL ending in `.jpg`, and Spring decides the served Content-Type from the file extension — so trusting the URL writes WebP bytes into a `.jpg` and mislabels the image to the browser. The image URL's **query string must be kept**: the `s=` signature is required, and the bare URL returns 401.
+- **RSS date formats differ per source and both are handled.** VnExpress uses RFC-1123; Tuổi Trẻ uses `M/d/yyyy h:mm:ss AM` with a **U+202F narrow no-break space** before AM/PM, which looks exactly like a space and silently dropped every one of its articles until it was normalised. An item whose date will not parse is skipped, and the first offending raw value is logged per source so the format can be added.
+- **`AiService.getStatelessResponse`** is used rather than `getConversationalResponse`: no `AiChatSession`, no 6-message replay of a previous article, and it returns `null` instead of the Vietnamese string `"Hệ thống AI đang bận..."` that the old code fed straight into `readTree`.
+- `POST /admin/manage-news/fetch-now` runs the same method on demand (POST, not GET — it writes). It creates drafts only; it publishes nothing.
 
 ## Dashboards
 `AdminDashboardService` + `DashboardApiController` aggregate booking statistics (`DailyBookingStatsDTO`, `AdminDashboardSummaryDTO`) consumed by charts on the admin dashboard.

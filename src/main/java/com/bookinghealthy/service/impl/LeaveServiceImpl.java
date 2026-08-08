@@ -422,7 +422,7 @@ public class LeaveServiceImpl implements LeaveService {
 
         emailService.sendStaffNotification(
                 request.getUser().getEmail(),
-                "MediTrust - Kết quả đơn nghỉ phép",
+                "NNL Hospital - Kết quả đơn nghỉ phép",
                 "Đơn nghỉ phép " + verb,
                 body.toString());
 

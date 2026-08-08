@@ -118,6 +118,19 @@
 			<artifactId>openpdf</artifactId>
 			<version>1.3.30</version>
 		</dependency>
+
+		<!-- Thu thập tin tức y tế từ các báo chính thống (NewsFeedService + MedicalNewsTask).
+		     Một thư viện lo cả BA việc, nên không cần thêm dependency nào khác:
+		       1. Đọc RSS  - Parser.xmlParser(), tự xử lý CDATA và charset của báo tiếng Việt.
+		       2. Bóc nội dung bài gốc - bỏ script/style/nav rồi lấy text để đưa cho AI tóm tắt.
+		       3. LÀM SẠCH HTML mà model trả về - news-details.html render bằng th:utext, tức là
+		          HTML sống trên trang công khai; không Jsoup.clean thì output của model trở thành
+		          markup chạy được. -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.17.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>

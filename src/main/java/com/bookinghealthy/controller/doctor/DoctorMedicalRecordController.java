@@ -35,6 +35,9 @@ public class DoctorMedicalRecordController {
 
     @Autowired
     private DoctorService doctorService;
+
+    @Autowired
+    private com.bookinghealthy.service.MedicalRecordDeliveryService medicalRecordDeliveryService;
     // Thêm Dependency cho phần Dị ứng
     @Autowired
     private AllergyRepository allergyRepository;
@@ -255,12 +258,21 @@ public class DoctorMedicalRecordController {
                     vitals, prescriptionItems, null
             );
 
-            ra.addFlashAttribute("successMessage", "Đã hoàn tất ca khám chuẩn EMR thành công!");
+            ra.addFlashAttribute("successMessage",
+                    "Đã hoàn tất ca khám chuẩn EMR! Hồ sơ bệnh án & đơn thuốc điện tử đang được gửi tới bệnh nhân.");
         } catch (Exception e) {
             e.printStackTrace();
             ra.addFlashAttribute("errorMessage", "Lỗi khi lưu bệnh án EMR: " + e.getMessage());
             return "redirect:/doctor/medical-record/create/" + bookingId;
         }
+
+        // Gửi hồ sơ + đơn thuốc cho bệnh nhân (email kèm PDF + chuông thông báo).
+        //
+        // Nằm NGOÀI khối try ở trên là có chủ đích: bệnh án đã commit xong rồi, nếu một lỗi gửi
+        // thư rơi vào nhánh catch kia thì bác sĩ bị đá ngược về form khám — và lần bấm Lưu tiếp
+        // theo chắc chắn báo "Lịch hẹn này đã có hồ sơ bệnh án!", tức ca khám coi như kẹt.
+        // Bản thân deliver() cũng đã tự nuốt lỗi vào log, đây là lớp chặn thứ hai.
+        medicalRecordDeliveryService.deliver(bookingId);
 
         return "redirect:/doctor/examinations";
     }
