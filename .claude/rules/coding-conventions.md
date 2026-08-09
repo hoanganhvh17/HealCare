@@ -24,6 +24,20 @@ In email templates this is invisible until it reaches a real inbox — `EmailSer
 
 **`doctor/include/header :: header-nav` is shared by 13 templates** — every doctor, staff and head page plus `user/medical-record-detail.html`. It is the right place for anything that must appear app-wide for staff (the notification bell lives there, with its `<script>` next to its markup so no page has to opt in), but the patient page means role-specific items need `sec:authorize`. It is also **not** covered by `work-schedule.css`, so build shared header widgets from plain Bootstrap classes.
 
+## Không cho bấm, thay vì cho bấm rồi báo lỗi
+
+Khi một thao tác không còn hợp lệ — nhất là vì **dữ liệu đã thuộc về quá khứ** — giao diện phải **không render nút/ô nhập** đó nữa, chứ không phải để người dùng điền xong rồi mới trả về `errorMessage`. Khuôn chung đã dùng khắp dự án:
+
+1. Một hàm `whyCannot…(x)` trên service: trả `null` nếu còn thao tác được, ngược lại là **câu tiếng Việt** giải thích.
+2. Controller gọi nó để **chặn thật** (POST/URL tự chế cũng không lách được).
+3. Controller cũng đẩy kết quả xuống model (`Map<Long, String>` hoặc cờ boolean) để template **ẩn nút và in đúng câu đó**.
+
+Nhờ đi qua **một** hàm duy nhất, giao diện và server không bao giờ nói khác nhau. Các hàm hiện có: `BookingService.whyCannotCancel` / `whyCannotReschedule` / `whyStaffCannotChange`, `ReceptionService.whyCannotReorderQueue`, `AllergyService.whyCannotDelete`, `LeaveService.whyCannotDecide`, `StaffScheduleService.whyCannotDecideShift`. **Thêm luật mới thì thêm vào đúng hàm này, đừng viết `if` rời trong controller.**
+
+Với ô `<input type="date">`, cách rẻ nhất là `th:min` / `th:max` từ một thuộc tính model (`today`, `emergencyMaxDate`): modal đăng ký ca trực, đơn nghỉ phép, báo bận đột xuất và phân công trực của trưởng khoa đều đã có. **Nhưng `min`/`max` chỉ là lớp lịch sự** — nó tính lúc **tải trang**, nên một tab mở từ hôm qua vẫn gửi lên ngày cũ; luật thật vẫn phải nằm ở server (`validateShift`, `LeaveServiceImpl.validate`, `reserve()`).
+
+Ngoại lệ hợp lệ: **màn hình tra cứu**. Bộ lọc ngày của `/receptionist/queue` và `/receptionist/schedule-change` **không** đặt `max`, vì lễ tân vẫn cần xem lại ngày cũ — chỉ khóa các nút *thao tác*, không khóa việc *xem*.
+
 ## Secrets
 `VNPayConfig` holds **hardcoded static sandbox credentials**, and [application.properties](src/main/resources/application.properties) contains live-looking mail, OAuth, and AI keys. Treat all of these as **dev-only** and do not present them as production-safe. Flag it if the app is being prepared for deployment.
 

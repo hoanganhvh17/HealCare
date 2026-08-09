@@ -283,6 +283,10 @@ public class HeadApprovalController {
                            String activePage, String view) {
         model.addAttribute("currentUser", user);
         model.addAttribute("headDepartment", department);
+        // Modal "Phân công trực" của head/duty-roster khóa ngày quá khứ ngay ở lịch chọn:
+        // assignDutyShift() chạy validateShift() và từ chối ca quá khứ, nhưng chỉ sau khi
+        // trưởng khoa đã chọn xong bác sĩ, loại ca, vị trí trực rồi bấm gửi.
+        model.addAttribute("today", LocalDate.now());
         model.addAttribute("activePage", activePage);
         return view;
     }

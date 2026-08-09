@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Xem và xử lý lẻ từng lịch hẹn ở quầy tiếp đón.
@@ -40,7 +42,15 @@ public class ReceptionistBookingController {
                     .toList();
         }
 
+        // null = còn thao tác được; ngược lại là lý do để template làm mờ nút và in ra.
+        // Cùng hàm mà confirm()/cancel() gọi, nên giao diện không mời bấm một nút chắc chắn lỗi.
+        Map<Long, String> actionBlockReasons = new HashMap<>();
+        for (Booking booking : listBookings) {
+            actionBlockReasons.put(booking.getId(), bookingService.whyStaffCannotChange(booking));
+        }
+
         model.addAttribute("listBookings", listBookings);
+        model.addAttribute("actionBlockReasons", actionBlockReasons);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("activePage", "bookings");
         return "receptionist/booking-list";
@@ -52,6 +62,12 @@ public class ReceptionistBookingController {
             Booking booking = bookingService.findById(id)
                     .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + id));
 
+            // Trạng thái PENDING thôi thì chưa đủ: một lịch PENDING của tuần trước vẫn lọt qua
+            // và email "đã xác nhận" vẫn bay tới bệnh nhân cho ca khám đã trôi qua.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                throw new IllegalStateException(blocked);
+            }
             if (booking.getStatus() != BookingStatus.PENDING) {
                 throw new IllegalStateException("Chỉ xác nhận được lịch đang chờ duyệt.");
             }
@@ -74,6 +90,18 @@ public class ReceptionistBookingController {
                          @RequestParam(value = "reason", required = false) String reason,
                          RedirectAttributes ra) {
         try {
+            Booking booking = bookingService.findById(id)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + id));
+
+            // Guard đặt ở controller chứ KHÔNG trong cancelWithRefund: công cụ hủy hàng loạt
+            // (/receptionist/schedule-change) phải hủy được cả những ca đã qua giờ trong ngày
+            // khi bác sĩ ốm giữa buổi. Còn hủy lẻ một ca đã khám xong thì ví bệnh nhân bị
+            // hoàn tiền cho một lần khám có thật.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                throw new IllegalStateException(blocked);
+            }
+
             String finalReason = (reason == null || reason.isBlank())
                     ? "Quầy lễ tân đã hủy lịch hẹn theo yêu cầu."
                     : reason;

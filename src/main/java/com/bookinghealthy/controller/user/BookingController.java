@@ -104,6 +104,18 @@ public class BookingController {
             booking.setPatientName(finalName);
             booking.setPatientPhone(finalPhone);
 
+            // Bệnh nhân TỰ đặt thì khung giờ phải còn ở tương lai. Giao diện đã gạch bỏ những
+            // khung đã qua, nhưng nó tính lúc TẢI TRANG: một tab mở từ sáng, bấm đặt lúc 16h,
+            // vẫn gửi lên được khung 08:00 của chính hôm nay.
+            // reserve() cố ý chỉ chặn tới mức NGÀY (để quầy lễ tân còn đăng ký được khách vãng
+            // lai đang đứng đợi giữa khung giờ), nên mức khung giờ phải chặn ở đây.
+            java.time.LocalDateTime slotStart = bookingService.appointmentStart(booking);
+            if (slotStart != null && slotStart.isBefore(java.time.LocalDateTime.now())) {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                        "Khung giờ vừa chọn đã trôi qua, vui lòng chọn khung giờ khác.");
+                return "redirect:/appointment?doctorId=" + doctorId;
+            }
+
             // === XỬ LÝ THANH TOÁN ===
             booking.setStatus(BookingStatus.PENDING);
             booking.setPaymentStatus("UNPAID");

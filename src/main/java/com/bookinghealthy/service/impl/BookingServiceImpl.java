@@ -71,6 +71,21 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public Booking reserve(Booking booking) {
+        // Sàn chung cho MỌI đường tạo lịch (bệnh nhân tự đặt, lễ tân đặt hộ tại quầy, trợ lý
+        // AI): không tạo lịch cho NGÀY đã qua. Giao diện có set min ngày, nhưng thuộc tính đó
+        // tính lúc TẢI TRANG — một tab mở từ hôm qua, hay một POST tự chế, vẫn tạo được lịch
+        // cho ngày đã qua và tiền vẫn bị trừ khỏi ví.
+        //
+        // Cố ý chỉ chặn tới mức NGÀY, không chặn tới mức khung giờ: quầy lễ tân đăng ký cho
+        // khách vãng lai đang đứng trước mặt, nên khung 13:30 vẫn phải nhận được lúc 13:45.
+        // Luật chặt hơn ("khung giờ phải còn ở tương lai") thuộc về đường bệnh nhân TỰ đặt và
+        // nằm ở BookingController.processAppointment.
+        if (booking.getAppointmentDate() != null
+                && booking.getAppointmentDate().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("Ngày khám "
+                    + booking.getAppointmentDate() + " đã qua, vui lòng chọn ngày khác.");
+        }
+
         final String slotKey = buildSlotKey(booking.getDoctor().getId(), booking.getAppointmentDate(), booking.getAppointmentTime());
         final ReentrantLock lock = slotLocks.computeIfAbsent(slotKey, key -> new ReentrantLock());
         final boolean[] releaseAfterReturn = {true};

@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/admin")
@@ -30,7 +32,17 @@ public class AdminBookingController {
     public String showBookingList(Model model) {
         // Lấy tất cả booking, sắp xếp mới nhất
         List<Booking> listBookings = bookingRepository.findAllByOrderByCreatedAtDesc();
+
+        // Lý do KHÔNG còn thao tác được, tính sẵn bằng đúng hàm mà controller cũng gọi:
+        // template làm mờ nút và in lý do, nên giao diện không bao giờ mời admin bấm một
+        // nút chắc chắn báo lỗi. Cùng khuôn với booking-manager.html của bác sĩ.
+        Map<Long, String> actionBlockReasons = new HashMap<>();
+        for (Booking booking : listBookings) {
+            actionBlockReasons.put(booking.getId(), bookingService.whyStaffCannotChange(booking));
+        }
+
         model.addAttribute("listBookings", listBookings);
+        model.addAttribute("actionBlockReasons", actionBlockReasons);
         return "admin/booking-list"; // Đảm bảo bạn có file html này (giống doctor/booking-manager)
     }
 
@@ -39,6 +51,14 @@ public class AdminBookingController {
     public String confirmBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             Booking booking = bookingService.findById(id).orElseThrow(() -> new Exception("Booking not found"));
+
+            // Lịch đã hủy / đã khám xong / đã trôi qua thì không xác nhận được nữa: trước đây
+            // admin "xác nhận" được một lịch của năm ngoái và email xác nhận vẫn gửi đi.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                ra.addFlashAttribute("errorMessage", blocked);
+                return "redirect:/admin/manage-booking";
+            }
 
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingService.save(booking);
@@ -58,6 +78,18 @@ public class AdminBookingController {
     @GetMapping("/manage-booking/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
+            Booking booking = bookingService.findById(id)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + id));
+
+            // Guard nằm ở ĐÂY chứ không trong cancelWithRefund: công cụ hủy hàng loạt của lễ
+            // tân cần hủy được cả những ca đã qua giờ trong ngày ("bác sĩ ốm giữa buổi").
+            // Còn admin hủy một ca COMPLETED thì ví bệnh nhân bị hoàn tiền cho ca đã khám thật.
+            String blocked = bookingService.whyStaffCannotChange(booking);
+            if (blocked != null) {
+                ra.addFlashAttribute("errorMessage", blocked);
+                return "redirect:/admin/manage-booking";
+            }
+
             boolean refunded = bookingService.cancelWithRefund(id, "Admin hệ thống đã hủy lịch hẹn.");
 
             if (refunded) {
@@ -75,6 +107,20 @@ public class AdminBookingController {
     @GetMapping("/manage-booking/delete/{id}")
     public String deleteBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
+            Booking booking = bookingService.findById(id)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + id));
+
+            // Luật "chỉ xóa lịch đã hủy hoặc đang chờ" trước đây chỉ nằm trong template, nên
+            // một URL gõ tay xóa vĩnh viễn được cả ca đã khám xong — mất luôn dấu vết của một
+            // lần khám có hồ sơ bệnh án, và không khôi phục được.
+            if (booking.getStatus() != BookingStatus.CANCELED
+                    && booking.getStatus() != BookingStatus.PENDING) {
+                ra.addFlashAttribute("errorMessage",
+                        "Chỉ xóa được lịch đã hủy hoặc đang chờ duyệt. Lịch đã xác nhận/đã khám là hồ sơ,"
+                                + " hãy hủy lịch thay vì xóa.");
+                return "redirect:/admin/manage-booking";
+            }
+
             bookingService.deleteById(id);
             ra.addFlashAttribute("successMessage", "Đã xóa vĩnh viễn lịch hẹn.");
         } catch (Exception e) {

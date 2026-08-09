@@ -89,6 +89,12 @@ public abstract class StaffWorkScheduleController {
         model.addAttribute("clinicOpen", staffScheduleService.isClinicRegistrationOpen());
         model.addAttribute("clinicDeadline", staffScheduleService.clinicDeadlineLabel());
 
+        // Chặn ngay ở ô chọn ngày thay vì để nhân viên điền hết modal rồi mới báo lỗi:
+        // validateShift() từ chối ca quá khứ, LeaveServiceImpl.validate() từ chối đơn nghỉ
+        // quá khứ, và "báo bận đột xuất" chỉ dùng cho trong vòng 24 giờ tới.
+        model.addAttribute("today", LocalDate.now());
+        model.addAttribute("emergencyMaxDate", LocalDate.now().plusDays(1));
+
         model.addAttribute("basePath", basePath());
         model.addAttribute("sidebarFragment", sidebarFragment());
         model.addAttribute("activePage", "work-schedule");

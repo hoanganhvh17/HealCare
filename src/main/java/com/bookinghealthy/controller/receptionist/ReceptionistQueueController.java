@@ -17,7 +17,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Điều phối hàng chờ khám: đẩy bệnh nhân đến trễ xuống cuối danh sách
@@ -46,11 +48,21 @@ public class ReceptionistQueueController {
             queue = receptionService.getQueue(doctorId, selectedDate);
         }
 
+        // Ngày đã qua thì hàng chờ chỉ còn để TRA CỨU: template ẩn hẳn nút "Đẩy xuống cuối" /
+        // "Hoàn tác" và in lý do, thay vì để lễ tân bấm rồi mới nhận thông báo lỗi.
+        // Dùng đúng hàm mà service gọi khi chặn thật, nên hai bên không thể nói khác nhau.
+        Map<Long, String> queueBlockReasons = new HashMap<>();
+        for (Booking booking : queue) {
+            queueBlockReasons.put(booking.getId(), receptionService.whyCannotReorderQueue(booking));
+        }
+
         model.addAttribute("allDoctors", doctorRepository.findAll());
         model.addAttribute("selectedDoctor", selectedDoctor);
         model.addAttribute("selectedDoctorId", doctorId);
         model.addAttribute("selectedDate", selectedDate);
         model.addAttribute("queue", queue);
+        model.addAttribute("queueBlockReasons", queueBlockReasons);
+        model.addAttribute("isPastDate", selectedDate.isBefore(LocalDate.now()));
         model.addAttribute("searched", doctorId != null);
         model.addAttribute("activePage", "queue");
 

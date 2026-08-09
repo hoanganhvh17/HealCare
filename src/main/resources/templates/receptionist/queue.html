@@ -70,6 +70,15 @@
           sẽ nằm sau tất cả người đúng giờ. Bác sĩ nhìn thấy đúng thứ tự này ở trang khám bệnh.
         </p>
 
+        <!-- Ngày đã qua vẫn tra cứu được, nhưng mọi thao tác điều phối đều bị khóa. -->
+        <div th:if="${isPastDate}" class="alert alert-secondary d-flex align-items-center gap-2">
+          <i class="bi bi-lock-fill"></i>
+          <span>
+            Đây là hàng chờ của một ngày <strong>đã qua</strong> — chỉ xem lại được, không còn
+            điều phối được nữa.
+          </span>
+        </div>
+
         <div th:if="${#lists.isEmpty(queue)}" class="alert alert-light border">
           <i class="bi bi-info-circle"></i> Chưa có bệnh nhân nào đã xác nhận trong ngày này.
         </div>
@@ -107,8 +116,11 @@
               </span>
             </td>
             <td class="text-end">
-              <div class="d-flex gap-1 justify-content-end">
-                <form th:if="${b.lateMarkedAt == null}" method="post"
+              <!-- queueBlockReasons[id] != null: ngày khám đã qua hoặc lịch không còn ở trạng
+                   thái điều phối được. Không render nút nữa, in thẳng lý do. -->
+              <div class="d-flex gap-1 justify-content-end align-items-center"
+                   th:with="queueBlock=${queueBlockReasons[b.id]}">
+                <form th:if="${queueBlock == null and b.lateMarkedAt == null}" method="post"
                       th:action="@{/receptionist/queue/push-last/{id}(id=${b.id})}">
                   <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
                   <input type="hidden" name="date" th:value="${selectedDate}">
@@ -118,7 +130,7 @@
                   </button>
                 </form>
 
-                <form th:if="${b.lateMarkedAt != null}" method="post"
+                <form th:if="${queueBlock == null and b.lateMarkedAt != null}" method="post"
                       th:action="@{/receptionist/queue/reset/{id}(id=${b.id})}">
                   <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
                   <input type="hidden" name="date" th:value="${selectedDate}">
@@ -126,6 +138,11 @@
                     <i class="bi bi-arrow-counterclockwise"></i> Hoàn tác
                   </button>
                 </form>
+
+                <span th:if="${queueBlock != null}" class="small text-muted d-inline-flex align-items-center gap-1">
+                  <i class="bi bi-lock-fill"></i>
+                  <span th:text="${queueBlock}">Ngày khám đã qua, không điều phối hàng chờ được nữa.</span>
+                </span>
 
                 <a th:href="@{/receptionist/print/receipt/{id}(id=${b.id})}" target="_blank"
                    class="btn btn-outline-primary btn-sm" title="In phiếu thu">

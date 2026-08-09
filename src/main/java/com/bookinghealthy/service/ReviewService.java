@@ -8,6 +8,13 @@ public interface ReviewService {
     // Lưu đánh giá mới
     void saveReview(Long bookingId, Integer rating, String comment);
 
+    /**
+     * Lịch hẹn này đã được đánh giá chưa. Trang hồ sơ dùng để ẩn nút "Đánh giá" thay vì để
+     * bệnh nhân mở modal, chấm sao, gõ nhận xét rồi mới nhận câu "Bạn đã đánh giá dịch vụ
+     * này rồi." — cùng một điều kiện mà {@link #saveReview} kiểm tra khi ghi.
+     */
+    boolean hasReview(Long bookingId);
+
     // Lấy danh sách đánh giá của Bác sĩ
     List<Review> getReviewsByDoctor(Long doctorId);
 

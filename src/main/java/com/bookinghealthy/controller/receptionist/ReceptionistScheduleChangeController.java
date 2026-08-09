@@ -72,9 +72,30 @@ public class ReceptionistScheduleChangeController {
         model.addAttribute("bookings", bookings);
         model.addAttribute("replacementDoctors", replacementDoctors);
         model.addAttribute("searched", doctorId != null);
+        // Ngày đã qua thì chỉ còn tra cứu: template ẩn hẳn hai form hủy/chuyển. Lưu ý mốc là
+        // NGÀY chứ không phải giờ — công cụ này sinh ra cho tình huống "bác sĩ ốm giữa buổi",
+        // nên các ca đã qua giờ TRONG HÔM NAY vẫn phải hủy/chuyển được.
+        model.addAttribute("today", LocalDate.now());
+        model.addAttribute("isPastDate", selectedDate.isBefore(LocalDate.now()));
         model.addAttribute("activePage", "schedule-change");
 
         return "receptionist/schedule-change";
+    }
+
+    /**
+     * Ngày đã trôi qua thì hủy/chuyển hàng loạt không còn ý nghĩa: hủy sẽ hoàn tiền cho những
+     * ca bệnh nhân đã đến khám thật, còn chuyển thì đẩy một ca của tuần trước sang bác sĩ khác.
+     *
+     * @return null nếu còn thao tác được, ngược lại là lý do bằng tiếng Việt.
+     */
+    private String whyCannotChangeDate(LocalDate date) {
+        if (date == null) {
+            return "Thiếu ngày cần đổi lịch.";
+        }
+        if (date.isBefore(LocalDate.now())) {
+            return "Ngày " + date + " đã qua nên không hủy/chuyển lịch hàng loạt được nữa.";
+        }
+        return null;
     }
 
     @PostMapping("/cancel-bulk")
@@ -85,6 +106,12 @@ public class ReceptionistScheduleChangeController {
                              @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                              @RequestParam("session") String session,
                              RedirectAttributes ra) {
+
+        String blocked = whyCannotChangeDate(date);
+        if (blocked != null) {
+            ra.addFlashAttribute("errorMessage", blocked);
+            return redirectToFilter(doctorId, date, session);
+        }
 
         BulkResultDTO result = receptionService.bulkCancel(bookingIds, reason);
         flashResult(ra, result, "Đã hủy " + result.getSuccessCount() + " lịch hẹn và gửi email xin lỗi.");
@@ -102,6 +129,12 @@ public class ReceptionistScheduleChangeController {
                                @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                @RequestParam("session") String session,
                                RedirectAttributes ra) {
+
+        String blocked = whyCannotChangeDate(date);
+        if (blocked != null) {
+            ra.addFlashAttribute("errorMessage", blocked);
+            return redirectToFilter(doctorId, date, session);
+        }
 
         BulkResultDTO result = receptionService.bulkTransfer(bookingIds, newDoctorId, reason);
         flashResult(ra, result, "Đã chuyển " + result.getSuccessCount()

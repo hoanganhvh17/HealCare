@@ -152,13 +152,38 @@ public class ReceptionServiceImpl implements ReceptionService {
         return sortByQueue(new ArrayList<>(bookings));
     }
 
+    /**
+     * Hàng chờ chỉ có nghĩa cho ngày đang diễn ra: đẩy một bệnh nhân của tuần trước xuống
+     * cuối hàng chờ không thay đổi được gì đã xảy ra, nhưng vẫn ghi đè {@code queueOrder} và
+     * {@code lateMarkedAt} — tức là gắn nhãn "đến trễ" vào một ca đã khám xong từ lâu.
+     *
+     * @return null nếu còn điều phối được, ngược lại là lý do bằng tiếng Việt.
+     */
+    @Override
+    public String whyCannotReorderQueue(Booking booking) {
+        if (booking == null) {
+            return "Không tìm thấy lịch hẹn.";
+        }
+        if (booking.getAppointmentDate() == null) {
+            return "Lịch hẹn không có ngày khám.";
+        }
+        if (booking.getAppointmentDate().isBefore(LocalDate.now())) {
+            return "Ngày khám đã qua, không điều phối hàng chờ được nữa.";
+        }
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            return "Chỉ điều phối được lịch đã xác nhận và chưa khám.";
+        }
+        return null;
+    }
+
     @Override
     public void pushToEndOfQueue(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
 
-        if (booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new IllegalStateException("Chỉ đẩy được lịch đã xác nhận và chưa khám.");
+        String blocked = whyCannotReorderQueue(booking);
+        if (blocked != null) {
+            throw new IllegalStateException(blocked);
         }
 
         // Thứ tự mới = lớn hơn mọi thứ tự đang có trong ngày của bác sĩ đó
@@ -180,6 +205,13 @@ public class ReceptionServiceImpl implements ReceptionService {
     public void resetQueuePosition(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        // Hoàn tác cũng là một lần ghi vào lịch hẹn, nên chịu đúng một luật với pushToEndOfQueue.
+        // Trước đây hàm này không kiểm tra gì cả: xóa được nhãn "đến trễ" của một ca năm ngoái.
+        String blocked = whyCannotReorderQueue(booking);
+        if (blocked != null) {
+            throw new IllegalStateException(blocked);
+        }
 
         booking.setQueueOrder(null);
         booking.setLateMarkedAt(null);

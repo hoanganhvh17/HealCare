@@ -90,6 +90,17 @@
           <i class="bi bi-info-circle"></i> Không có lịch hẹn nào cần xử lý trong khung giờ này.
         </div>
 
+        <!-- Ngày đã qua: bảng vẫn hiện để tra cứu, nhưng KHÔNG render form thao tác. Hủy một
+             ca của tuần trước là hoàn tiền cho lần khám bệnh nhân đã thật sự đến. -->
+        <div th:if="${isPastDate}" class="alert alert-secondary d-flex align-items-center gap-2">
+          <i class="bi bi-lock-fill"></i>
+          <span>
+            Ngày đã chọn <strong>đã qua</strong> nên chỉ xem lại được. Hủy / chuyển hàng loạt
+            chỉ áp dụng cho hôm nay trở đi — kể cả các ca đã qua giờ <em>trong hôm nay</em>
+            (bác sĩ ốm giữa buổi) vẫn xử lý bình thường.
+          </span>
+        </div>
+
         <form id="bulkForm" method="post">
           <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
           <input type="hidden" name="date" th:value="${selectedDate}">
@@ -141,7 +152,9 @@
               </tbody>
             </table>
 
-            <div class="row g-3 mt-2">
+            <!-- Ngày đã qua: bảng trên vẫn hiện để tra cứu, nhưng toàn bộ vùng thao tác
+                 (lý do, chặn giờ, chuyển bác sĩ, hủy hàng loạt) không được render. -->
+            <div class="row g-3 mt-2" th:unless="${isPastDate}">
               <div class="col-12">
                 <label class="form-label" for="reason">Lý do gửi cho bệnh nhân (đưa vào email)</label>
                 <textarea class="form-control" id="reason" name="reason" rows="2"

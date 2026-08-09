@@ -93,19 +93,31 @@
               <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Hoàn thành</span>
             </td>
             <td>
-              <div class="d-flex gap-1 flex-wrap">
-                <a th:if="${booking.status.name() == 'PENDING'}"
+              <!-- actionBlockReasons[id] != null: lịch đã hủy / đã khám / đã trôi qua. Không
+                   render nút nữa, in thẳng lý do thay vì để lễ tân bấm rồi mới nhận thông báo lỗi. -->
+              <div class="d-flex gap-1 flex-wrap" th:with="blockReason=${actionBlockReasons[booking.id]}">
+                <a th:if="${blockReason == null and booking.status.name() == 'PENDING'}"
                    th:href="@{/receptionist/bookings/confirm/{id}(id=${booking.id})}"
                    class="btn btn-success btn-sm" title="Xác nhận">
                   <i class="bi bi-check-lg"></i>
                 </a>
 
-                <a th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
+                <a th:if="${blockReason == null and (booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED')}"
                    th:href="@{/receptionist/bookings/cancel/{id}(id=${booking.id})}"
                    class="btn btn-outline-danger btn-sm" title="Hủy &amp; hoàn tiền"
                    onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ tự động hoàn vào ví bệnh nhân.');">
                   <i class="bi bi-x-lg"></i>
                 </a>
+
+                <!-- Chỉ in lý do cho lịch đang chờ / đã xác nhận — tức những dòng đáng lẽ CÓ nút.
+                     Lịch đã hủy hay đã khám xong thì cột Trạng thái đã nói rồi. -->
+                <span th:if="${blockReason != null
+                               and (booking.status.name() == 'PENDING' or booking.status.name() == 'CONFIRMED')}"
+                      class="small text-muted d-inline-flex align-items-center gap-1"
+                      th:title="${blockReason}">
+                  <i class="bi bi-lock-fill"></i>
+                  <span th:text="${blockReason}">Lịch hẹn đã trôi qua nên không sửa được nữa.</span>
+                </span>
 
                 <a th:href="@{/receptionist/print/receipt/{id}(id=${booking.id})}" target="_blank"
                    class="btn btn-outline-primary btn-sm" title="In phiếu thu">

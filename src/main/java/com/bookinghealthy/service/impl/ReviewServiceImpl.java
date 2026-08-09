@@ -47,6 +47,11 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    public boolean hasReview(Long bookingId) {
+        return reviewRepository.findByBookingId(bookingId).isPresent();
+    }
+
+    @Override
     public List<Review> getReviewsByDoctor(Long doctorId) {
         return reviewRepository.findByDoctorId(doctorId);
     }

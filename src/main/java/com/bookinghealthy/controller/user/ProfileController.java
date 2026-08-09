@@ -29,8 +29,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Controller
 @RequestMapping("/user")
@@ -43,6 +45,7 @@ public class ProfileController {
     @Autowired private NotificationService notificationService;
     @Autowired private WalletService walletService;
     @Autowired private AllergyService allergyService;
+    @Autowired private ReviewService reviewService;
 
     // Helper lấy User
     private User getCurrentUser(Authentication authentication) {
@@ -76,6 +79,10 @@ public class ProfileController {
         Map<Long, String> editBlockReasons = new HashMap<>();
         Map<Long, String> cancelBlockReasons = new HashMap<>();
         Map<Long, Long> hoursLeft = new HashMap<>();
+        // Ca đã đánh giá rồi thì template thay nút bằng nhãn "Đã đánh giá". Trước đây nút hiện
+        // với MỌI ca COMPLETED, nên bệnh nhân mở modal, chấm sao, gõ nhận xét, bấm Gửi và chỉ
+        // khi đó mới nhận được câu "Bạn đã đánh giá dịch vụ này rồi." — mất trắng phần đã gõ.
+        Set<Long> reviewedBookingIds = new HashSet<>();
 
         // Repository trả về theo thứ tự chèn nên lịch mới đặt không nằm ở đầu bảng.
         // Tách hẳn hai nhóm: sắp tới (gần nhất lên trước) và đã qua (mới nhất lên trước).
@@ -87,6 +94,12 @@ public class ProfileController {
             editBlockReasons.put(booking.getId(), bookingService.whyCannotReschedule(booking));
             cancelBlockReasons.put(booking.getId(), bookingService.whyCannotCancel(booking));
             hoursLeft.put(booking.getId(), bookingService.hoursUntilAppointment(booking));
+
+            // Chỉ ca đã khám xong mới có nút đánh giá, nên chỉ cần tra đúng nhóm đó.
+            if (booking.getStatus() == BookingStatus.COMPLETED
+                    && reviewService.hasReview(booking.getId())) {
+                reviewedBookingIds.add(booking.getId());
+            }
 
             LocalDateTime start = bookingService.appointmentStart(booking);
             boolean stillOpen = booking.getStatus() == BookingStatus.PENDING
@@ -119,6 +132,7 @@ public class ProfileController {
         model.addAttribute("editBlockReasons", editBlockReasons);
         model.addAttribute("cancelBlockReasons", cancelBlockReasons);
         model.addAttribute("hoursLeft", hoursLeft);
+        model.addAttribute("reviewedBookingIds", reviewedBookingIds);
 
         // Tab "Hồ sơ y tế". Lý do không xoá được tính sẵn ở đây rồi truyền xuống, cùng khuôn
         // cancelBlockReasons ở trên: template ẩn nút theo đúng hàm mà controller xoá cũng gọi,

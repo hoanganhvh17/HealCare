@@ -5,7 +5,7 @@ Post-visit clinical data is a connected entity cluster centered on `MedicalRecor
 - `PrescriptionItem` — prescribed medications
 - `VitalSign` — measurements taken at the visit
 - `Allergy` — patient allergy list (see below: written from **two** sides)
-- `MedicalAddendum` — post-hoc additions to a finalized record
+- `MedicalAddendum` — post-hoc additions to a finalized record. **`DoctorMedicalRecordController.addMedicalAddendum` gates on ownership**: the booking must belong to the logged-in doctor, and the submitted `recordId` must be the record of that `bookingId`. It previously took `recordId` straight from the form with no check at all, so changing one number in the request let any doctor write into any patient's closed record — the one write path in the app that reaches finalized clinical data. Empty notes are rejected too. (`viewRecordForDoctor` still has its ownership check commented out — deliberately left alone here, but it is the next thing to fix.)
 - `MedicalAttachment` — uploaded files (see the uploads path in the environment rules)
 
 ## Access paths

@@ -470,7 +470,10 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="wsShiftDate">Ngày bắt đầu</label>
-              <input type="date" class="form-control" name="shiftDate" id="wsShiftDate" required>
+              <!-- validateShift() từ chối ca trong quá khứ; khóa luôn ở lịch chọn để không
+                   phải điền hết modal rồi mới nhận thông báo lỗi. -->
+              <input type="date" class="form-control" name="shiftDate" id="wsShiftDate"
+                     th:min="${today}" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="wsRepeatWeeks">Lặp lại hằng tuần</label>
@@ -547,11 +550,14 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label fw-semibold" for="wsLeaveStart">Từ ngày</label>
-              <input type="date" class="form-control" name="startDate" id="wsLeaveStart" required>
+              <!-- Không đăng ký nghỉ cho ngày đã qua (LeaveServiceImpl.validate). -->
+              <input type="date" class="form-control" name="startDate" id="wsLeaveStart"
+                     th:min="${today}" required>
             </div>
             <div class="col-6">
               <label class="form-label fw-semibold" for="wsLeaveEnd">Đến ngày</label>
-              <input type="date" class="form-control" name="endDate" id="wsLeaveEnd" required>
+              <input type="date" class="form-control" name="endDate" id="wsLeaveEnd"
+                     th:min="${today}" required>
             </div>
           </div>
 
@@ -610,11 +616,15 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label fw-semibold" for="wsEmgStart">Từ ngày</label>
-              <input type="date" class="form-control" name="startDate" id="wsEmgStart" required>
+              <!-- Báo bận đột xuất chỉ dùng cho trong vòng 24 giờ tới, nên chặn cả hai đầu:
+                   quá khứ và xa hơn ngày mai (xem LeaveServiceImpl.validate). -->
+              <input type="date" class="form-control" name="startDate" id="wsEmgStart"
+                     th:min="${today}" th:max="${emergencyMaxDate}" required>
             </div>
             <div class="col-6">
               <label class="form-label fw-semibold" for="wsEmgEnd">Đến ngày</label>
-              <input type="date" class="form-control" name="endDate" id="wsEmgEnd" required>
+              <input type="date" class="form-control" name="endDate" id="wsEmgEnd"
+                     th:min="${today}" required>
             </div>
           </div>
 

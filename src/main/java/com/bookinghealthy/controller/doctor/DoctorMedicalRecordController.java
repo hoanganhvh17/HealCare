@@ -325,8 +325,39 @@ public class DoctorMedicalRecordController {
             @RequestParam("recordId") Long recordId,
             @RequestParam("bookingId") Long bookingId, // Truyền theo để lát redirect về đúng trang
             @RequestParam("notes") String notes,
+            Authentication authentication,
             RedirectAttributes ra) {
         try {
+            Doctor currentDoctor = getLoggedInDoctor(authentication);
+
+            // Phụ lục là thao tác GHI vào một bệnh án đã đóng — dữ liệu quá khứ có giá trị pháp
+            // lý. Trước đây endpoint này nhận recordId thẳng từ form và không kiểm tra gì cả:
+            // bất kỳ bác sĩ nào cũng ghi thêm được vào bệnh án của đồng nghiệp, chỉ cần đổi số
+            // trong request. Ràng buộc recordId phải khớp bookingId và ca đó phải của chính mình.
+            Booking booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn."));
+
+            if (booking.getDoctor() == null
+                    || !booking.getDoctor().getId().equals(currentDoctor.getId())) {
+                ra.addFlashAttribute("errorMessage",
+                        "Bạn không có quyền bổ sung ghi chú vào hồ sơ bệnh án này.");
+                return "redirect:/doctor/examinations";
+            }
+
+            var record = medicalRecordService.findByBookingId(bookingId)
+                    .orElseThrow(() -> new IllegalStateException("Hồ sơ bệnh án chưa tồn tại."));
+
+            if (!record.getId().equals(recordId)) {
+                ra.addFlashAttribute("errorMessage",
+                        "Ghi chú không khớp với hồ sơ bệnh án của lịch hẹn này.");
+                return "redirect:/doctor/medical-record/view/" + bookingId;
+            }
+
+            if (notes == null || notes.isBlank()) {
+                ra.addFlashAttribute("errorMessage", "Vui lòng nhập nội dung ghi chú bổ sung.");
+                return "redirect:/doctor/medical-record/view/" + bookingId;
+            }
+
             medicalRecordService.addMedicalAddendum(recordId, notes);
             ra.addFlashAttribute("successMessage", "Đã bổ sung ghi chú vào hồ sơ bệnh án thành công!");
         } catch (Exception e) {

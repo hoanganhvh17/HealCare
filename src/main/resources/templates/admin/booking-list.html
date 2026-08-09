@@ -77,31 +77,45 @@
                 </td>
 
                 <td>
-                  <div th:if="${booking.status.name() == 'PENDING'}" class="d-flex gap-1">
-                    <a th:href="@{/admin/manage-booking/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận">
-                      <i class="bi bi-check-lg"></i>
-                    </a>
-                    <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Hủy" onclick="return confirm('Hủy lịch này?')">
-                      <i class="bi bi-x-lg"></i>
-                    </a>
-                  </div>
+                  <!-- actionBlockReasons[id] != null nghĩa là lịch đã hủy / đã khám / đã trôi qua:
+                       không render nút nữa mà in thẳng lý do, thay vì để admin bấm rồi mới báo lỗi. -->
+                  <div th:with="blockReason=${actionBlockReasons[booking.id]}">
 
-                  <div th:if="${booking.status.name() == 'CONFIRMED'}">
-                    <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}"
-                       class="btn btn-outline-danger btn-sm"
-                       title="Hủy lịch & Hoàn tiền"
-                       onclick="return confirm('CẢNH BÁO: Hủy lịch này sẽ tự động hoàn tiền vào Ví của khách hàng (nếu đã thanh toán). Bạn chắc chắn chứ?')">
-                      <i class="bi bi-x-circle-fill"></i> Hủy & Hoàn tiền
-                    </a>
-                  </div>
+                    <div th:if="${blockReason == null and booking.status.name() == 'PENDING'}" class="d-flex gap-1">
+                      <a th:href="@{/admin/manage-booking/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận">
+                        <i class="bi bi-check-lg"></i>
+                      </a>
+                      <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Hủy" onclick="return confirm('Hủy lịch này?')">
+                        <i class="bi bi-x-lg"></i>
+                      </a>
+                    </div>
 
-                  <div th:if="${booking.status.name() == 'CANCELED' || booking.status.name() == 'PENDING'}" class="mt-1">
-                    <a th:href="@{/admin/manage-booking/delete/{id}(id=${booking.id})}"
-                       class="btn btn-dark btn-sm"
-                       title="Xóa khỏi DB"
-                       onclick="return confirm('Xóa vĩnh viễn? Dữ liệu không thể khôi phục.')">
-                      <i class="bi bi-trash"></i>
-                    </a>
+                    <div th:if="${blockReason == null and booking.status.name() == 'CONFIRMED'}">
+                      <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}"
+                         class="btn btn-outline-danger btn-sm"
+                         title="Hủy lịch & Hoàn tiền"
+                         onclick="return confirm('CẢNH BÁO: Hủy lịch này sẽ tự động hoàn tiền vào Ví của khách hàng (nếu đã thanh toán). Bạn chắc chắn chứ?')">
+                        <i class="bi bi-x-circle-fill"></i> Hủy &amp; Hoàn tiền
+                      </a>
+                    </div>
+
+                    <!-- Chỉ in lý do cho lịch đang chờ / đã xác nhận — tức những dòng đáng lẽ
+                         CÓ nút. Lịch đã hủy hay đã khám xong thì cột Trạng thái đã nói rồi. -->
+                    <div th:if="${blockReason != null
+                                  and (booking.status.name() == 'PENDING' or booking.status.name() == 'CONFIRMED')}"
+                         class="small text-muted d-flex align-items-start gap-1">
+                      <i class="bi bi-lock-fill mt-1"></i>
+                      <span th:text="${blockReason}">Lịch hẹn đã trôi qua nên không sửa được nữa.</span>
+                    </div>
+
+                    <div th:if="${booking.status.name() == 'CANCELED' || booking.status.name() == 'PENDING'}" class="mt-1">
+                      <a th:href="@{/admin/manage-booking/delete/{id}(id=${booking.id})}"
+                         class="btn btn-dark btn-sm"
+                         title="Xóa khỏi DB"
+                         onclick="return confirm('Xóa vĩnh viễn? Dữ liệu không thể khôi phục.')">
+                        <i class="bi bi-trash"></i>
+                      </a>
+                    </div>
                   </div>
                 </td>
               </tr>

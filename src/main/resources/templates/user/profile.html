@@ -620,7 +620,10 @@
                            class="btn btn-sm btn-outline-primary" title="Xem bệnh án">
                           <i class="bi bi-file-earmark-medical"></i> KQ
                         </a>
-                        <button type="button" class="btn btn-sm btn-warning text-dark" title="Đánh giá bác sĩ"
+                        <!-- Đã đánh giá rồi thì KHÔNG render nút nữa: mỗi lịch hẹn chỉ đánh giá
+                             được một lần, để nút ở đây là mời bệnh nhân gõ xong mới báo lỗi. -->
+                        <button th:unless="${reviewedBookingIds.contains(booking.id)}"
+                                type="button" class="btn btn-sm btn-warning text-dark" title="Đánh giá bác sĩ"
                                 data-bs-toggle="modal"
                                 data-bs-target="#reviewModal"
                                 th:data-booking-id="${booking.id}"
@@ -628,6 +631,12 @@
                                 onclick="openReviewModal(this)">
                           <i class="bi bi-star-fill"></i> ĐG
                         </button>
+
+                        <span th:if="${reviewedBookingIds.contains(booking.id)}"
+                              class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center"
+                              title="Bạn đã đánh giá lần khám này">
+                          <i class="bi bi-star-fill me-1"></i> Đã đánh giá
+                        </span>
                       </div>
                       <span th:unless="${booking.status.name() == 'COMPLETED'}" class="text-muted small">—</span>
                     </td>

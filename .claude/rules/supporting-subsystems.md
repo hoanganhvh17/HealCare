@@ -96,7 +96,7 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 - `Post` — news/blog articles, authored in admin with TinyMCE rich text (vendored under `static/assets-admin/vendor/tinymce`), **or collected automatically from real newspapers** by `MedicalNewsTask` (see above), in which case `sourceUrl` / `sourceName` are set and `news-details.html` renders a "Nguồn: … — Đọc bản gốc" block. Both columns are nullable, so an admin-written post simply has none.
 
   **`admin/post-form.html` binds `@ModelAttribute Post`, so any field without an input on the form is written back as empty.** That is why `image` is patched by hand in `AdminPostController.savePost`, and why `sourceUrl` / `sourceName` need hidden inputs. The form also carries a **`status` select**: without it `Post.status`'s field initialiser (`"PUBLISHED"`) meant that opening a draft, changing one word and pressing Lưu silently published it *and* fanned a notification out to every patient.
-- `Review` — patient ratings of doctors, submitted via `UserReviewController`.
+- `Review` — patient ratings of doctors, submitted via `UserReviewController`. One review per booking, enforced by `ReviewServiceImpl.saveReview`. **`ReviewService.hasReview(bookingId)` exists so the UI can agree with that rule**: `ProfileController` passes a `reviewedBookingIds` set and `user/profile.html` renders an "Đã đánh giá" badge instead of the button. Before this the button showed for *every* `COMPLETED` booking, so a patient could open the modal, pick stars, type a comment, press Gửi — and only then be told "Bạn đã đánh giá dịch vụ này rồi", losing what they wrote.
 - `Service` and `Department` — catalog entities surfaced on public pages.
 
 ## QR codes

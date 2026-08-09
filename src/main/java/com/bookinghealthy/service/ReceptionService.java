@@ -51,6 +51,15 @@ public interface ReceptionService {
      */
     List<Booking> getQueue(Long doctorId, LocalDate date);
 
+    /**
+     * Lịch này có còn được điều phối hàng chờ (đẩy xuống cuối / hoàn tác) nữa không.
+     * Nguồn sự thật DUY NHẤT cho cả giao diện (ẩn nút, in lý do) và server (chặn thật),
+     * cùng khuôn với {@code BookingService.whyStaffCannotChange}.
+     *
+     * @return null nếu còn điều phối được, ngược lại là lý do bằng tiếng Việt.
+     */
+    String whyCannotReorderQueue(Booking booking);
+
     /** Đẩy một bệnh nhân đến trễ xuống cuối hàng chờ. */
     void pushToEndOfQueue(Long bookingId);
 
