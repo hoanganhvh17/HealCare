@@ -32,6 +32,21 @@ public interface BookingService {
      */
     List<String> slotsOutsideWorkingHours(Long doctorId, java.time.LocalDate date, List<String> slots);
 
+    /**
+     * Bác sĩ này ĐÃ đăng ký lịch làm việc cho tuần chứa {@code date} chưa, theo đúng luật chọn
+     * tuần của {@code ScheduleRepository.findEffective}.
+     *
+     * CHỈ DÀNH CHO LỚP GIẢI THÍCH (câu trả lời của trợ lý AI). Luật đặt lịch KHÔNG đổi: chưa
+     * đăng ký vẫn là KHÔNG GIỚI HẠN — xem {@link #slotsOutsideWorkingHours} và
+     * {@link #isSlotWithinWorkingHours}. Siết chỗ đó là khoá sạch lịch của 132 bác sĩ seed.
+     *
+     * Lý do phải có hàm này: hai hàm trên trả "rỗng / true" cho CẢ HAI trường hợp "bác sĩ nhận
+     * khám cả ngày" và "hệ thống chưa có lịch nào của bác sĩ". Không phân biệt được thì câu trả
+     * lời cho bệnh nhân sẽ dựng ra một ngày làm việc 07:30 - 11:30 và 13:30 - 17:30 hoàn toàn
+     * BỊA cho người chưa từng đăng ký ca nào.
+     */
+    boolean hasRegisteredSchedule(Long doctorId, java.time.LocalDate date);
+
     // === THÊM 3 HÀM MỚI NÀY ===
     List<Booking> findAll();
     Optional<Booking> findById(Long id);

@@ -51,6 +51,11 @@ public class SecurityConfig {
                         // bên dưới — nếu không lại rơi vào whitelist công khai, đúng bẫy đã từng xảy ra
                         // với /api/doctor/chat/** (xem authentication-and-roles.md).
                         .requestMatchers("/api/chat/medical-record/**").authenticated()
+                        // Tra cứu lịch hẹn của CHÍNH khách qua khung chat. Cùng lý do và cùng vị trí
+                        // với dòng trên: /api/chat/** nằm trong whitelist permitAll bên dưới, mà
+                        // Spring lấy luật KHỚP ĐẦU TIÊN — thiếu dòng này là mở lịch hẹn bệnh nhân
+                        // cho người lạ.
+                        .requestMatchers("/api/chat/my-bookings").authenticated()
                         // Chuông thông báo (bệnh nhân + mọi vai trò). Controller tự lọc theo
                         // người đang đăng nhập. Khai ở đây cho tường minh: rơi xuống
                         // anyRequest().authenticated() thì cũng đúng, nhưng quy ước của khối 0

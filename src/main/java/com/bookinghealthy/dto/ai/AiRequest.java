@@ -19,7 +19,7 @@ public class AiRequest {
     private double temperature; // Độ sáng tạo (0.0 đến 1.0)
 
     /**
-     * Trần độ dài câu trả lời. Trợ lý bệnh nhân bắt buộc trả JSON đủ 9 keys (kèm `patient_summary`
+     * Trần độ dài câu trả lời. Trợ lý bệnh nhân bắt buộc trả JSON đủ 10 keys (kèm `patient_summary`
      * cộng dồn qua từng lượt); model nào có max_tokens mặc định thấp sẽ CẮT GIỮA CHỪNG khối JSON đó,
      * `JSON.parse` ở trình duyệt hỏng và khách nhìn thấy JSON thô trong khung chat.
      */

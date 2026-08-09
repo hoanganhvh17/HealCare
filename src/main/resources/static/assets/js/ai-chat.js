@@ -477,6 +477,78 @@
                 }
 
                 /**
+                 * Câu này là câu HỎI về lịch làm việc của một bác sĩ, không phải yêu cầu đặt lịch.
+                 *
+                 * Đây là đường DUY NHẤT tới câu trả lời thật khi model trả booking_intent = false:
+                 * mục 1 và 5B của prompt CẤM model khẳng định bác sĩ có khám ngày/buổi nào, nên
+                 * không có nhánh này thì khách chỉ nhận một câu chung chung và bên dưới KHÔNG in gì
+                 * cả — trái hẳn lời hứa "hệ thống lo phần lịch" ở 5B. Khách đọc câu trống rỗng đó
+                 * rồi tự hiểu thành "bác sĩ đang rảnh".
+                 *
+                 * Ở ĐÂY regex đứng TRÊN tín hiệu của model, ngược với booking_intent. Có lý do:
+                 * model bị chính prompt cấm suy luận về lịch làm việc, nên tín hiệu của nó về
+                 * chuyện này yếu hơn hẳn.
+                 *
+                 * Đệm khoảng trắng, không dùng \b (ASCII-only, xem coding-conventions.md).
+                 */
+                function looksLikeAvailabilityQuestion(text) {
+                    const raw = normalizeText(text);
+                    const padded = ' ' + raw.replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+
+                    // YÊU CẦU ĐẶT LỊCH LUÔN THẮNG. "bác sĩ X chiều nay còn chỗ không, đặt cho em"
+                    // vẫn phải đi đường đặt lịch — nếu không, cửa này nuốt mất một lượt đặt thật.
+                    if (looksLikeBookingRequest(text)) return false;
+                    if (/đặt|dat lich|book|lấy lịch|lay lich/.test(raw)) return false;
+
+                    // Phải đang nói về MỘT NGƯỜI. "phòng khám mở cửa mấy giờ" là câu khác hẳn và đã
+                    // có kiến thức mặc định trong prompt trả lời.
+                    if (!/bác sĩ|bac si|bs /.test(raw)) return false;
+
+                    // "chiều nay TÔI bận" là KHÁCH bận, không phải bác sĩ bận. Cùng một cái bẫy đã
+                    // ghi ở normalizeTimeHint với chữ "sáng" trong "đặt 4h chiều mai, sáng nay tôi bận".
+                    if (/(tôi|em|mình|con|cháu|toi|minh)\s+(bận|ban|rảnh|ranh|nghỉ|nghi)/.test(raw)) return false;
+
+                    // Hỏi VỀ CON NGƯỜI chứ không phải về lịch -> để nhánh hồ sơ bác sĩ lo.
+                    if (/phí|giá|bao nhiêu tiền|kinh nghiệm|chuyên môn|giỏi|bằng cấp/.test(raw)) return false;
+
+                    const CUES = ['bận', 'ban', 'rảnh', 'ranh', 'nghỉ', 'nghi', 'trực', 'truc',
+                        'có làm', 'co lam', 'có khám', 'co kham', 'có ca', 'co ca',
+                        'lịch làm việc', 'lich lam viec', 'lịch khám', 'lich kham',
+                        'ca khám', 'ca kham', 'làm ngày nào', 'lam ngay nao',
+                        'khám ngày nào', 'kham ngay nao', 'khám hôm nào', 'kham hom nao',
+                        'làm buổi nào', 'lam buoi nao', 'còn chỗ', 'con cho',
+                        'còn trống', 'con trong', 'đi làm', 'di lam'];
+                    return CUES.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; });
+                }
+
+                /** Khách hỏi về LỊCH HẸN CỦA CHÍNH MÌNH ("lịch khám của tôi hôm nào?"). */
+                function looksLikeMyBookingQuestion(text) {
+                    const raw = normalizeText(text);
+                    if (looksLikeBookingRequest(text)) return false;
+                    // Phải có sở hữu ngôi thứ nhất, nếu không "lịch khám hôm nào" là hỏi lịch bác sĩ.
+                    if (!/của tôi|cua toi|của mình|cua minh|của em|cua em|tôi đã đặt|toi da dat|mình đã đặt|em đã đặt/.test(raw)) {
+                        return false;
+                    }
+                    return /lịch|lich|hẹn|hen|đặt|dat|khám|kham/.test(raw);
+                }
+
+                /** Khách hỏi GIÁ KHÁM / ĐÁNH GIÁ / KINH NGHIỆM của một bác sĩ. */
+                function looksLikeDoctorInfoQuestion(text) {
+                    const raw = normalizeText(text);
+                    if (looksLikeBookingRequest(text)) return false;
+                    if (!/bác sĩ|bac si|bs /.test(raw)) return false;
+                    return /bao nhiêu tiền|bao nhieu tien|giá khám|gia kham|phí khám|phi kham|chi phí|chi phi|có tốt|co tot|đánh giá|danh gia|mấy sao|may sao|kinh nghiệm|kinh nghiem|bằng cấp|bang cap|giỏi không|gioi khong/.test(raw);
+                }
+
+                /** Khách xin GỢI Ý bác sĩ theo tiêu chí ("khoa Tim mạch có bác sĩ nữ nào không?"). */
+                function looksLikeDoctorFilterQuestion(text) {
+                    const raw = normalizeText(text);
+                    if (looksLikeBookingRequest(text)) return false;
+                    if (!/bác sĩ|bac si/.test(raw)) return false;
+                    return /bác sĩ nữ|bac si nu|bác sĩ nam|bac si nam|nhiều kinh nghiệm|nhieu kinh nghiem|giỏi nhất|gioi nhat|rẻ nhất|re nhat|giá thấp|gia thap|có bác sĩ nào|co bac si nao|bác sĩ nào tốt|gợi ý bác sĩ|goi y bac si/.test(raw);
+                }
+
+                /**
                  * Các cách gọi tên thứ, xếp CHUỖI DÀI TRƯỚC để "thứ hai" không bị "t2"… nuốt mất
                  * và để "chủ nhật" được thử trước "cn". Số là getDay() của JS (0 = Chủ nhật).
                  */
@@ -533,7 +605,24 @@
                         return isoAfterDays(delta);
                     }
 
-                    if (normalized.includes('hôm nay')) {
+                    // ===== HÔM NAY, kể cả khi khách nói kèm BUỔI =====
+                    // Thiếu "chiều nay"/"sáng nay" thì câu "bác sĩ X chiều nay bận à?" KHÔNG có ngày
+                    // nào cả, hệ thống mượn lastHandoffDate và đi trả lời về một ngày khách không hề
+                    // hỏi — đúng con đường dẫn tới "bị điều hướng đi ngày khác mà không hiểu gì".
+                    //
+                    // Đặt SAU vòng tên thứ, đúng lý do đã ghi ở trên: "chiều nay em bận, đặt giúp em
+                    // thứ 5" — "chiều nay" là lúc có TRIỆU CHỨNG, "thứ 5" mới là lúc KHÁM.
+                    //
+                    // Dạng hai chữ "sang nay"/"toi nay" an toàn: bẫy đã ghi trong tài liệu là chữ
+                    // "sang"/"toi" ĐỨNG TRẦN (giới từ "sang", đại từ "tôi"), giống cách dự án đã chấp
+                    // nhận "buoi sang".
+                    //
+                    // CỐ Ý KHÔNG gọi sessionAlreadyPassed ở đây (khác hẳn nhánh tên thứ ngay trên):
+                    // khách hỏi lúc 18h "bác sĩ X chiều nay bận à?" là đang hỏi buổi chiều VỪA QUA;
+                    // đẩy sang tuần sau là trả lời một câu khác hẳn. Mã PAST của server mới đúng.
+                    const TODAY_WORDS = ['hôm nay', 'hom nay', 'sáng nay', 'sang nay',
+                        'chiều nay', 'chieu nay', 'trưa nay', 'trua nay', 'tối nay', 'toi nay'];
+                    if (TODAY_WORDS.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; })) {
                         return toIsoDate(today);
                     }
                     // Chỉ nhận các cụm CHẮC CHẮN là "ngày mai". Không bắt chữ "mai" đứng một mình:
@@ -832,7 +921,7 @@
 
                 /**
                  * Thẻ "không đặt được khung giờ này" — thay cho việc âm thầm đẩy khách sang giờ khác.
-                 * Nói thẳng LÝ DO (do server trả về ở reasonText: bác sĩ không có ca khám buổi đó,
+                 * Nói thẳng LÝ DO (do server trả về ở reasonText: bác sĩ không đăng ký ca làm việc buổi đó,
                  * đã có người đặt, bác sĩ báo bận…), rồi đưa hai hướng: đổi bác sĩ mà giữ giờ, hoặc
                  * giữ bác sĩ mà đổi giờ. Mỗi bác sĩ gợi ý đều kèm lý do vì sao em chọn người đó.
                  */
@@ -843,8 +932,13 @@
                     const otherTimes = Array.isArray(alt.otherTimes) ? alt.otherTimes : [];
 
                     // Lý do thật từ server. Không có (endpoint lỗi) thì mới nói chung chung "đã kín".
-                    const headline = alt.reasonText
+                    const reasonLine = alt.reasonText
                         || (describeWanted(handoff) + ' ngày ' + formatDayMonth(handoff.appointmentDate) + ' đã kín lịch rồi ạ.');
+                    // ĐỔI NGÀY phải nằm ở DÒNG TIÊU ĐỀ, không được nhét xuống dòng phụ: khách đọc
+                    // "dời sang khung giờ gần nhất" rồi bấm nút và tới NHẦM HÔM.
+                    const headline = alt.otherTimesMovedDay
+                        ? reasonLine + ' ' + (alt.otherTimesText || 'Em phải tìm sang ngày khác ạ.')
+                        : reasonLine;
 
                     let html = `<div class="mt-3 p-3" style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:8px;">
                         <div class="fw-bold mb-2" style="color:#b8860b;">
@@ -873,10 +967,16 @@
                         // Gợi ý có thể rơi sang NGÀY KHÁC (bác sĩ nghỉ nguyên ngày khách xin), nên nút
                         // phải lấy `item.date` của chính nó và hiện nhãn có thứ/ngày. Dùng ngày của
                         // handoff ở đây là đặt đúng giờ nhưng sai ngày.
-                        const movedDay = otherTimes[0].date && otherTimes[0].date !== handoff.appointmentDate;
+                        // Ưu tiên cờ của server; giữ nhánh tự suy ra để payload đã cache còn chạy.
+                        const movedDay = (alt.otherTimesMovedDay !== undefined)
+                            ? alt.otherTimesMovedDay
+                            : (otherTimes[0].date && otherTimes[0].date !== handoff.appointmentDate);
+                        const movedTo = alt.otherTimesDate || otherTimes[0].date;
                         html += `<div style="font-size:13px;color:#334155;margin:8px 0 6px;">
-                            Hoặc anh/chị vẫn giữ <strong>${keepName}</strong> và dời sang
-                            ${movedDay ? 'ngày bác sĩ có ca khám gần nhất' : 'khung giờ gần nhất'}:
+                            Hoặc anh/chị vẫn giữ <strong>${keepName}</strong> và
+                            ${movedDay
+                                ? 'chuyển sang <strong>' + formatDayMonth(movedTo) + '</strong> (ngày làm việc gần nhất của bác sĩ)'
+                                : 'dời sang khung giờ gần nhất'}:
                         </div><div class="d-flex flex-wrap gap-2">`;
                         otherTimes.forEach(function(item) {
                             html += `<a href="${buildAppointmentUrl(item.doctorId, item.date || handoff.appointmentDate, item.slot)}"
@@ -894,6 +994,211 @@
                     }
 
                     return html + `</div>`;
+                }
+
+                /**
+                 * Thẻ TRẢ LỜI câu hỏi "bác sĩ X chiều nay bận à?".
+                 *
+                 * Màu XANH THÔNG TIN, cố ý khác màu hổ phách của buildSlotFullHtml: hổ phách nghĩa
+                 * là "yêu cầu của anh/chị không thực hiện được", còn đây là một câu trả lời bình
+                 * thường — khách có hỏi xin đặt gì đâu.
+                 *
+                 * Không nút "Mở trang đặt lịch", không đếm ngược, không giữ chỗ: hỏi thăm không
+                 * phải là chốt lịch. Ngày nào còn khung trống thì mới có LINK để khách tự bấm.
+                 */
+                function buildAvailabilityHtml(av) {
+                    const anchor = av.anchor || {};
+                    const week = Array.isArray(av.week) ? av.week : [];
+                    const headline = anchor.reasonText || av.summaryText || '';
+
+                    let html = `<div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">
+                        <div class="fw-bold mb-2" style="color:#075985;">
+                            <i class="bi bi-calendar-week"></i> ${headline}
+                        </div>`;
+
+                    if (week.length > 0) {
+                        html += `<div style="font-size:13px;color:#334155;margin-bottom:6px;">
+                            Lịch làm việc của <strong>${av.doctorName}</strong>:
+                        </div><div class="d-flex flex-wrap gap-2 mb-2">`;
+                        week.forEach(function(day) {
+                            let note;
+                            if (day.dayState === 'NO_SCHEDULE') {
+                                // KHÔNG được in giờ ở đây: hệ thống chưa có lịch nào của bác sĩ, mọi
+                                // khung giờ hiện ra đều là bịa (xem DaySlots.workingRanges).
+                                note = 'chưa có lịch đăng ký';
+                            } else if (day.dayState === 'OFF_ALL_DAY') {
+                                note = 'nghỉ';
+                            } else {
+                                note = (day.workingRanges || []).join(' và ');
+                                note += (day.freeCount > 0)
+                                    ? ' — còn ' + day.freeCount + ' khung'
+                                    : ' — đã kín';
+                            }
+                            const bookable = day.freeCount > 0;
+                            const inner = `<div style="font-weight:600;">${day.dayLabel}</div>
+                                           <div style="color:#64748b;font-size:12px;">${note}</div>`;
+                            html += bookable
+                                ? `<a href="${buildAppointmentUrl(av.doctorId, day.date, day.firstFreeSlot)}"
+                                      class="text-decoration-none p-2"
+                                      style="background:#fff;border:1px solid #bae6fd;border-radius:6px;font-size:13px;color:#334155;min-width:120px;">${inner}</a>`
+                                : `<div class="p-2" style="background:#f1f5f9;border-radius:6px;font-size:13px;color:#94a3b8;min-width:120px;">${inner}</div>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (av.summaryText && anchor.reasonText && av.wantsWeek) {
+                        html += `<div style="font-size:13px;color:#334155;">${av.summaryText}</div>`;
+                    }
+                    return html + `</div>`;
+                }
+
+                /** Khung ngoài dùng chung cho mọi thẻ TRA CỨU — xanh thông tin, không phải hổ phách. */
+                function lookupCard(inner) {
+                    return `<div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">${inner}</div>`;
+                }
+
+                /**
+                 * Thẻ "lịch hẹn của anh/chị".
+                 *
+                 * Nút Dời/Hủy chỉ hiện khi SERVER nói là còn được — cùng hai hàm whyCannotCancel /
+                 * whyCannotReschedule mà trang hồ sơ dùng. Không có thì in đúng câu lý do đó, chứ
+                 * không mời khách bấm một nút chắc chắn lỗi.
+                 */
+                function buildMyBookingsHtml(data) {
+                    if (data.needLogin) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Anh/chị <a href="/login">đăng nhập</a> giúp em để em xem lịch hẹn ạ.
+                        </div>`);
+                    }
+                    if (data.error) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa tra được lịch hẹn lúc này ạ. Anh/chị thử lại, hoặc xem
+                            <a href="/user/profile#booking-history">lịch sử đặt lịch</a> nhé.
+                        </div>`);
+                    }
+
+                    const upcoming = Array.isArray(data.upcoming) ? data.upcoming : [];
+                    const past = Array.isArray(data.past) ? data.past : [];
+                    if (upcoming.length === 0 && past.length === 0) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Anh/chị chưa có lịch hẹn nào ạ. Em mở giúp
+                            <a href="/appointment">trang đặt lịch</a> nhé?
+                        </div>`);
+                    }
+
+                    let inner = `<div class="fw-bold mb-2" style="color:#075985;">
+                        <i class="bi bi-calendar-check"></i> ${upcoming.length > 0
+                            ? 'Anh/chị đang có ' + data.upcomingCount + ' lịch hẹn sắp tới ạ'
+                            : 'Anh/chị không còn lịch hẹn nào sắp tới ạ'}
+                    </div>`;
+
+                    upcoming.concat(past).forEach(function(b) {
+                        const blocked = b.cancelBlockReason;
+                        inner += `<div class="mb-2 p-2" style="background:#fff;border-radius:6px;font-size:13px;color:#334155;">
+                            <div><strong>BS. ${b.doctorName}</strong> — ${b.departmentName}</div>
+                            <div style="color:#64748b;">${b.time || ''} ${b.date ? '· ' + formatDayMonth(b.date) : ''} · ${b.statusLabel}</div>
+                            ${blocked
+                                ? `<div style="color:#94a3b8;font-size:12px;margin-top:4px;">${blocked}</div>`
+                                : `<div class="mt-1 d-flex gap-2">
+                                       ${b.rescheduleBlockReason ? '' : `<a href="/user/booking/edit/${b.id}" class="btn btn-sm btn-outline-primary">Dời lịch</a>`}
+                                       <a href="/user/profile#booking-history" class="btn btn-sm btn-outline-secondary">Xem chi tiết</a>
+                                   </div>`}
+                        </div>`;
+                    });
+                    return lookupCard(inner);
+                }
+
+                /** Thẻ hồ sơ bác sĩ — giá và số sao lấy từ DB, không để model tự nghĩ ra. */
+                function buildDoctorProfileHtml(p) {
+                    if (p.error) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa tra được thông tin bác sĩ lúc này ạ. Anh/chị thử lại giúp em nhé.
+                        </div>`);
+                    }
+                    if (p.doctorNotFound) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa tìm thấy bác sĩ "${p.requestedDoctorName}" ạ. Anh/chị xem
+                            <a href="/doctors">danh sách bác sĩ</a> giúp em nhé.
+                        </div>`);
+                    }
+                    if (p.doctorAmbiguous) {
+                        const names = (p.candidates || []).map(function(d) {
+                            return `<button class="quick-reply-btn" onclick="window.sendQuickReply('Khám bác sĩ ${String(d.fullName).replace(/'/g, "\\'")} bao nhiêu tiền?', this)">${d.fullName}</button>`;
+                        }).join('');
+                        return lookupCard(`<div style="font-size:13px;color:#334155;margin-bottom:6px;">
+                            Bên em có mấy bác sĩ cùng tên "${p.requestedDoctorName}" ạ, anh/chị chọn giúp em nhé:
+                        </div><div class="quick-replies-container">${names}</div>`);
+                    }
+
+                    // "chưa có đánh giá" phải xét reviewCount: getAverageRating trả 0.0 chứ không
+                    // null khi chưa ai đánh giá, xét avgRating là dán nhãn 0 sao cho bác sĩ mới.
+                    const ratingLine = (p.reviewCount > 0)
+                        ? `⭐ ${Number(p.avgRating).toFixed(1)}/5 · ${p.reviewCount} đánh giá`
+                        : 'Chưa có đánh giá nào';
+                    const priceLine = (p.price !== null && p.price !== undefined)
+                        ? Number(p.price).toLocaleString('vi-VN') + ' đ/lần khám'
+                        : 'Liên hệ phòng khám';
+
+                    return lookupCard(`
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <img src="${p.avatar}" onerror="this.src='/assets/img/default-doctor.png'"
+                                 style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+                            <div style="font-size:13px;color:#334155;">
+                                <div><strong>BS. ${p.fullName}</strong>${p.degree ? ' — ' + p.degree : ''}</div>
+                                <div style="color:#64748b;">${p.departmentName} · ${p.experienceYears || 0} năm kinh nghiệm</div>
+                            </div>
+                        </div>
+                        <div style="font-size:13px;color:#334155;">
+                            <div><i class="bi bi-cash-coin"></i> <strong>${priceLine}</strong></div>
+                            <div><i class="bi bi-star"></i> ${ratingLine}</div>
+                            ${p.bio ? `<div style="color:#64748b;margin-top:4px;">${p.bio}</div>` : ''}
+                        </div>
+                        <div class="mt-2 d-flex gap-2">
+                            <a href="/doctors/${p.id}" class="btn btn-sm btn-outline-primary">Xem hồ sơ</a>
+                            <a href="${buildAppointmentUrl(p.id, '', '')}" class="btn btn-sm btn-primary">Đặt lịch</a>
+                        </div>`);
+                }
+
+                /** Thẻ "bác sĩ phù hợp tiêu chí anh/chị vừa nêu". */
+                function buildDoctorFilterHtml(data) {
+                    if (data.error) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa tra được danh sách bác sĩ lúc này ạ. Anh/chị thử lại giúp em nhé.
+                        </div>`);
+                    }
+                    const doctors = Array.isArray(data.doctors) ? data.doctors : [];
+                    if (doctors.length === 0) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa tìm được bác sĩ nào khớp tiêu chí đó ạ. Anh/chị xem
+                            <a href="/doctors">toàn bộ danh sách bác sĩ</a> giúp em nhé.
+                        </div>`);
+                    }
+
+                    const criteria = [];
+                    if (data.gender) criteria.push('bác sĩ ' + data.gender.toLowerCase());
+                    if (data.sortBy === 'price') criteria.push('mức giá thấp nhất');
+                    else if (data.sortBy === 'experience') criteria.push('nhiều kinh nghiệm nhất');
+
+                    let inner = `<div class="fw-bold mb-2" style="color:#075985;">
+                        <i class="bi bi-person-badge"></i> Em gợi ý anh/chị${criteria.length ? ' ' + criteria.join(', ') : ''} ạ
+                    </div>`;
+                    doctors.forEach(function(d) {
+                        const rating = (d.reviewCount > 0)
+                            ? '⭐ ' + Number(d.avgRating).toFixed(1) : 'chưa có đánh giá';
+                        const price = (d.price !== null && d.price !== undefined)
+                            ? Number(d.price).toLocaleString('vi-VN') + ' đ' : '';
+                        inner += `<div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#fff;border-radius:6px;">
+                            <img src="${d.avatar}" onerror="this.src='/assets/img/default-doctor.png'"
+                                 style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                            <div style="flex:1;font-size:13px;color:#334155;">
+                                <div><strong>${d.fullName}</strong>${d.degree ? ' — ' + d.degree : ''}</div>
+                                <div style="color:#64748b;">${d.experienceYears || 0} năm KN · ${price} · ${rating}</div>
+                                ${d.worksOnDate ? '' : '<div style="color:#94a3b8;font-size:12px;">Không có ca làm việc ngày anh/chị hỏi</div>'}
+                            </div>
+                            <a href="${buildAppointmentUrl(d.id, d.date, '')}" class="btn btn-sm btn-primary">Chọn</a>
+                        </div>`;
+                    });
+                    return lookupCard(inner);
                 }
 
                 function buildAppointmentUrl(doctorId, appointmentDate, appointmentTime) {
@@ -967,6 +1272,15 @@
                 let lastHandoffDate = '';
 
                 /**
+                 * Bác sĩ vừa được HỎI THĂM ở lượt trước, để hiểu câu tiếp "thế mai thì sao?".
+                 *
+                 * Cố ý là biến RIÊNG, không dùng chung lastHandoffDate: hỏi thăm một bác sĩ không
+                 * phải là chốt một ngày khám, ghi đè vào đó sẽ khiến lượt sửa lịch tiếp theo mượn
+                 * nhầm ngày khách mới chỉ HỎI chứ chưa hề chọn.
+                 */
+                let lastAvailabilityDoctor = null;
+
+                /**
                  * Hỏi server xem còn cách nào cho khung giờ khách vừa xin: bác sĩ cùng khoa
                  * còn trống ĐÚNG giờ đó (ưu tiên người ít ca khám quanh giờ đó nhất), hoặc
                  * khung giờ gần nhất của chính bác sĩ khách đang nhắm tới.
@@ -985,7 +1299,7 @@
                         if (!res.ok) return null;
                         const data = await res.json();
                         // GIỮ payload khi có `reason`, dù không còn hướng nào thay thế: chính cái
-                        // lý do đó ("hôm đó bác sĩ không có ca khám") mới là thứ khách cần nghe.
+                        // lý do đó ("hôm đó bác sĩ không đăng ký ca làm việc") mới là thứ khách cần nghe.
                         // Trước đây chỉ giữ khi có gợi ý nên lý do thật bị vứt đi.
                         const hasAny = data.reason
                             || data.requestedDoctorFree
@@ -1048,6 +1362,21 @@
                 }
 
                 async function resolveBookingHandoff(aiData, userText) {
+                    // Câu HỎI về lịch thì dừng ở đây, kể cả khi booking_intent = true.
+                    //
+                    // booking_intent DÍNH từ lượt trước — mục 5 của prompt bắt model giữ nguyên mọi
+                    // trường khách không nhắc tới — nên giữa một cuộc hội thoại đặt lịch, một câu
+                    // hỏi thăm vẫn mang booking_intent = true. Chạy tiếp là đặt soft-lock 3 phút
+                    // và bật đếm ngược chuyển trang, cho một CÂU HỎI.
+                    //
+                    // An toàn vì looksLikeAvailabilityQuestion trả false với mọi câu có chữ "đặt".
+                    if (looksLikeAvailabilityQuestion(userText)) return null;
+                    // Model cũng nhận ra đây là câu tra cứu -> nhường cho nhánh tra cứu.
+                    const lookupType = aiData && aiData.lookup && aiData.lookup.type;
+                    if (lookupType && lookupType !== 'none' && !looksLikeBookingRequest(userText)) {
+                        return null;
+                    }
+
                     // Model là nguồn chính; nhánh dò chữ chỉ để vớt khi model bỏ sót, và phải loại
                     // các câu HỎI VỀ việc đặt lịch (xem looksLikeBookingRequest).
                     const bookingIntent = aiData
@@ -1351,6 +1680,222 @@
                         fallback: false,
                         suggested: true
                     }));
+                }
+
+                /**
+                 * Khách HỎI về lịch làm việc của một bác sĩ -> trả lời bằng DỮ LIỆU THẬT.
+                 *
+                 * Trả `null` khi câu này không phải câu hỏi lịch. Ngược lại trả về payload của
+                 * /api/chat/doctor-availability, hoặc {doctorAmbiguous} / {doctorNotFound} /
+                 * {error:'NETWORK'} — cùng ba kết cục mà nhánh đặt lịch đã dùng, vì cùng một lý do:
+                 * im lặng còn tệ hơn nói sai.
+                 *
+                 * KHÔNG bao giờ tự chọn bác sĩ khi tên khớp nhiều người (xem pickBestDoctorMatch).
+                 */
+                async function resolveAvailabilityQuestion(aiData, userText) {
+                    const lookup = (aiData && aiData.lookup) || {};
+                    const askedByModel = lookup.type === 'doctor_schedule';
+                    if (!askedByModel && !looksLikeAvailabilityQuestion(userText)) return null;
+
+                    const bookingTarget = (aiData && aiData.booking_target) || {};
+                    const requestedName = (lookup.doctor_name
+                        || extractDoctorName(userText)
+                        || bookingTarget.doctor_name
+                        || '').trim();
+
+                    let doctor = null;
+                    if (requestedName) {
+                        let lookupReached = false;
+                        try {
+                            const url = new URL('/api/doctors/search', window.location.origin);
+                            url.searchParams.set('keyword', requestedName);
+                            const res = await fetch(url.toString());
+                            if (res.ok) {
+                                const doctors = await res.json();
+                                if (Array.isArray(doctors)) {
+                                    lookupReached = true;
+                                    if (doctors.length > 0) doctor = pickBestDoctorMatch(doctors, requestedName);
+                                }
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                        // Lỗi hạ tầng KHÔNG được báo thành lỗi của khách: nuốt nó rồi kết luận
+                        // "chưa tìm thấy bác sĩ X" khiến khách gõ lại đúng tên hàng chục lần vô ích.
+                        if (!lookupReached) return { error: 'NETWORK' };
+                        if (doctor && doctor.ambiguous) {
+                            return { doctorAmbiguous: true, requestedDoctorName: requestedName,
+                                     candidates: doctor.candidates };
+                        }
+                        if (!doctor) {
+                            return { doctorNotFound: true, requestedDoctorName: requestedName };
+                        }
+                    } else if (lastAvailabilityDoctor) {
+                        // "thế mai thì sao?" — không có tên nào trong câu, dùng lại người vừa hỏi.
+                        doctor = lastAvailabilityDoctor;
+                    } else {
+                        // Không biết đang hỏi ai thì không đoán bừa; để model trả lời chung chung.
+                        return null;
+                    }
+
+                    const wantedDate = extractDateHint(userText) || lookup.date || '';
+                    const wantedSession = normalizeTimeHint(userText)
+                        ? '' : (extractSessionHint(userText) || lookup.session || '');
+                    // "tuần này/tuần sau bác sĩ làm ngày nào" -> cần cả dải, không chỉ một ngày.
+                    const wantsWeek = lookup.scope === 'week'
+                        || /tuần|tuan|ngày nào|ngay nao|hôm nào|hom nao|những ngày|nhung ngay/.test(normalizeText(userText));
+
+                    try {
+                        const url = new URL('/api/chat/doctor-availability', window.location.origin);
+                        url.searchParams.set('doctorId', doctor.id);
+                        if (wantedDate) url.searchParams.set('date', wantedDate);
+                        if (wantedSession && wantedSession !== 'evening') {
+                            url.searchParams.set('session', wantedSession);
+                        }
+                        url.searchParams.set('days', wantsWeek ? 7 : 3);
+                        if (sessionId) url.searchParams.set('sessionId', sessionId);
+
+                        const res = await fetch(url.toString());
+                        if (!res.ok) return { error: 'NETWORK' };
+                        const data = await res.json();
+                        if (!data || !data.anchor) return { error: 'NETWORK' };
+
+                        lastAvailabilityDoctor = {
+                            id: data.doctorId, fullName: data.doctorName,
+                            departmentId: data.departmentId, avatar: data.avatar, degree: data.degree
+                        };
+                        data.wantsWeek = wantsWeek;
+                        return data;
+                    } catch (err) {
+                        console.error(err);
+                        return { error: 'NETWORK' };
+                    }
+                }
+
+                /**
+                 * Bộ điều phối cho MỌI câu hỏi TRA CỨU — cửa duy nhất mà sendMessage gọi.
+                 *
+                 * Trả `null` nếu lượt này không phải câu tra cứu, ngược lại là `{kind, ...}` với
+                 * `kind` thuộc availability / my_bookings / doctor_info / doctor_filter.
+                 *
+                 * KHÔNG nhánh nào ở đây được đặt chỗ, đếm ngược hay ghi lastHandoffDate: khách mới
+                 * chỉ HỎI. Muốn đặt thì có LINK để tự bấm.
+                 */
+                async function resolveLookup(aiData, userText) {
+                    const lookup = (aiData && aiData.lookup) || {};
+                    const type = lookup.type;
+
+                    if (type === 'my_bookings' || looksLikeMyBookingQuestion(userText)) {
+                        return await resolveMyBookings();
+                    }
+                    if (type === 'doctor_filter' || looksLikeDoctorFilterQuestion(userText)) {
+                        return await resolveDoctorFilter(aiData, userText);
+                    }
+                    if (type === 'doctor_info' || looksLikeDoctorInfoQuestion(userText)) {
+                        const profile = await resolveDoctorInfo(aiData, userText);
+                        if (profile) return profile;
+                    }
+                    const availability = await resolveAvailabilityQuestion(aiData, userText);
+                    return availability ? Object.assign({ kind: 'availability' }, availability) : null;
+                }
+
+                async function resolveMyBookings() {
+                    // Chưa đăng nhập thì KHÔNG gọi API (nó trả 401): mời đăng nhập ngay tại chỗ.
+                    if (window.MEDITRUST_IS_LOGGED_IN !== true) {
+                        return { kind: 'my_bookings', needLogin: true };
+                    }
+                    try {
+                        const res = await fetch('/api/chat/my-bookings');
+                        if (res.status === 401) return { kind: 'my_bookings', needLogin: true };
+                        if (!res.ok) return { kind: 'my_bookings', error: 'NETWORK' };
+                        const data = await res.json();
+                        return Object.assign({ kind: 'my_bookings' }, data);
+                    } catch (err) {
+                        console.error(err);
+                        return { kind: 'my_bookings', error: 'NETWORK' };
+                    }
+                }
+
+                /** Tra một bác sĩ theo tên, dùng chung cho hồ sơ và lịch làm việc. */
+                async function findDoctorByName(name) {
+                    try {
+                        const url = new URL('/api/doctors/search', window.location.origin);
+                        url.searchParams.set('keyword', name);
+                        const res = await fetch(url.toString());
+                        if (!res.ok) return { error: 'NETWORK' };
+                        const doctors = await res.json();
+                        if (!Array.isArray(doctors) || doctors.length === 0) return null;
+                        return pickBestDoctorMatch(doctors, name);
+                    } catch (err) {
+                        console.error(err);
+                        return { error: 'NETWORK' };
+                    }
+                }
+
+                async function resolveDoctorInfo(aiData, userText) {
+                    const lookup = (aiData && aiData.lookup) || {};
+                    const name = (lookup.doctor_name || extractDoctorName(userText) || '').trim();
+                    let doctor = name ? await findDoctorByName(name) : lastAvailabilityDoctor;
+
+                    if (doctor && doctor.error) return { kind: 'doctor_info', error: 'NETWORK' };
+                    // Trùng tên thì HỎI LẠI, không bao giờ tự chọn (xem pickBestDoctorMatch).
+                    if (doctor && doctor.ambiguous) {
+                        return { kind: 'doctor_info', doctorAmbiguous: true,
+                                 requestedDoctorName: name, candidates: doctor.candidates };
+                    }
+                    if (!doctor) {
+                        return name ? { kind: 'doctor_info', doctorNotFound: true, requestedDoctorName: name } : null;
+                    }
+
+                    try {
+                        const res = await fetch('/api/chat/doctor-profile?doctorId=' + encodeURIComponent(doctor.id));
+                        if (!res.ok) return { kind: 'doctor_info', error: 'NETWORK' };
+                        const data = await res.json();
+                        lastAvailabilityDoctor = { id: data.id, fullName: data.fullName,
+                            departmentId: data.departmentId, avatar: data.avatar, degree: data.degree };
+                        return Object.assign({ kind: 'doctor_info' }, data);
+                    } catch (err) {
+                        console.error(err);
+                        return { kind: 'doctor_info', error: 'NETWORK' };
+                    }
+                }
+
+                async function resolveDoctorFilter(aiData, userText) {
+                    const raw = normalizeText(userText);
+                    const lookup = (aiData && aiData.lookup) || {};
+                    const filter = lookup.filter || {};
+                    const bookingTarget = (aiData && aiData.booking_target) || {};
+                    const deptIds = Array.isArray(aiData && aiData.recommended_departments)
+                        ? aiData.recommended_departments : [];
+
+                    let gender = filter.gender || '';
+                    if (/bác sĩ nữ|bac si nu/.test(raw)) gender = 'Nữ';
+                    else if (/bác sĩ nam|bac si nam/.test(raw)) gender = 'Nam';
+
+                    let sortBy = filter.sort_by || '';
+                    if (/rẻ nhất|re nhat|giá thấp|gia thap/.test(raw)) sortBy = 'price';
+                    else if (/kinh nghiệm|kinh nghiem|giỏi nhất|gioi nhat/.test(raw)) sortBy = 'experience';
+
+                    try {
+                        const url = new URL('/api/chat/doctors/filter', window.location.origin);
+                        const deptId = bookingTarget.department_id || deptIds[0] || null;
+                        if (deptId) url.searchParams.set('departmentId', deptId);
+                        if (gender) url.searchParams.set('gender', gender);
+                        if (sortBy) url.searchParams.set('sortBy', sortBy);
+                        const wantedDate = extractDateHint(userText) || lookup.date || '';
+                        if (wantedDate) url.searchParams.set('date', wantedDate);
+
+                        const res = await fetch(url.toString());
+                        if (!res.ok) return { kind: 'doctor_filter', error: 'NETWORK' };
+                        const doctors = await res.json();
+                        if (!Array.isArray(doctors) || doctors.length === 0) {
+                            return { kind: 'doctor_filter', doctors: [], gender: gender, sortBy: sortBy };
+                        }
+                        return { kind: 'doctor_filter', doctors: doctors, gender: gender, sortBy: sortBy };
+                    } catch (err) {
+                        console.error(err);
+                        return { kind: 'doctor_filter', error: 'NETWORK' };
+                    }
                 }
 
         // ==========================================
@@ -2190,9 +2735,63 @@ maximizeBtn.addEventListener('click', (e) => {
                                             // kẻo nó bám theo mãi vào ngữ cảnh của các lượt sau (xem chú thích ở trên).
                                             pendingAlternatives = null;
 
+                                            // ===== KHÁCH HỎI TRA CỨU (lịch làm việc, lịch hẹn, hồ sơ bác sĩ) =====
+                                            // In câu trả lời THẬT ngay dưới câu của model — đúng cái mà mục 5B của
+                                            // prompt đã hứa ("hệ thống lo phần lịch") và cho tới nay chưa hề làm khi
+                                            // booking_intent = false.
+                                            //
+                                            // BA ĐIỀU CÁC NHÁNH NÀY KHÔNG ĐƯỢC LÀM: gán pendingAlternatives, gọi
+                                            // /hold-slot, chạy startRedirectCountdown. Cả ba chỉ nằm trong
+                                            // finishBookingHandoff, nên chỉ cần KHÔNG gọi hàm đó là đủ. Cũng KHÔNG
+                                            // ghi lastHandoffDate: khách mới chỉ HỎI về một ngày, chưa chọn nó.
+                                            const lookupResult = await resolveLookup(aiData, text);
+                                            const availability = (lookupResult && lookupResult.kind === 'availability')
+                                                ? lookupResult : null;
+
+                                            if (lookupResult && lookupResult.kind === 'my_bookings') {
+                                                typingMsg.innerHTML += buildMyBookingsHtml(lookupResult);
+                                            } else if (lookupResult && lookupResult.kind === 'doctor_info') {
+                                                typingMsg.innerHTML += buildDoctorProfileHtml(lookupResult);
+                                            } else if (lookupResult && lookupResult.kind === 'doctor_filter') {
+                                                typingMsg.innerHTML += buildDoctorFilterHtml(lookupResult);
+                                            } else if (availability && availability.doctorAmbiguous) {
+                                                const names = (availability.candidates || [])
+                                                    .map(function(d) {
+                                                        return `<button class="quick-reply-btn" onclick="window.sendQuickReply('Bác sĩ ${String(d.fullName).replace(/'/g, "\\'")} có lịch khám hôm nào?', this)">${d.fullName}</button>`;
+                                                    }).join('');
+                                                typingMsg.innerHTML += `
+                                                    <div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">
+                                                        <div class="fw-bold mb-1" style="color:#075985;">
+                                                            <i class="bi bi-people"></i> Bên em có mấy bác sĩ cùng tên "${availability.requestedDoctorName}" ạ
+                                                        </div>
+                                                        <div style="font-size:13px;color:#334155;margin-bottom:6px;">Anh/chị chọn giúp em một người nhé:</div>
+                                                        <div class="quick-replies-container">${names}</div>
+                                                    </div>`;
+                                            } else if (availability && availability.doctorNotFound) {
+                                                typingMsg.innerHTML += `
+                                                    <div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">
+                                                        <div style="font-size:13px;color:#334155;">
+                                                            Em chưa tìm thấy bác sĩ "${availability.requestedDoctorName}" ạ. Anh/chị
+                                                            kiểm tra lại tên giúp em, hoặc xem <a href="/doctors">danh sách bác sĩ</a> nhé.
+                                                        </div>
+                                                    </div>`;
+                                            } else if (availability && availability.error) {
+                                                // Hỏng hạ tầng thì nói là hỏng hạ tầng, đừng để khách tưởng bác sĩ rảnh.
+                                                typingMsg.innerHTML += `
+                                                    <div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">
+                                                        <div style="font-size:13px;color:#334155;">
+                                                            Em chưa tra được lịch làm việc của bác sĩ lúc này ạ. Anh/chị thử lại
+                                                            giúp em, hoặc xem <a href="/doctor-schedule">lịch khám</a> nhé.
+                                                        </div>
+                                                    </div>`;
+                                            } else if (availability) {
+                                                typingMsg.innerHTML += buildAvailabilityHtml(availability);
+                                            }
+
                                             // Lưu lại khung HTML (Đã chạy ngầm memory JSON)
                                             safeStorage.setChatHtml(messagesContainer.innerHTML);
-                                            notifyReply({ aiData: aiData, userText: text, bookingHandoff: null });
+                                            notifyReply({ aiData: aiData, userText: text, bookingHandoff: null,
+                                                          availability: availability });
 
                                         } catch (renderError) {
                                             // Lỗi ở phần DỰNG GIAO DIỆN (sau khi JSON đã parse xong).

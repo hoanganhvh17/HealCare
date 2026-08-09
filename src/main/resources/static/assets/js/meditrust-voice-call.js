@@ -462,6 +462,18 @@
             return;
         }
 
+        // Khách HỎI về lịch làm việc của bác sĩ (không phải xin đặt lịch).
+        //
+        // BẮT BUỘC awaitingConfirm = null và BẮT BUỘC kết bằng câu hỏi MỞ: ở đây không có lịch hẹn
+        // nào để một tiếng "vâng" chốt cả. Thiếu nhánh này thì lớp gọi rơi thẳng xuống say(spoken)
+        // và câu trả lời về lịch — thứ duy nhất khách hỏi — không bao giờ được đọc lên.
+        if (payload.availability) {
+            awaitingConfirm = null;
+            say(spoken + ' ' + describeAvailability(payload.availability),
+                function () { startListening(); });
+            return;
+        }
+
         // KB1 — đã chốt được bác sĩ + khung giờ: hỏi xác nhận rồi mới điều hướng
         if (payload.bookingHandoff) {
             awaitingConfirm = payload.bookingHandoff;
@@ -506,6 +518,12 @@
             ? 'Dạ ' + V().humanizeSchedule(alt.reasonText) + ' '
             : 'Dạ khung giờ ' + wanted + ' đã kín lịch rồi ạ. ';
 
+        // Đổi NGÀY phải nói ngay sau lý do, TRƯỚC mọi hướng chọn: nghe mỗi giờ mà không nghe ngày
+        // là khách gật đầu rồi đến sai hôm.
+        if (alt.otherTimesMovedDay && alt.otherTimesText) {
+            text += V().humanizeSchedule(alt.otherTimesText) + ' ';
+        }
+
         if (sameTime.length > 0) {
             text += 'Em gợi ý anh/chị bác sĩ ' + sameTime[0].fullName
                 + ' cùng chuyên khoa, còn nhận ' + V().humanizeSchedule(sameTime[0].slotLabel || wanted)
@@ -515,7 +533,7 @@
             // slotLabel có kèm thứ/ngày: gợi ý có thể đã phải rơi sang ngày khác vì hôm khách xin
             // bác sĩ nghỉ. Đọc mỗi giờ mà giấu ngày là khách đến sai hôm.
             text += 'Hoặc anh/chị giữ bác sĩ ' + (alt.requestedDoctorName || handoff.doctorName || 'hiện tại')
-                + ' và dời sang ' + V().humanizeSchedule(otherTimes[0].slotLabel || otherTimes[0].slot) + '. ';
+                + ' và chuyển sang ' + V().humanizeSchedule(otherTimes[0].slotLabel || otherTimes[0].slot) + '. ';
         }
 
         if (sameTime.length === 0 && otherTimes.length === 0) {
@@ -523,6 +541,46 @@
                 + 'Anh/chị muốn em tìm bác sĩ khác cùng chuyên khoa không ạ?';
         }
         return text + 'Anh/chị chọn hướng nào ạ?';
+    }
+
+    /**
+     * Câu đọc khi khách HỎI về lịch làm việc của một bác sĩ.
+     *
+     * Kết bằng câu hỏi MỞ, không bao giờ câu có/không: khách chưa xin đặt gì, một tiếng "vâng" ở
+     * đây mà bị hiểu thành xác nhận là tạo lịch hẹn khách không hề yêu cầu.
+     *
+     * Lý do lấy nguyên văn reasonText/summaryText của server — viết theo định dạng máy nên
+     * humanizeSchedule đọc thành lời được, không cần bản riêng cho loa.
+     */
+    function describeAvailability(av) {
+        if (av.doctorAmbiguous) {
+            var names = (av.candidates || []).map(function (d) { return d.fullName; });
+            return 'Dạ bên em có ' + names.length + ' bác sĩ cùng tên ' + av.requestedDoctorName
+                + ': ' + names.join(', ') + '. Anh/chị hỏi về bác sĩ nào ạ?';
+        }
+        if (av.doctorNotFound) {
+            return 'Dạ em chưa tìm thấy bác sĩ ' + av.requestedDoctorName
+                + '. Anh/chị đọc lại tên giúp em ạ?';
+        }
+        if (av.error) {
+            return 'Dạ em chưa tra được lịch làm việc lúc này ạ. Anh/chị thử lại giúp em nhé?';
+        }
+
+        var anchor = av.anchor || {};
+        var text = anchor.reasonText ? 'Dạ ' + V().humanizeSchedule(anchor.reasonText) + ' ' : '';
+
+        // Ngày khách hỏi bác sĩ không làm -> đọc thêm vài ngày bác sĩ CÓ làm, để khách không phải
+        // hỏi lại từng ngày một.
+        var working = (av.week || []).filter(function (d) {
+            return d.freeCount > 0 && d.date !== anchor.date;
+        }).slice(0, 2);
+        if (!anchor.freeCount && working.length > 0) {
+            text += 'Bác sĩ còn nhận khám ' + working.map(function (d) {
+                return V().humanizeSchedule(d.dayLabel);
+            }).join(' và ') + '. ';
+        }
+
+        return text + 'Anh/chị muốn em xem lịch ngày nào ạ?';
     }
 
     /** KB3 — chuyển overlay sang chế độ cảnh báo cấp cứu. */

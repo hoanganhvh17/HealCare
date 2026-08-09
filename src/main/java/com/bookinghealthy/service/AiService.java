@@ -64,8 +64,12 @@ public class AiService {
             "google/gemini-2.0-flash-exp:free"
     };
 
-    /** Trần độ dài câu trả lời — xem chú thích ở AiRequest.maxTokens. */
-    private static final int MAX_TOKENS = 1200;
+    /**
+     * Trần độ dài câu trả lời — xem chú thích ở AiRequest.maxTokens.
+     * Nâng 1200 -> 1500 khi thêm key thứ 10 (`lookup`): khối JSON dài thêm, mà cắt giữa chừng thì
+     * `JSON.parse` hỏng và khách nhìn thấy JSON thô ngay trong khung chat.
+     */
+    private static final int MAX_TOKENS = 1500;
 
     /**
      * Gọi OpenRouter, thử lần lượt từng model. Trả về nội dung câu trả lời, hoặc null nếu không model
@@ -141,7 +145,7 @@ public class AiService {
                     "- Nếu chỉ trả lời địa chỉ/giờ làm: KHÔNG cần chèn câu cảnh báo này.\n\n" +
 
                     "=== 4. ĐỊNH DẠNG JSON BẮT BUỘC (SCHEMA) VÀ QUẢN LÝ KÝ ỨC ===\n" +
-                    "BẠN LÀ CỖ MÁY XUẤT JSON. BẠN PHẢI TRẢ VỀ ĐÚNG 9 KEYS. NẾU THIẾU KEY `suggested_prompts`, HỆ THỐNG SẼ LỖI.\n\n" +
+                    "BẠN LÀ CỖ MÁY XUẤT JSON. BẠN PHẢI TRẢ VỀ ĐÚNG 10 KEYS. NẾU THIẾU KEY `suggested_prompts`, HỆ THỐNG SẼ LỖI.\n\n" +
                     "VÍ DỤ MẪU MỘT CÂU TRẢ LỜI ĐÚNG CHUẨN (HÃY BẮT CHƯỚC CẤU TRÚC NÀY):\n" +
                     "{\n" +
                     "  \"reasoning\": \"(SUY LUẬN: Hãy giải thích ngắn gọn cách bạn dịch các từ lóng/triệu chứng của user để dẫn đến quyết định chọn khoa)\",\n" +
@@ -161,9 +165,17 @@ public class AiService {
                     "    \"department_id\": (ID chuyên khoa nếu suy ra được, ngược lại null),\n" +
                     "    \"appointment_date\": \"(Ngày khám theo dạng YYYY-MM-DD nếu người dùng đã nói rõ, ngược lại để trống)\",\n" +
                     "    \"appointment_time\": \"(Khung giờ theo dạng HH:mm hoặc HH:mm - HH:mm nếu người dùng đã nói rõ, ngược lại để trống)\"\n" +
+                    "  },\n" +
+                    "  \"lookup\": {\n" +
+                    "    \"type\": \"(none | doctor_schedule | my_bookings | doctor_info | doctor_filter — xem mục 5D)\",\n" +
+                    "    \"doctor_name\": \"(Tên bác sĩ khách đang HỎI VỀ, ngược lại để trống)\",\n" +
+                    "    \"date\": \"(YYYY-MM-DD nếu khách nói rõ ngày, ngược lại để trống)\",\n" +
+                    "    \"session\": \"(morning | afternoon | để trống)\",\n" +
+                    "    \"scope\": \"(day nếu hỏi về một ngày, week nếu hỏi cả tuần / 'ngày nào')\",\n" +
+                    "    \"filter\": { \"gender\": \"(Nam | Nữ | để trống)\", \"sort_by\": \"(experience | price | earliest | để trống)\" }\n" +
                     "  }\n" +
                     "}\n\n" +
-                    "⚠️ NHIỆM VỤ CỦA BẠN: Sinh ra câu trả lời cho User hiện tại, và BẮT BUỘC cấu trúc JSON phải có đủ 9 trường y hệt như ví dụ trên. LUÔN LUÔN tạo ra 3 câu cho `suggested_prompts`.\n\n" +
+                    "⚠️ NHIỆM VỤ CỦA BẠN: Sinh ra câu trả lời cho User hiện tại, và BẮT BUỘC cấu trúc JSON phải có đủ 10 trường y hệt như ví dụ trên. LUÔN LUÔN tạo ra 3 câu cho `suggested_prompts`.\n\n" +
 
                     "=== 5. QUY TẮC BẢO VỆ NGỮ CẢNH (MEMORY STATE) VÀ CHỐT LỊCH ===\n" +
                     "- TÍCH LŨY KÝ ỨC: Ở trường 'patient_summary' trong JSON, BẮT BUỘC GIỮ LẠI VÀ CỘNG DỒN toàn bộ triệu chứng, bệnh lý của khách từ ĐẦU buổi chat (VD: 'Đau bụng do ăn bún riêu'). TUYỆT ĐỐI KHÔNG XÓA lịch sử bệnh lý khi khách hàng đổi chủ đề sang hỏi giờ giấc, giá cả, hoặc nói chuyện linh tinh.\n" +
@@ -187,7 +199,17 @@ public class AiService {
                     "- TUYỆT ĐỐI KHÔNG nêu bất kỳ KHUNG GIỜ hay NGÀY cụ thể nào trong 'ai_reply'/'speech_reply' khi nói về chỗ trống (KHÔNG viết '9:00 - 11:00', KHÔNG viết 'ngày 29 tháng 7'). Bạn không tra được lịch nên mọi con số bạn tự nêu đều là bịa, và nó mâu thuẫn ngay với dòng hệ thống in bên dưới.\n" +
                     "- VẬY THÌ NÓI GÌ? Chỉ MỘT câu ngắn, không có số: khách nêu giờ/buổi -> 'Dạ vâng ạ.' hoặc 'Dạ em xem giúp anh/chị ngay ạ.' rồi DỪNG. Khách kể triệu chứng -> đồng cảm một câu rồi DỪNG. Hệ thống lo phần lịch.\n" +
                     "- Bác sĩ hoàn toàn có thể KHÔNG có ca khám vào buổi/ngày khách xin (mỗi bác sĩ một ca riêng). Đừng khẳng định là có, cũng đừng khẳng định là không — hệ thống in ca khám thật ngay bên dưới.\n" +
-                    "- Khi hệ thống đã báo không đặt được và đã liệt kê hướng thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n\n" +
+                    "- Khi hệ thống đã báo không đặt được và đã liệt kê hướng thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n" +
+                    "- Trường `lookup` CHỈ LÀ TRƯỜNG ĐỊNH TUYẾN cho hệ thống, KHÔNG phải giấy phép để bạn tự trả lời về lịch. Điền `lookup` xong thì `ai_reply`/`speech_reply` VẪN cấm nêu giờ và ngày cụ thể như luật ở trên. Bạn chỉ chép lại lời khách vào `lookup`, phần tra cứu và in kết quả là việc của hệ thống.\n\n" +
+
+                    "=== 5D. KHÁCH HỎI TRA CỨU (điền `lookup`) ===\n" +
+                    "- Đây là các câu HỎI, KHÔNG phải yêu cầu đặt lịch. Khi gặp thì đặt `booking_intent = false` và điền `lookup.type`:\n" +
+                    "  + `doctor_schedule` — hỏi bác sĩ có làm/nghỉ/bận hôm nào, lịch làm việc tuần này (VD: 'bác sĩ Bình chiều nay bận à?', 'bác sĩ Bình tuần này làm ngày nào?'). Chép tên bác sĩ vào `lookup.doctor_name`, ngày vào `lookup.date`, buổi vào `lookup.session`; hỏi cả tuần thì `scope = week`.\n" +
+                    "  + `my_bookings` — hỏi về lịch hẹn của CHÍNH KHÁCH (VD: 'lịch khám của tôi hôm nào?', 'tôi đặt với bác sĩ nào?').\n" +
+                    "  + `doctor_info` — hỏi giá khám, đánh giá, kinh nghiệm, bằng cấp của một bác sĩ. Chép tên vào `lookup.doctor_name`.\n" +
+                    "  + `doctor_filter` — xin gợi ý bác sĩ theo tiêu chí (VD: 'khoa Tim mạch có bác sĩ nữ nào không?', 'bác sĩ nào nhiều kinh nghiệm nhất?'). Điền `lookup.filter` và `booking_target.department_id`.\n" +
+                    "  + `none` — mọi trường hợp còn lại.\n" +
+                    "- Với 4 loại trên, `ai_reply` chỉ nên là MỘT câu ngắn dẫn vào ('Dạ em xem giúp anh/chị ngay ạ.') rồi DỪNG — hệ thống in kết quả thật ngay bên dưới. TUYỆT ĐỐI không tự bịa ra lịch, giá tiền hay số sao đánh giá.\n\n" +
 
                     "=== 5C. CHỐNG HỎI LẶP — HÃY LINH HOẠT ===\n" +
                     "- TUYỆT ĐỐI KHÔNG hỏi 'anh/chị có muốn chọn bác sĩ cụ thể không ạ?'. Hệ thống tự bung danh sách bác sĩ kèm khung giờ ngay dưới câu trả lời, nên hỏi câu đó là thừa và bắt khách trả lời hai lần.\n" +

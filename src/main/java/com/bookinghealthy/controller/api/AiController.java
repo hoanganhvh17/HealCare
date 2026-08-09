@@ -428,7 +428,7 @@ public class AiController {
     // Câu trả lời thật về chỗ trống đến từ đây:
     //   - reason / reasonText: VÌ SAO khung giờ đó không đặt được. Bắt buộc phải có — trước đây
     //     cả thẻ chat lẫn câu đọc đều nói cứng "đã kín lịch", nên khách không phân biệt được
-    //     "có người đặt trước" với "hôm đó bác sĩ không có ca khám".
+    //     "có người đặt trước" với "hôm đó bác sĩ không đăng ký ca làm việc".
     //   - sameTimeDoctors: bác sĩ CÙNG KHOA còn trống ĐÚNG khung giờ khách xin,
     //     xếp theo số ca khám quanh giờ đó (ít ca nhất lên đầu -> khách đỡ ngồi chờ).
     //   - otherTimes: các khung giờ gần nhất của chính bác sĩ khách đang nhắm tới. Nếu hôm đó
@@ -550,20 +550,39 @@ public class AiController {
                 result.put("requestedDoctorFree", freeSlot != null);
                 result.put("requestedDoctorName", doctorName);
                 result.put("requestedDoctorWorkingRanges", day.workingRanges());
+                // Rỗng ở requestedDoctorWorkingRanges có hai nghĩa ngược nhau — cờ này phân biệt.
+                result.put("scheduleKnown", day.isScheduleKnown());
 
                 if (freeSlot != null) {
                     result.put("reason", "FREE");
                     // Khách xin cả buổi thì khung chốt được là khung sớm nhất còn trống của buổi đó.
                     result.put("slot", freeSlot);
                 } else {
-                    String reason = day.worstReasonIn(wantedRange, sessionId, nowMillis);
-                    result.put("reason", reason);
+                    ReasonSummary summary = day.summarizeReasonsIn(wantedRange, sessionId, nowMillis);
+                    result.put("reason", summary.dominant());
+                    result.put("reasonBreakdown", summary.counts());
+                    result.put("freeCountInRange", summary.free());
                     result.put("reasonText", buildReasonText(
-                            reason, doctorName, targetDate, wantedSlot, wantedSession, day.workingRanges()));
+                            summary, doctorName, targetDate, wantedSlot, wantedSession, day));
                 }
 
                 otherTimes.addAll(findOtherTimes(doc, doctorName, targetDate, wantedSlot,
                         wantedSession, sessionId, nowMillis));
+
+                // ĐỔI NGÀY LÀ THAY ĐỔI LỚN NHẤT VỚI KHÁCH. findOtherTimes có thể nhảy tới 7 ngày
+                // để tìm ngày bác sĩ còn làm việc; nếu chỉ trả danh sách khung giờ thì khách đọc
+                // "dời sang khung gần nhất", bấm nút, và tới NHẦM HÔM. Ba key này để giao diện đưa
+                // chuyện đổi ngày lên DÒNG TIÊU ĐỀ.
+                if (!otherTimes.isEmpty()) {
+                    String firstDate = (String) otherTimes.get(0).get("date");
+                    boolean moved = firstDate != null && !firstDate.equals(targetDate.toString());
+                    result.put("otherTimesDate", firstDate);
+                    result.put("otherTimesMovedDay", moved);
+                    result.put("otherTimesText", moved
+                            ? "Ngày làm việc gần nhất của bác sĩ " + doctorName + " là "
+                              + buildDayLabel(java.time.LocalDate.parse(firstDate)) + " ạ."
+                            : null);
+                }
             }
         }
 
@@ -578,6 +597,205 @@ public class AiController {
         }
 
         return ResponseEntity.ok(result);
+    }
+
+    // =========================================================================
+    // KHÁCH **HỎI** VỀ LỊCH LÀM VIỆC, KHÔNG PHẢI XIN ĐẶT LỊCH
+    //
+    // "bác sĩ X chiều nay bận à?" là một CÂU HỎI. Trước endpoint này, hệ thống chỉ tra được lịch
+    // khi khách đang ĐẶT: /slot-alternatives chỉ có đúng một nơi gọi, nằm bên trong
+    // resolveBookingHandoff, mà hàm đó thoát ngay khi booking_intent = false. Trong khi đó mục 1
+    // và 5B của prompt CẤM model khẳng định bác sĩ có khám hay không, và hứa "hệ thống lo phần
+    // lịch" — lời hứa chưa từng được thực hiện ở nhánh câu hỏi. Khách nhận một câu chung chung,
+    // bên dưới trống trơn, rồi tự hiểu thành "bác sĩ đang rảnh".
+    //
+    // CỐ Ý KHÔNG tái dùng /slot-alternatives:
+    //   - hàm đó BẮT BUỘC có departmentId và duyệt toàn bộ bác sĩ trong khoa — thừa cho một câu
+    //     hỏi về đúng một người;
+    //   - về ngữ nghĩa nó là một LỜI MỜI ĐẶT LỊCH (sameTimeDoctors, otherTimes, slot), nhét câu
+    //     trả lời vào đó là mời giao diện gán nó vào pendingAlternatives — đúng thứ phải tránh;
+    //   - nó chỉ xử lý MỘT ngày, không trả lời được "tuần này bác sĩ làm ngày nào".
+    //
+    // KHÔNG đặt soft-lock: hỏi thăm không phải là chốt chỗ.
+    // =========================================================================
+    private static final int AVAILABILITY_MAX_DAYS = 14;
+
+    @GetMapping("/doctor-availability")
+    public ResponseEntity<Map<String, Object>> getDoctorAvailability(
+            @RequestParam Long doctorId,
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) Integer days,
+            @RequestParam(required = false) String session,
+            @RequestParam(required = false) String sessionId) {
+
+        Doctor doc = doctorService.findById(doctorId).orElse(null);
+        if (doc == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "DOCTOR_NOT_FOUND"));
+        }
+        DoctorDTO dto = new DoctorDTO(doc);
+        String doctorName = dto.getFullName();
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate targetDate = today;
+        if (date != null && !date.trim().isEmpty()) {
+            try {
+                targetDate = java.time.LocalDate.parse(date.trim());
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("doctorId", dto.getId());
+        result.put("doctorName", doctorName);
+        result.put("departmentId", dto.getDepartmentId());
+        result.put("avatar", dto.getAvatar());
+        result.put("degree", dto.getDegree());
+        result.put("date", targetDate.toString());
+
+        String wantedSession = normalizeSessionParam(session);
+        result.put("session", wantedSession);
+
+        long nowMillis = System.currentTimeMillis();
+        Map<String, Object> anchor = new HashMap<>();
+        result.put("anchor", anchor);
+        anchor.put("date", targetDate.toString());
+        anchor.put("dayLabel", buildDayLabel(targetDate));
+
+        // Cùng hai lá chắn của /slot-alternatives, và cùng lý do: bác sĩ KHÔNG có lịch làm việc cho
+        // ngày đã qua, nên slotsOutsideWorkingHours trả rỗng = "không giới hạn" -> cả 16 khung đọc
+        // ra FREE và trợ lý hồn nhiên báo "cả ngày còn trống" về một ngày đã trôi qua.
+        if (targetDate.isBefore(today)) {
+            anchor.put("dayState", "PAST");
+            anchor.put("reason", "PAST");
+            anchor.put("reasonText", buildDayLabel(targetDate)
+                    + " đã qua rồi ạ, em xem giúp anh/chị lịch từ hôm nay trở đi nhé.");
+            anchor.put("scheduleKnown", false);
+            anchor.put("workingRanges", new java.util.ArrayList<String>());
+            anchor.put("freeCount", 0);
+            anchor.put("firstFreeSlot", null);
+            // Tuần vẫn bắt đầu từ HÔM NAY, và summaryText nói rõ điều đó — không lặng lẽ đổi mốc.
+            targetDate = today;
+        } else if (targetDate.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) {
+            anchor.put("dayState", "PAST");
+            anchor.put("reason", "TOO_FAR");
+            anchor.put("reasonText", "Phòng khám chỉ nhận đặt lịch trước tối đa "
+                    + MAX_BOOKING_AHEAD_DAYS + " ngày ạ.");
+            anchor.put("scheduleKnown", false);
+            anchor.put("workingRanges", new java.util.ArrayList<String>());
+            anchor.put("freeCount", 0);
+            anchor.put("firstFreeSlot", null);
+            result.put("week", new java.util.ArrayList<Map<String, Object>>());
+            result.put("summaryText", "Phòng khám chỉ nhận đặt lịch trước tối đa "
+                    + MAX_BOOKING_AHEAD_DAYS + " ngày ạ.");
+            return ResponseEntity.ok(result);
+        } else {
+            DaySlots day = new DaySlots(doctorId, targetDate);
+            List<String> wantedRange = slotsOfSession(null, wantedSession);
+            ReasonSummary summary = day.summarizeReasonsIn(wantedRange, sessionId, nowMillis);
+
+            fillDayInfo(anchor, day, targetDate, wantedRange, sessionId, nowMillis);
+            anchor.put("reason", summary.free() > 0 ? "FREE" : summary.dominant());
+            anchor.put("reasonBreakdown", summary.counts());
+            anchor.put("reasonText", summary.free() > 0
+                    ? buildFreeText(doctorName, targetDate, day, wantedSession, summary.free())
+                    : buildReasonText(summary, doctorName, targetDate, null, wantedSession, day));
+        }
+
+        // days kẹp trong [1, 14]: endpoint này permitAll, không để một vòng lặp quét sạch lịch cả
+        // năm của bác sĩ.
+        int span = (days == null) ? 7 : Math.max(1, Math.min(AVAILABILITY_MAX_DAYS, days));
+        List<Map<String, Object>> week = new java.util.ArrayList<>();
+        List<String> workingDayPhrases = new java.util.ArrayList<>();
+        boolean anyScheduleKnown = false;
+
+        for (int offset = 0; offset < span; offset++) {
+            java.time.LocalDate d = targetDate.plusDays(offset);
+            if (d.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) break;
+
+            DaySlots day = new DaySlots(doctorId, d);
+            Map<String, Object> info = new HashMap<>();
+            fillDayInfo(info, day, d, ALL_SLOTS_LIST, sessionId, nowMillis);
+            week.add(info);
+            anyScheduleKnown |= day.isScheduleKnown();
+
+            @SuppressWarnings("unchecked")
+            List<String> ranges = (List<String>) info.get("workingRanges");
+            if (!ranges.isEmpty()) {
+                workingDayPhrases.add(buildDayLabel(d) + " (" + String.join(" và ", ranges) + ")");
+            }
+        }
+        result.put("week", week);
+        result.put("scheduleKnown", anyScheduleKnown);
+        result.put("summaryText", buildWeekSummary(doctorName, workingDayPhrases, span, anyScheduleKnown));
+        return ResponseEntity.ok(result);
+    }
+
+    /** Một ô ngày trong dải lịch: ca đã đăng ký, còn mấy khung, khung sớm nhất. */
+    private void fillDayInfo(Map<String, Object> info, DaySlots day, java.time.LocalDate d,
+                             List<String> pool, String sessionId, long nowMillis) {
+        List<String> ranges = day.workingRanges();
+        List<String> free = day.freeSlotsIn(pool, sessionId, nowMillis);
+
+        info.put("date", d.toString());
+        info.put("dayLabel", buildDayLabel(d));
+        info.put("scheduleKnown", day.isScheduleKnown());
+        info.put("workingRanges", ranges);
+        info.put("freeCount", free.size());
+        info.put("firstFreeSlot", free.isEmpty() ? null : free.get(0));
+
+        String state;
+        if (!day.isScheduleKnown()) {
+            // Rỗng vì hệ thống chưa biết, KHÔNG phải vì bác sĩ nghỉ. Hai chuyện khác hẳn nhau.
+            state = "NO_SCHEDULE";
+        } else if (ranges.isEmpty()) {
+            state = "OFF_ALL_DAY";
+        } else if (free.isEmpty()) {
+            state = "FULL";
+        } else {
+            state = "PARTIAL";
+        }
+        info.put("dayState", state);
+    }
+
+    /** Bác sĩ CÒN chỗ — câu này phải nêu ca làm việc thật, không chỉ nói "còn trống". */
+    private String buildFreeText(String doctorName, java.time.LocalDate date, DaySlots day,
+                                 String wantedSession, int freeCount) {
+        String when = buildDayLabel(date);
+        String who = "bác sĩ " + doctorName;
+        List<String> ranges = day.workingRanges();
+        String scope = (wantedSession != null) ? sessionLabel(wantedSession) : "trong ngày";
+
+        if (!day.isScheduleKnown()) {
+            return when + " " + who + " còn " + freeCount + " khung trống " + scope + " ạ.";
+        }
+        return when + " " + who + " có ca làm việc " + String.join(" và ", ranges)
+                + ", còn " + freeCount + " khung trống " + scope + " ạ.";
+    }
+
+    /**
+     * "Tuần này bác sĩ X có ca khám T2 04/08 (07:30 - 11:30) và T4 06/08 (13:30 - 17:30) ạ."
+     * Giữ định dạng máy để {@code MediTrustVoice.humanizeSchedule()} đọc thành lời.
+     */
+    private String buildWeekSummary(String doctorName, List<String> phrases, int span,
+                                    boolean anyScheduleKnown) {
+        String who = "bác sĩ " + doctorName;
+        if (phrases.isEmpty()) {
+            // HAI trường hợp rỗng khác hẳn nhau, và nói nhầm là mâu thuẫn ngay với dòng bên trên:
+            // bác sĩ CHƯA đăng ký lịch vẫn đặt khám được (luật "chưa đăng ký = không giới hạn" của
+            // BookingService), nên câu "không đăng ký ca làm việc nào" ở đây sẽ đá nhau với câu
+            // "còn 8 khung trống" mà chính hàm này in ra ở anchor.
+            return anyScheduleKnown
+                    ? span + " ngày tới " + who + " không đăng ký ca làm việc nào ạ."
+                    : "Hệ thống chưa có lịch đăng ký của " + who
+                      + ", nhưng anh/chị vẫn đặt khám trong giờ hành chính được ạ.";
+        }
+        if (phrases.size() == 1) {
+            return span + " ngày tới " + who + " chỉ có ca khám " + phrases.get(0) + " ạ.";
+        }
+        String last = phrases.get(phrases.size() - 1);
+        String head = String.join(", ", phrases.subList(0, phrases.size() - 1));
+        return span + " ngày tới " + who + " có ca khám " + head + " và " + last + " ạ.";
     }
 
     /**
@@ -635,6 +853,52 @@ public class AiController {
             "Phòng khám chỉ nhận đặt khám trong giờ hành chính 07:30 - 11:30 và 13:30 - 17:30 ạ.";
 
     /**
+     * Lý do nào được chọn làm câu chính khi cả phạm vi có nhiều lý do BẰNG NHAU về số khung.
+     *
+     * Cùng thứ tự với {@code DaySlots.blockReason}: sự thật về CON NGƯỜI (bác sĩ không đăng ký ca,
+     * bác sĩ báo bận) đứng trên sự thật về MỘT KHUNG GIỜ (có người đặt, đang giữ chỗ), vì cái trước
+     * còn đúng cả ngày còn cái sau có thể đổi sau một phút.
+     */
+    private static final String[] REASON_TIE_BREAK = {"OFF_DUTY", "BLOCKED", "BOOKED", "HELD", "PAST"};
+
+    /** Mỗi lý do chiếm bao nhiêu khung trong phạm vi khách xin, kèm lý do chính. */
+    private record ReasonSummary(String dominant, java.util.Map<String, Integer> counts,
+                                 int free, int total) {
+        /**
+         * Lý do đứng thứ hai (khác dominant, số khung > 0) — để câu trả lời nói được CẢ HAI sự thật.
+         *
+         * PAST bị loại khỏi vị trí này: "đã trôi qua" là tính chất của ĐỒNG HỒ chứ không phải của
+         * bác sĩ, nên ghép nó vào câu chỉ tạo nhiễu — "hôm nay bác sĩ không đăng ký ca nào, trong
+         * ngày có 8 khung ngoài ca làm việc và 8 khung đã trôi qua" khiến khách tưởng 8 khung kia
+         * lẽ ra đặt được.
+         */
+        String runnerUp() {
+            String second = null;
+            int best = 0;
+            for (java.util.Map.Entry<String, Integer> e : counts.entrySet()) {
+                if (e.getKey().equals(dominant) || "PAST".equals(e.getKey())) continue;
+                if (e.getValue() > best) {
+                    best = e.getValue();
+                    second = e.getKey();
+                }
+            }
+            return second;
+        }
+    }
+
+    /** "6 khung ngoài ca làm việc đã đăng ký" — mệnh đề phụ ghép vào câu lý do chính. */
+    private String reasonClause(String reason, int count) {
+        switch (reason) {
+            case "OFF_DUTY": return count + " khung ngoài ca làm việc bác sĩ đã đăng ký";
+            case "BLOCKED":  return count + " khung bác sĩ báo bận";
+            case "BOOKED":   return count + " khung đã có bệnh nhân khác đặt";
+            case "HELD":     return count + " khung đang chờ người khác xác nhận";
+            case "PAST":     return count + " khung đã trôi qua";
+            default:         return null;
+        }
+    }
+
+    /**
      * Câu giải thích cho khách, dùng CHUNG cho thẻ chat và câu đọc của trợ lý giọng nói.
      * Cố ý viết theo đúng định dạng máy ("T3 28/07", "13:30 - 17:30") để
      * {@code MediTrustVoice.humanizeSchedule()} tự đọc thành lời — đừng thêm một bản riêng cho loa.
@@ -642,32 +906,81 @@ public class AiController {
      * hiển thị của bệnh viện, một lần replace nhầm là thành "NNL HospitalVoice" — sai ký hiệu.)
      * Xưng hô theo mục 0 của prompt: em / anh-chị.
      */
-    private String buildReasonText(String reason, String doctorName, java.time.LocalDate date,
-                                   String wantedSlot, String wantedSession, List<String> workingRanges) {
+    private String buildReasonText(ReasonSummary summary, String doctorName, java.time.LocalDate date,
+                                   String wantedSlot, String wantedSession, DaySlots day) {
+        if (summary == null || summary.dominant() == null) return null;
+
+        String reason = summary.dominant();
         String when = buildDayLabel(date);
         String who = "bác sĩ " + doctorName;
         String slotPart = (wantedSlot != null) ? "khung giờ " + wantedSlot : sessionLabel(wantedSession);
+        // Khách chỉ nêu NGÀY, không nêu buổi -> "buổi sáng/buổi chiều" đều sai, nói "trong ngày".
+        String scopeLabel = (wantedSession != null) ? sessionLabel(wantedSession) : "trong ngày";
+        // Bản đứng ĐẦU CÂU. Ghép "Trong " + scopeLabel sẽ ra "Trong trong ngày".
+        String scopeIn = (wantedSession != null) ? "Trong " + sessionLabel(wantedSession) : "Trong ngày";
+        List<String> workingRanges = day.workingRanges();
 
-        if (reason == null) return null;
+        String main;
         switch (reason) {
             case "OFF_DUTY":
-                return workingRanges.isEmpty()
-                        ? when + " " + who + " không có ca khám ạ."
-                        : when + " " + who + " chỉ khám " + String.join(" và ", workingRanges) + " ạ.";
+                if (!day.isScheduleKnown()) {
+                    // Rỗng ở đây KHÔNG có nghĩa là bác sĩ nghỉ — hệ thống chưa có lịch nào của
+                    // người này. Nói "không đăng ký ca nào" là vu oan, nói giờ làm việc là bịa.
+                    main = "Hệ thống chưa có lịch đăng ký của " + who + " cho tuần chứa " + when + " ạ.";
+                } else if (workingRanges.isEmpty()) {
+                    // "không đăng ký ca làm việc" chứ TUYỆT ĐỐI KHÔNG phải "không có ca khám":
+                    // câu cũ đọc được thành "không có ai đặt khám bác sĩ" nên khách hiểu ngược
+                    // hoàn toàn — tưởng bác sĩ đang rảnh rồi hỏi "vậy sao không đặt cho tôi?".
+                    main = when + " " + who + " không đăng ký ca làm việc nào, nên hôm đó bác sĩ không khám ạ.";
+                } else {
+                    // Khách không nêu buổi nào -> "khung giờ này" trỏ vào hư không; nói "ngoài
+                    // khung đó" mới đúng nghĩa "phần còn lại của ngày".
+                    String offPart = (wantedSlot != null || wantedSession != null)
+                            ? slotPart + " hôm đó" : "ngoài khung đó";
+                    main = when + " " + who + " chỉ đăng ký ca làm việc "
+                            + String.join(" và ", workingRanges) + ", nên " + offPart
+                            + " bác sĩ không nhận khám ạ.";
+                }
+                break;
             case "BOOKED":
-                return slotPart + " " + when + " của " + who + " đã có người đặt rồi ạ.";
+                // Mở đầu bằng "CÓ khám ... nhưng" là vế đối của OFF_DUTY: khách phải phân biệt
+                // được "bác sĩ không làm" với "bác sĩ có làm nhưng hết chỗ".
+                // Khách xin cả buổi thì slotPart TRÙNG scopeLabel ("...CÓ khám buổi chiều, nhưng
+                // buổi chiều đã có người đặt") — nói "các khung giờ đều" cho gọn và đúng hơn.
+                String bookedPart = (wantedSlot != null)
+                        ? slotPart + " đã có bệnh nhân khác đặt trước rồi ạ."
+                        : "các khung giờ đều đã có bệnh nhân khác đặt trước rồi ạ.";
+                main = who + " CÓ khám " + scopeLabel + " " + when + ", nhưng " + bookedPart;
+                break;
             case "BLOCKED":
-                return who + " đã báo bận " + slotPart + " " + when + " ạ.";
+                main = day.isBlockedAllDay()
+                        ? when + " " + who + " báo bận cả ngày nên không nhận khám ạ."
+                        : when + " " + who + " có ca làm việc nhưng đã báo bận " + slotPart + " ạ.";
+                break;
             case "HELD":
                 // Người kia đã CHỐT khung này và đang trong bước điền phiếu đặt lịch (khoá 3 phút).
-                return slotPart + " " + when + " vừa có người khác chọn và đang chờ xác nhận ạ.";
+                main = slotPart + " " + when + " vừa có bệnh nhân khác chọn và đang chờ xác nhận ạ.";
+                break;
             case "PAST":
-                return slotPart + " " + when + " đã trôi qua rồi ạ.";
+                main = slotPart + " " + when + " đã trôi qua rồi ạ.";
+                break;
             case "OUTSIDE_HOURS":
                 return OUTSIDE_HOURS_TEXT;
             default:
                 return null;
         }
+
+        // Phạm vi có NHIỀU lý do -> nói cả hai. Tối đa 2 mệnh đề: lớp giọng nói đọc nguyên văn
+        // câu này, chuỗi bốn mệnh đề nghe như đọc báo cáo.
+        String second = summary.runnerUp();
+        if (second != null && summary.total() > 1) {
+            String firstClause = reasonClause(reason, summary.counts().getOrDefault(reason, 0));
+            String secondClause = reasonClause(second, summary.counts().getOrDefault(second, 0));
+            if (firstClause != null && secondClause != null) {
+                main += " " + scopeIn + " có " + firstClause + " và " + secondClause + " ạ.";
+            }
+        }
+        return main;
     }
 
     /** "morning" -> "buổi sáng". Dùng khi khách nêu buổi chứ không nêu giờ cụ thể. */
@@ -747,6 +1060,14 @@ public class AiController {
         private final Long doctorId;
         private final java.time.LocalDate date;
         private final java.util.Set<String> offDuty;
+        /**
+         * Hệ thống có biết ca làm việc của bác sĩ trong tuần này không.
+         *
+         * BẮT BUỘC phải đọc kèm {@link #offDuty}: offDuty rỗng có HAI nghĩa ngược nhau —
+         * "nhận khám cả ngày" (đã đăng ký, ca phủ hết) và "chưa đăng ký gì cả" (không giới hạn).
+         * Không có cờ này thì câu trả lời cho bệnh nhân sẽ bịa ra một ngày làm việc đầy đủ.
+         */
+        private final boolean scheduleKnown;
         private final List<String> bookedTimes;
         private final List<com.bookinghealthy.model.DoctorBlockTime> blocked;
 
@@ -754,6 +1075,7 @@ public class AiController {
             this.doctorId = doctorId;
             this.date = date;
             this.offDuty = offDutySlots(doctorId, date);
+            this.scheduleKnown = bookingService.hasRegisteredSchedule(doctorId, date);
             this.bookedTimes = bookingRepository
                     .findByDoctorIdAndAppointmentDateAndStatusNot(doctorId, date,
                             com.bookinghealthy.model.BookingStatus.CANCELED)
@@ -808,21 +1130,55 @@ public class AiController {
         }
 
         /**
-         * Lý do đại diện cho cả phạm vi khách xin. Cả buổi đều OFF_DUTY thì nói OFF_DUTY (bác sĩ
-         * nghỉ buổi đó); có khung nghỉ có khung bận thì lý do "gần khách" hơn mới là câu đáng nói.
+         * Bức tranh ĐẦY ĐỦ của cả phạm vi khách xin: đếm theo TỪNG lý do, không chọn một lý do
+         * đại diện rồi vứt phần còn lại.
+         *
+         * Nửa buổi ngoài ca làm việc + nửa buổi đã có người đặt là HAI sự thật khác nhau. Bản cũ
+         * (worstReasonIn) chỉ nói mỗi "đã có người đặt" nên khách tưởng bác sĩ rảnh cả buổi, chỉ
+         * là hết chỗ — đúng cái hiểu lầm mà cả mục này sinh ra để dập.
+         *
+         * Thứ tự phá hoà nay TRÙNG với {@link #blockReason}: OFF_DUTY/BLOCKED là sự thật về CON
+         * NGƯỜI, vẫn còn đúng sau một tiếng nữa; BOOKED/HELD là sự thật về MỘT KHUNG GIỜ, có thể
+         * đổi trong một phút. Trước đây hai hàm này xếp NGƯỢC nhau.
          */
-        String worstReasonIn(List<String> pool, String sessionId, long nowMillis) {
-            java.util.Set<String> reasons = new java.util.LinkedHashSet<>();
+        ReasonSummary summarizeReasonsIn(List<String> pool, String sessionId, long nowMillis) {
+            java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+            int free = 0;
             for (String slot : pool) {
                 String reason = blockReason(slot, sessionId, nowMillis);
-                if (reason != null) reasons.add(reason);
+                if (reason == null) {
+                    free++;
+                } else {
+                    counts.merge(reason, 1, Integer::sum);
+                }
             }
-            if (reasons.isEmpty()) return null;
-            if (reasons.size() == 1) return reasons.iterator().next();
-            for (String preferred : new String[]{"BOOKED", "BLOCKED", "HELD", "OFF_DUTY", "PAST"}) {
-                if (reasons.contains(preferred)) return preferred;
+            if (counts.isEmpty()) return new ReasonSummary(null, counts, free, pool.size());
+
+            String dominant = null;
+            int best = -1;
+            for (String candidate : REASON_TIE_BREAK) {
+                int count = counts.getOrDefault(candidate, 0);
+                if (count > best) {
+                    best = count;
+                    dominant = candidate;
+                }
             }
-            return reasons.iterator().next();
+            return new ReasonSummary(dominant, counts, free, pool.size());
+        }
+
+        /** Khối chặn này có phủ trọn ngày làm việc không — để phân biệt "bận cả ngày" với "bận một buổi". */
+        boolean isBlockedAllDay() {
+            for (com.bookinghealthy.model.DoctorBlockTime block : blocked) {
+                if (!block.getStartTime().isAfter(java.time.LocalTime.of(7, 30))
+                        && !block.getEndTime().isBefore(java.time.LocalTime.of(17, 30))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean isScheduleKnown() {
+            return scheduleKnown;
         }
 
         /** Số ca khám của bác sĩ trong khoảng ±NEARBY_MINUTES quanh giờ khách xin. */
@@ -836,8 +1192,15 @@ public class AiController {
          * CHỈ ĐỂ HIỂN THỊ. Tuyệt đối không đảo ngược thành whitelist để lọc khung giờ: bác sĩ
          * chưa đăng ký lịch nào thì {@code offDuty} rỗng, nên danh sách này thành "cả ngày" —
          * đúng cho câu nói, nhưng dùng làm bộ lọc thì mất luôn ý nghĩa "chưa đăng ký = không giới hạn".
+         *
+         * RỖNG CÓ HAI NGHĨA, phải đọc kèm {@link #isScheduleKnown()}:
+         *   scheduleKnown = true  -> có đăng ký tuần đó nhưng KHÔNG có ca vào thứ này (nghỉ hẳn).
+         *   scheduleKnown = false -> hệ thống chưa có lịch nào; offDuty rỗng nên vòng lặp dưới sẽ
+         *                            dựng ra "07:30 - 11:30 và 13:30 - 17:30" — một ngày làm việc
+         *                            HOÀN TOÀN BỊA. Thà không nói gì còn hơn nói bịa, nên chặn ở đây.
          */
         List<String> workingRanges() {
+            if (!scheduleKnown) return java.util.Collections.emptyList();
             List<String> ranges = new java.util.ArrayList<>();
             String openAt = null;
             String previousEnd = null;

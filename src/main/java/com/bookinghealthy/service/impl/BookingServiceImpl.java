@@ -160,6 +160,13 @@ public class BookingServiceImpl implements BookingService {
         return outside;
     }
 
+    @Override
+    public boolean hasRegisteredSchedule(Long doctorId, LocalDate date) {
+        // Cùng một đường tra tuần với hai hàm trên — KHÔNG được đọc findByDoctorId, hàm đó trộn
+        // mọi tuần lại với nhau.
+        return !scheduleRepository.findEffective(doctorId, date).isEmpty();
+    }
+
     /** Slot nằm trọn trong ít nhất một ca làm việc của bác sĩ đúng thứ trong tuần. */
     private boolean isWithinAnySchedule(List<Schedule> schedules, LocalDate date,
                                         LocalTime slotStart, LocalTime slotEnd) {
