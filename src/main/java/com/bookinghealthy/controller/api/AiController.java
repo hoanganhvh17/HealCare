@@ -313,112 +313,156 @@ public class AiController {
     // =========================================================================
     // API LẤY DATA BÁC SĨ (cùng bộ lọc với BookingApi, KỂ CẢ ca khám đã đăng ký)
     // =========================================================================
+    /** Tối đa bao nhiêu thẻ bác sĩ trả về. Cắt SAU khi xếp hạng, không bao giờ trước. */
+    private static final int MAX_DOCTOR_CARDS = 3;
+
+    /** Một bác sĩ kèm căn cứ xếp hạng, chỉ sống trong một lần gọi endpoint. */
+    private static final class DoctorRank {
+        final Doctor doctor;
+        final boolean pinned;
+        java.time.LocalDate rankedOn;
+        List<String> preview = new java.util.ArrayList<>();
+        String matchedSlot;          // khung trống đầu tiên nằm trong phạm vi khách xin
+        int nearbyLoad = Integer.MAX_VALUE;
+        int dayLoad = Integer.MAX_VALUE;
+
+        DoctorRank(Doctor doctor, boolean pinned) {
+            this.doctor = doctor;
+            this.pinned = pinned;
+        }
+
+        int experience() {
+            return doctor.getExperienceYears() == null ? 0 : doctor.getExperienceYears();
+        }
+    }
+
     @GetMapping("/doctors/department/{departmentId}")
     public ResponseEntity<List<DoctorDTO>> getDoctorsByDepartment(@PathVariable Long departmentId,
                                                                   @RequestParam(required = false) String sessionId,
-                                                                  @RequestParam(required = false) Long doctorId) {
+                                                                  @RequestParam(required = false) Long doctorId,
+                                                                  @RequestParam(required = false) String date,
+                                                                  @RequestParam(required = false) String time,
+                                                                  @RequestParam(required = false) String session) {
 
-        List<Doctor> doctors = new java.util.ArrayList<>(doctorService.findByDepartmentId(departmentId));
-
-        // Khi khách chỉ đích danh một bác sĩ ("đổi sang bác sĩ B"), phải đưa người đó lên đầu
-        // TRƯỚC khi .limit(3) cắt danh sách. Nếu không, bác sĩ B nằm ngoài top 3 sẽ bị loại
-        // và frontend âm thầm rơi về bác sĩ đầu danh sách — tức là đặt nhầm người.
-        if (doctorId != null) {
-            doctors.sort(java.util.Comparator.comparing((Doctor d) -> !doctorId.equals(d.getId())));
+        // Phạm vi khách xin. Dùng lại y nguyên helper của /slot-alternatives — KHÔNG liệt kê giờ
+        // ở đây, nếu không lưới khung giờ có thêm nơi khai báo thứ 12 (xem /skills/sync-slot-grid).
+        String wantedSession = normalizeSessionParam(session);
+        String wantedSlot = (time == null || time.isBlank()) ? null : resolveCanonicalSlot(time);
+        if (wantedSlot != null) {
+            wantedSession = sessionOf(wantedSlot);
         }
-        java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM");
-        java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+        // Giờ NGOÀI lưới ("7 giờ tối") ở đây im lặng hạ xuống "không ràng buộc giờ", TUYỆT ĐỐI
+        // không trả OUTSIDE_HOURS: câu đó là của /slot-alternatives, mà nhánh A luôn gọi tới nó.
+        // Hai nơi cùng trả lời một câu hỏi chính là cách lưới khung giờ đẻ ra bản sao.
+        List<String> wantedRange = slotsOfSession(wantedSlot, wantedSession);
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate startDate = today;
+        if (date != null && !date.isBlank()) {
+            try {
+                java.time.LocalDate parsed = java.time.LocalDate.parse(date.trim());
+                // Ngày đã qua / quá xa thì lùi về hôm nay. Không kẹp thì bác sĩ không có Schedule
+                // cho ngày đó -> slotsOutsideWorkingHours rỗng = "không giới hạn" -> mọi khung đọc
+                // ra trống và toàn bộ việc xếp hạng thành vô nghĩa.
+                if (!parsed.isBefore(today) && !parsed.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) {
+                    startDate = parsed;
+                }
+            } catch (Exception ignored) {
+                // Ngày rác -> hôm nay. Đây là endpoint dựng thẻ gợi ý, không đáng trả 400.
+            }
+        }
 
         long nowMillis = System.currentTimeMillis();
+        List<DoctorRank> rows = new java.util.ArrayList<>();
+        for (Doctor doc : doctorService.findByDepartmentId(departmentId)) {
+            rows.add(new DoctorRank(doc, doctorId != null && doctorId.equals(doc.getId())));
+        }
 
-        List<DoctorDTO> doctorDtos = doctors.stream()
-                .limit(3)
-                .map(doc -> {
-                    DoctorDTO dto = new DoctorDTO(doc);
-                    List<String> availableSlots = new java.util.ArrayList<>();
+        // ===== QUÉT THEO NGÀY, KHÔNG THEO BÁC SĨ =====
+        // Bản cũ cho mỗi bác sĩ tự quét 7 ngày rồi dừng ở ngày mở đầu tiên CỦA CHÍNH MÌNH, nên
+        // preview của người A có thể là ngày mai còn người B là thứ Sáu tuần sau — hai người
+        // không bao giờ được đem ra so với nhau. Vòng ngoài là NGÀY thì cả khoa cùng được chấm
+        // trên một ngày, và đó là điều kiện cần để xếp hạng có nghĩa.
+        for (int offset = 0; offset < FORWARD_SCAN_DAYS; offset++) {
+            java.time.LocalDate day = startDate.plusDays(offset);
+            if (day.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) break;
 
-                    java.time.LocalDate today = java.time.LocalDate.now();
-                    java.time.LocalTime now = java.time.LocalTime.now();
-                    java.time.LocalDate endDate = today.plusDays(7); // Quét 7 ngày tới
+            boolean anyoneFree = false;
+            for (DoctorRank row : rows) {
+                DaySlots slots = new DaySlots(row.doctor.getId(), day);
+                List<String> free = slots.freeSlotsIn(ALL_SLOTS_LIST, sessionId, nowMillis);
+                if (free.isEmpty()) continue;
 
-                    // Quét từng ngày, bắt đầu từ HÔM NAY
-                    for (java.time.LocalDate date = today; date.isBefore(endDate); date = date.plusDays(1)) {
+                anyoneFree = true;
+                row.rankedOn = day;
+                row.preview = free.stream().limit(4)
+                        .map(slot -> buildSlotLabel(day, slot))
+                        .collect(Collectors.toList());
+                row.matchedSlot = free.stream().filter(wantedRange::contains).findFirst().orElse(null);
 
-                        // 1. Kéo dữ liệu các giờ ĐÃ BỊ ĐẶT (Booking)
-                        List<com.bookinghealthy.model.Booking> bookings = bookingRepository
-                                .findByDoctorIdAndAppointmentDateAndStatusNot(doc.getId(), date, com.bookinghealthy.model.BookingStatus.CANCELED);
-                        List<String> bookedTimes = bookings.stream()
-                                .map(com.bookinghealthy.model.Booking::getAppointmentTime)
-                                .collect(Collectors.toList());
+                java.time.LocalTime anchor = (row.matchedSlot != null) ? slotStartOf(row.matchedSlot)
+                        : (wantedSlot != null) ? slotStartOf(wantedSlot)
+                        : slotStartOf(free.get(0));
+                row.nearbyLoad = slots.nearbyLoad(anchor);
+                row.dayLoad = slots.bookedTimes.size();
+            }
+            if (anyoneFree) break;   // cả khoa đã được chấm trên CÙNG ngày này
+        }
 
-                        // 2. Kéo dữ liệu các giờ BỊ CHẶN (DoctorBlockTime)
-                        List<com.bookinghealthy.model.DoctorBlockTime> blockedTimes = doctorBlockTimeRepository
-                                .findByDoctorIdAndBlockDate(doc.getId(), date);
+        // ===== XẾP HẠNG =====
+        // XẾP HẠNG CHỈ ĐỔI THỨ TỰ, TUYỆT ĐỐI KHÔNG LOẠI AI. Lọc bỏ người bận sẽ phá hai thứ:
+        // bác sĩ khách nêu đích danh mà đang kín lịch sẽ biến mất -> frontend bắn doctorNotFound
+        // ("Em chưa tìm thấy bác sĩ X" về một người có thật); và khoa kín lịch trả [] -> frontend
+        // bắn NO_DOCTORS, giết luôn đường giải thích lý do của /slot-alternatives.
+        rows.sort(java.util.Comparator
+                // 1. Bác sĩ khách gọi đích danh luôn đứng đầu, KỂ CẢ khi bận (false xếp trước true)
+                .comparing((DoctorRank r) -> !r.pinned)
+                // 2. Trống đúng giờ/buổi khách xin
+                .thenComparing(r -> r.matchedSlot == null)
+                // 3. Ít ca quanh giờ đó nhất -> khách đỡ phải ngồi chờ
+                .thenComparingInt(r -> r.nearbyLoad)
+                .thenComparingInt(r -> r.dayLoad)
+                .thenComparingInt(r -> -r.experience())
+                // 5. Thứ tự TOÀN PHẦN: hoà tuyệt đối cũng không được rơi về thứ tự DB ngẫu nhiên
+                .thenComparing(r -> r.doctor.getId()));
 
-                        // 3. Ca khám bác sĩ đã đăng ký cho tuần chứa ngày này
-                        java.util.Set<String> offDuty = offDutySlots(doc.getId(), date);
-                        if (offDuty.size() == ALL_SLOTS.length) {
-                            continue;   // hôm đó bác sĩ nghỉ hẳn, khỏi duyệt từng khung
-                        }
+        List<DoctorRank> top = rows.size() > MAX_DOCTOR_CARDS
+                ? new java.util.ArrayList<>(rows.subList(0, MAX_DOCTOR_CARDS)) : rows;
 
-                        // 4. Duyệt mảng ALL_SLOTS để tìm giờ TRỐNG
-                        for (String slotStr : ALL_SLOTS) {
-                            String[] parts = slotStr.split(" - ");
-                            java.time.LocalTime slotStart = java.time.LocalTime.parse(parts[0], timeFormatter);
-                            java.time.LocalTime slotEnd = java.time.LocalTime.parse(parts[1], timeFormatter);
+        // Bù preview cho người lọt top nhưng không rảnh đúng ngày xếp hạng — dải thẻ vẫn cần
+        // "ca trống gần nhất" của họ. Thứ hạng đã chốt nên vòng này không xáo lại được gì.
+        for (DoctorRank row : top) {
+            if (!row.preview.isEmpty()) continue;
+            java.time.LocalDate from = (row.rankedOn != null) ? row.rankedOn.plusDays(1) : startDate;
+            for (java.time.LocalDate d = from; d.isBefore(startDate.plusDays(FORWARD_SCAN_DAYS)); d = d.plusDays(1)) {
+                if (d.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) break;
+                List<String> free = new DaySlots(row.doctor.getId(), d)
+                        .freeSlotsIn(ALL_SLOTS_LIST, sessionId, nowMillis);
+                if (free.isEmpty()) continue;
+                final java.time.LocalDate labelDate = d;
+                row.preview = free.stream().limit(4)
+                        .map(slot -> buildSlotLabel(labelDate, slot))
+                        .collect(Collectors.toList());
+                break;
+            }
+        }
 
-                            // Lọc 1: Bỏ qua giờ trong quá khứ (nếu là ngày hôm nay)
-                            if (date.isEqual(today) && slotStart.isBefore(now)) {
-                                continue;
-                            }
-
-                            // Lọc 2: Bỏ qua khung NGOÀI ca khám bác sĩ đã đăng ký.
-                            // Phải nằm TRƯỚC bộ đặt soft-lock bên dưới: trước đây thiếu bộ lọc này
-                            // nên endpoint vừa mời giờ bác sĩ đang nghỉ, vừa khoá luôn khung đó 3 phút
-                            // với các phiên chat khác — một chỗ giữ chẳng bao giờ thành lịch hẹn.
-                            if (offDuty.contains(slotStr)) {
-                                continue;
-                            }
-
-                            // Lọc 3: Bỏ qua giờ đã có khách đặt
-                            if (bookedTimes.contains(slotStr)) {
-                                continue;
-                            }
-
-                            // Lọc 4: Bỏ qua giờ Bác sĩ tự chặn (Overlap logic y hệt BookingApi)
-                            boolean isBlocked = false;
-                            for (com.bookinghealthy.model.DoctorBlockTime block : blockedTimes) {
-                                if (slotStart.isBefore(block.getEndTime()) && slotEnd.isAfter(block.getStartTime())) {
-                                    isBlocked = true;
-                                    break;
-                                }
-                            }
-                            if (isBlocked) continue;
-
-                            // Lọc 5: bỏ qua khung đang được PHIÊN KHÁC giữ chỗ.
-                            // CHỈ ĐỌC, không đặt khoá — xem chú thích ở phần khai báo softLockCache.
-                            if (isHeldByAnotherSession(doc.getId(), date, slotStr, sessionId, nowMillis)) {
-                                continue;
-                            }
-
-                            // NẾU VƯỢT QUA CÁC BỘ LỌC TRÊN -> CHÍNH LÀ GIỜ TRỐNG!
-                            String displaySlot = translateDay(date.getDayOfWeek()) + " " + date.format(dateFormatter) + " (" + slotStr + ")";
-                            availableSlots.add(displaySlot);
-
-                            if (availableSlots.size() >= 4) break; // Lấy 4 slot thôi cho UI gọn
-                        }
-
-                        // QUAN TRỌNG: Đã tìm thấy giờ trống của ngày gần nhất thì DỪNG LUÔN, không nhảy ngày hôm sau nữa!
-                        if (!availableSlots.isEmpty()) {
-                            break;
-                        }
-                    }
-
-                    dto.setAvailableSlots(availableSlots);
-                    return dto;
-                })
-                .collect(Collectors.toList());
-        System.out.println(">>> Đang lấy lịch cho Session: " + sessionId);
+        List<DoctorDTO> doctorDtos = new java.util.ArrayList<>();
+        for (DoctorRank row : top) {
+            DoctorDTO dto = new DoctorDTO(row.doctor);
+            dto.setAvailableSlots(row.preview);
+            if (row.rankedOn != null) {
+                dto.setNearbyLoad(row.nearbyLoad);
+                dto.setDayLoad(row.dayLoad);
+                dto.setMatchedDate(row.rankedOn.toString());
+                dto.setMatchedSlot(row.matchedSlot);
+                dto.setMatchesRequest(row.matchedSlot != null);
+                if (row.matchedSlot != null) {
+                    dto.setMatchedSlotLabel(buildSlotLabel(row.rankedOn, row.matchedSlot));
+                }
+            }
+            doctorDtos.add(dto);
+        }
         return ResponseEntity.ok(doctorDtos);
     }
     // =========================================================================
@@ -1066,8 +1110,14 @@ public class AiController {
          * BẮT BUỘC phải đọc kèm {@link #offDuty}: offDuty rỗng có HAI nghĩa ngược nhau —
          * "nhận khám cả ngày" (đã đăng ký, ca phủ hết) và "chưa đăng ký gì cả" (không giới hạn).
          * Không có cờ này thì câu trả lời cho bệnh nhân sẽ bịa ra một ngày làm việc đầy đủ.
+         *
+         * TÍNH LƯỜI (null = chưa hỏi). {@code hasRegisteredSchedule} gọi lại đúng
+         * {@code findEffective} mà {@code offDutySlots} vừa gọi — trả tiền hai lần cho cùng một
+         * câu hỏi. Chỉ lớp GIẢI THÍCH cần nó ({@link #workingRanges()} và khoá `scheduleKnown`
+         * trong payload); đường XẾP HẠNG bác sĩ duyệt cả khoa × nhiều ngày và không hề đụng tới,
+         * nên để lười là bớt hẳn một truy vấn cho mỗi (bác sĩ, ngày).
          */
-        private final boolean scheduleKnown;
+        private Boolean scheduleKnown;
         private final List<String> bookedTimes;
         private final List<com.bookinghealthy.model.DoctorBlockTime> blocked;
 
@@ -1075,7 +1125,6 @@ public class AiController {
             this.doctorId = doctorId;
             this.date = date;
             this.offDuty = offDutySlots(doctorId, date);
-            this.scheduleKnown = bookingService.hasRegisteredSchedule(doctorId, date);
             this.bookedTimes = bookingRepository
                     .findByDoctorIdAndAppointmentDateAndStatusNot(doctorId, date,
                             com.bookinghealthy.model.BookingStatus.CANCELED)
@@ -1178,6 +1227,9 @@ public class AiController {
         }
 
         boolean isScheduleKnown() {
+            if (scheduleKnown == null) {
+                scheduleKnown = bookingService.hasRegisteredSchedule(doctorId, date);
+            }
             return scheduleKnown;
         }
 
@@ -1200,7 +1252,8 @@ public class AiController {
          *                            HOÀN TOÀN BỊA. Thà không nói gì còn hơn nói bịa, nên chặn ở đây.
          */
         List<String> workingRanges() {
-            if (!scheduleKnown) return java.util.Collections.emptyList();
+            // Qua accessor, KHÔNG đọc thẳng field: nó tính lười nên còn null lúc này -> unbox là NPE.
+            if (!isScheduleKnown()) return java.util.Collections.emptyList();
             List<String> ranges = new java.util.ArrayList<>();
             String openAt = null;
             String previousEnd = null;

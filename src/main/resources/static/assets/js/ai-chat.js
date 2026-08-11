@@ -14,9 +14,6 @@
         const historyPanel = document.getElementById('ai-history-panel');
         const historyList = document.getElementById('history-list');
 
-        // ==========================================
-                // 0. KHỞI TẠO CSS CHO NÚT GỢI Ý & HÀM GLOBAL
-                // ==========================================
                 const style = document.createElement('style');
                 style.innerHTML = `
                     .quick-replies-container {
@@ -139,36 +136,19 @@
 
 
 
-                // Hàm Global xử lý khi khách bấm vào nút gợi ý
                 window.sendQuickReply = function(text, btnElement) {
-                    // 1. Xóa toàn bộ cụm nút gợi ý để khung chat sạch sẽ
                     const container = btnElement.closest('.quick-replies-container');
                     if (container) container.remove();
 
-                    // 2. Điền text vào ô input và tự động bấm nút Gửi
                     const chatInput = document.getElementById('ai-chat-input');
                     const sendBtn = document.getElementById('ai-chat-send');
                     if (chatInput && sendBtn) {
                         chatInput.value = text;
-                        sendBtn.click(); // Kích hoạt sự kiện gửi tin nhắn
+                        sendBtn.click();
                     }
                 };
 
-                /**
-                 * sessionStorage KHÔNG BAO GIỜ được phép ném ra ngoài.
-                 *
-                 * Ở chế độ riêng tư, khi trình duyệt chặn cookie/bộ nhớ bên thứ ba, hoặc trong iframe
-                 * sandbox, chỉ riêng việc ĐỌC cũng ném SecurityError. Lời gọi đầu tiên nằm ngay trong
-                 * DOMContentLoaded, nên exception ở đó làm chết cả phần còn lại của script: nút Gửi
-                 * không được gắn sự kiện, window.MediTrustChat không tồn tại — khung chat hiện ra
-                 * nhưng bấm Gửi hoàn toàn không phản ứng, và không có một lời báo lỗi nào.
-                 *
-                 * Trường hợp thứ hai là HẾT DUNG LƯỢNG: 'meditrust_chat_html' lưu toàn bộ HTML khung
-                 * chat (kể cả thẻ bác sĩ, vài KB mỗi lượt) và không bao giờ được cắt bớt. setItem ném
-                 * QuotaExceededError ngay bên trong appendMessage, mà appendMessage lại được gọi
-                 * ngoài khối try của sendMessage -> tin nhắn không gửi đi, không bong bóng, im lặng.
-                 */
-                const CHAT_HTML_LIMIT = 300000;   // ~300KB, còn cách xa hạn mức ~5MB của trình duyệt
+                const CHAT_HTML_LIMIT = 300000;
                 const safeStorage = {
                     get: function(key) {
                         try { return sessionStorage.getItem(key); } catch (e) { return null; }
@@ -178,7 +158,6 @@
                             sessionStorage.setItem(key, value);
                             return true;
                         } catch (e) {
-                            // Đầy bộ nhớ: bỏ lịch sử HTML (thứ cồng kềnh nhất) rồi thử lại một lần.
                             try {
                                 sessionStorage.removeItem('meditrust_chat_html');
                                 sessionStorage.setItem(key, value);
@@ -192,7 +171,6 @@
                     remove: function(key) {
                         try { sessionStorage.removeItem(key); } catch (e) { /* không sao */ }
                     },
-                    /** Lưu HTML khung chat, cắt bớt phần đầu khi quá dài. */
                     setChatHtml: function(html) {
                         const value = (html && html.length > CHAT_HTML_LIMIT)
                             ? html.slice(html.length - CHAT_HTML_LIMIT)
@@ -208,16 +186,6 @@
                         .trim();
                 }
 
-                /**
-                 * Bỏ dấu tiếng Việt: "Trần Văn Bình" -> "tran van binh".
-                 *
-                 * Rất nhiều khách gõ không dấu ("dat lich voi bac si binh"). Trước đây mọi so khớp
-                 * tên đều chạy trên chuỗi CÓ DẤU nên cả nhóm khách này không bao giờ chỉ định được
-                 * bác sĩ — luôn nhận "Em chưa tìm thấy bác sĩ ...".
-                 *
-                 * CHỈ dùng để so khớp TÊN. Đừng đem đi so khớp câu nói: bỏ dấu sẽ biến "sáng" thành
-                 * "sang" (giới từ) và "tôi" thành "toi", đúng hai cái bẫy đã ghi ở extractSessionHint.
-                 */
                 function stripDiacritics(input) {
                     return (input || '')
                         .normalize('NFD')
@@ -229,23 +197,12 @@
                         .trim();
                 }
 
-                /** Ngày hôm nay theo múi giờ MÁY KHÁCH. Không dùng toISOString() vì đó là giờ UTC:
-                 *  ở Việt Nam (UTC+7), sau 17h nó đã nhảy sang ngày mai. */
                 function toIsoDate(date) {
                     return date.getFullYear()
                         + '-' + String(date.getMonth() + 1).padStart(2, '0')
                         + '-' + String(date.getDate()).padStart(2, '0');
                 }
 
-                /**
-                 * Lấy giờ BẮT ĐẦU của một nhãn khung giờ.
-                 *   "T5 24/07 (10:00 - 10:30)" -> "10:00"
-                 *   "10:30 - 11:00"            -> "10:30"
-                 *
-                 * Bắt buộc phải so sánh theo giờ bắt đầu, KHÔNG được dùng indexOf: chuỗi "10:30"
-                 * nằm trong cả khung "10:00 - 10:30" (giờ KẾT THÚC) lẫn khung "10:30 - 11:00".
-                 * Khách xin 10h30 mà khớp bằng indexOf thì trúng ngay khung 10h00.
-                 */
                 function slotStartTime(slotLabel) {
                     const inside = (slotLabel || '').match(/\((.*?)\)/);
                     const range = inside ? inside[1] : (slotLabel || '');
@@ -257,16 +214,6 @@
                     const raw = normalizeText(text);
                     if (!raw) return '';
 
-                    // Neo vào dấu hiệu chỉ giờ ("h", ":", "giờ", "rưỡi") thay vì vơ lấy con số
-                    // ĐẦU TIÊN trong câu: "ngày 25 tháng 7 lúc 10h30" mà lấy số đầu thì ra "25:00",
-                    // còn trong "đặt lịch ngày 5/8" thì con số đó là NGÀY chứ không phải giờ.
-                    //
-                    // `h(?![\p{L}])`, KHÔNG phải `h` trần: chữ "h" trần khớp luôn chữ h mở đầu các từ
-                    // tiếng Việt rất hay đi ngay sau một con số trong hội thoại y tế —
-                    // "đau bụng 3 HÔM nay" ra 15:00, "sốt 2 HÔM rồi" ra 14:00, "2 HOẶC 3 ngày nữa"
-                    // ra 14:00 — rồi giờ ma đó thành mong muốn của khách và được đem đi chốt lịch.
-                    // Lookahead hợp lệ; chỉ LOOKBEHIND `(?<=…)` mới bị cấm (Safari cũ) — xem
-                    // coding-conventions.md.
                     let match = raw.match(/(\d{1,2})\s*(?:h(?![\p{L}])|:|giờ|gio|rưỡi|ruoi)\s*(\d{1,2})?/u);
                     if (!match) match = raw.match(/^(\d{1,2})$/);   // booking_target trả về trần một con số
                     if (!match) return '';
@@ -275,8 +222,6 @@
                     let minute = match[2] !== undefined ? parseInt(match[2], 10) : null;
                     const tail = raw.slice(match.index + match[0].length);
 
-                    // "8h kém 15" = 07:45. Không hiểu "kém" thì hàm trả 08:00 — sai 15 phút mà vẫn
-                    // trông như một giờ hợp lệ nên không ai phát hiện ra.
                     const kem = tail.match(/^\s*(?:kém|kem|thiếu|thieu)\s*(\d{1,2})/);
                     if (kem && minute === null) {
                         hour -= 1;
@@ -284,17 +229,10 @@
                         if (minute >= 60 || minute < 0) return '';
                     }
 
-                    // "10 giờ rưỡi" / "10 rưỡi" = 10:30 — cách nói rất phổ biến khi gọi bằng giọng nói
                     if (minute === null) {
                         minute = /(rưỡi|ruoi)/.test(match[0] + tail.slice(0, 6)) ? 30 : 0;
                     }
 
-                    // "3 giờ chiều" -> 15:00. Ngoài ra bệnh viện chỉ nhận khám trong giờ hành
-                    // chính 07:30-11:30 và 13:30-17:30, nên giờ 1-5 chỉ có thể là buổi chiều,
-                    // trừ khi khách nói rõ "sáng".
-                    //
-                    // Chữ "sáng" phải xét ở NGAY SAU con số chứ không quét cả câu: "đặt 4h chiều mai,
-                    // sáng nay tôi bận" có chữ "sáng" ở vế sau và làm 4h chiều thành 04:00.
                     const nearTail = tail.slice(0, 12);
                     if (hour >= 1 && hour <= 11 && /^[^0-9]{0,10}(chiều|chieu|tối|đêm)/.test(tail)) {
                         hour += 12;
@@ -306,29 +244,10 @@
                     return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
                 }
 
-                /**
-                 * BUỔI khách nhắc tới: 'morning' | 'afternoon' | 'evening' | ''.
-                 *
-                 * Là anh em với normalizeTimeHint() và phải đặt cạnh nó: "sáng"/"chiều" là BUỔI chứ
-                 * không phải giờ, nên normalizeTimeHint cố tình bỏ qua và trả ''. Trước đây không ai
-                 * bắt lấy phần này, nên "đổi sang sáng thứ ba" bị coi như khách không nêu gì cả và
-                 * hệ thống lặng lẽ chốt một khung giờ bất kỳ.
-                 *
-                 * CHỈ gọi khi requestedTime rỗng — "3 giờ chiều" đã được normalizeTimeHint quy thành
-                 * 15:00 rồi, hỏi thêm buổi ở đó là thừa.
-                 *
-                 * Cố ý KHÔNG map buổi ra khung giờ ở đây: việc đó nằm ở server (/slot-alternatives),
-                 * để trình duyệt không trở thành nơi khai báo lưới khung giờ thứ 12.
-                 *
-                 * So khớp bằng chuỗi có ĐỆM KHOẢNG TRẮNG chứ không dùng \b: trong JS, \b chỉ hiểu
-                 * chữ cái ASCII nên "\bđêm\b" KHÔNG BAO GIỜ khớp ('đ' không phải word char, đứng sau
-                 * dấu cách thì không có ranh giới nào cả). Cùng thành ngữ với resolveAlternativeChoice().
-                 */
                 function extractSessionHint(text) {
                     const padded = ' ' + normalizeText(text).replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
                     if (padded === '  ') return '';
 
-                    // padded luôn có dấu cách ở CẢ hai đầu nên ' từ ' đủ bắt mọi vị trí, kể cả đầu/cuối câu.
                     const hasWord = function(words) {
                         return words.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; });
                     };
@@ -336,33 +255,17 @@
                     const hasMorning = hasWord(['sáng', 'buổi sang', 'buoi sang']);
                     const hasAfternoon = hasWord(['chiều', 'chieu', 'trưa', 'trua']);
 
-                    // Khách nêu CẢ HAI buổi ("sáng hoặc chiều đều được", "sáng hay chiều cũng được")
-                    // là KHÔNG kén buổi — trả '' để đừng ép họ vào một buổi họ không hề chọn.
                     if (hasMorning && hasAfternoon && /hoặc|hay|đều được|cũng được|deu duoc|cung duoc/.test(padded)) {
                         return '';
                     }
 
-                    // Xét CHIỀU/TỐI trước rồi mới tới SÁNG. "đổi sang buổi chiều" chứa cả hai manh mối,
-                    // và cái khách thật sự muốn là vế sau.
                     if (hasAfternoon) return 'afternoon';
                     if (hasWord(['tối', 'đêm', 'dem', 'buổi toi', 'buoi toi'])) return 'evening';
                     if (hasMorning) return 'morning';
                     return '';
 
-                    // TUYỆT ĐỐI KHÔNG thêm 'sang' hay 'toi' trần vào danh sách trên:
-                    //   - "sang" là giới từ cực phổ biến ("đổi SANG buổi chiều", "chuyển SANG chiều mai"),
-                    //     nhận nhầm thành "sáng" là hỏi server đúng buổi NGƯỢC LẠI ý khách.
-                    //   - "toi" trùng "tôi" khi khách gõ không dấu ("cho toi dat lich").
-                    // Khách gõ không dấu vẫn được hỗ trợ qua cụm rõ nghĩa "buoi sang" / "buoi toi".
                 }
 
-                /**
-                 * Buổi đó của HÔM NAY đã trôi qua chưa (sáng hết sau 11:30, chiều hết sau 17:30).
-                 *
-                 * Khách KHÔNG nêu buổi thì mốc là hết giờ hành chính: 18h thứ Năm mà nói "đặt lịch
-                 * thứ 5" thì ý là thứ Năm TUẦN SAU. Trả false ở đây (như trước) khiến hệ thống chọn
-                 * hôm nay, mọi khung đã qua, và khách nhận thẻ "đã kín lịch" — sai mà lại còn khó hiểu.
-                 */
                 function sessionAlreadyPassed(session) {
                     const now = new Date();
                     const minutes = now.getHours() * 60 + now.getMinutes();
@@ -396,17 +299,12 @@
                     return end ? start + ' - ' + end : '';
                 }
 
-                /**
-                 * Những cụm đứng ngay sau "bác sĩ" nhưng KHÔNG PHẢI TÊN NGƯỜI.
-                 *
-                 * Thiếu danh sách này thì "bác sĩ nào cũng được" bị coi là tên và khách nhận nguyên
-                 * văn "Em chưa tìm thấy bác sĩ nào cũng được" — trong khi ý họ là KHÔNG kén bác sĩ.
-                 * So khớp không dấu để bắt luôn các biến thể gõ tay.
-                 */
                 const NOT_A_DOCTOR_NAME = [
                     'nao', 'nao cung duoc', 'nao cung dc', 'bat ky', 'bat cu', 'gi cung duoc',
                     'khac', 'nu', 'nam', 'gioi', 'tot', 'ranh', 'truc', 'nay', 'do', 'kia',
-                    'chuyen khoa', 'chuyen mon', 'truc hom nay', 'truc ca nay', 'phu trach'
+                    'chuyen khoa', 'chuyen mon', 'truc hom nay', 'truc ca nay', 'phu trach',
+                    'danh gia', 'co danh gia', 'duoc danh gia', 'nhieu sao', 'nhieu danh gia',
+                    'uy tin', 'noi tieng', 'co tay nghe', 'tay nghe', 'kinh nghiem', 'nhieu kinh nghiem'
                 ];
 
                 function extractDoctorName(text) {
@@ -414,12 +312,6 @@
                     const match = normalized.match(/(?:bác sĩ|bs\.?)\s+(.+?)(?:\s+lúc|\s+vào|\s+ngày|\s+thứ|\s+để|\s+đặt|\s+khám|$)/i);
                     if (!match) return '';
 
-                    // Cắt DẤU CÂU trước rồi mới tới từ đệm, rồi dấu câu lần nữa.
-                    // Thứ tự cũ (từ đệm trước) hỏng với "bác sĩ Bình ạ." — cuối chuỗi là "." nên "ạ"
-                    // neo `$` không khớp, kết quả còn "bình ạ" và tìm không ra ai.
-                    //
-                    // Neo vào CUỐI CHUỖI chứ không dùng \b: trong JS, \b chỉ hiểu chữ cái ASCII,
-                    // nên "nhé" hay "ạ" (kết thúc bằng ký tự có dấu) sẽ không bao giờ khớp được.
                     const FILLER = /(\s+(đi|nhé|nha|nhá|ạ|à|với|luôn|thôi|nhá|nhở|được không|cho tôi|cho mình|giúp tôi|giúp mình|giúp em|cũng được|cung duoc))+$/gi;
                     const name = match[1]
                         .replace(/[.,!?]+$/, '')
@@ -430,27 +322,15 @@
 
                     const bare = stripDiacritics(name);
                     if (NOT_A_DOCTOR_NAME.indexOf(bare) !== -1) return '';
-                    // "bác sĩ chuyên khoa tim mạch", "bác sĩ trực hôm nay" — mở đầu bằng cụm không phải tên.
                     if (NOT_A_DOCTOR_NAME.some(function(w) { return bare === w || bare.indexOf(w + ' ') === 0; })) return '';
 
                     return name;
                 }
 
-                /**
-                 * Khách xin DỪNG việc đặt lịch.
-                 *
-                 * Chế độ gõ chữ trước đây không hề hiểu ý này (chỉ chế độ gọi có parseYesNo). Khi đang
-                 * có pendingAlternatives, buildAlternativeContext ra lệnh cho model "TUYỆT ĐỐI KHÔNG
-                 * hỏi lại khách chọn hướng nào", nên model buộc phải chốt một hướng và hệ thống mở
-                 * trang đặt lịch — ngay sau khi khách vừa nói "thôi không đặt nữa".
-                 *
-                 * Đệm khoảng trắng, không dùng \b (ASCII-only, xem coding-conventions.md).
-                 */
                 function parseCancelIntent(text) {
                     const padded = ' ' + normalizeText(text).replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
                     if (padded === '  ') return false;
 
-                    // "thôi" đứng riêng cũng là từ chối, nhưng "thôi thì" / "thôi được" thì không.
                     if (/(hủy|huỷ|hủy đi|huỷ đi|hủy lịch|huỷ lịch)/.test(padded)) return true;
                     if (/không đặt nữa|khong dat nua|thôi không đặt|thoi khong dat|khỏi đặt|khoi dat/.test(padded)) return true;
                     if (/để sau|de sau|lúc khác|luc khac|dừng lại|dung lai|không cần nữa|khong can nua/.test(padded)) return true;
@@ -458,13 +338,6 @@
                     return false;
                 }
 
-                /**
-                 * Câu này có thật sự là YÊU CẦU đặt lịch không.
-                 *
-                 * Chỉ dò chuỗi "đặt lịch" là nhận nhầm hàng loạt câu HỎI VỀ việc đặt lịch:
-                 * "phí đặt lịch bao nhiêu ạ?", "làm sao để hủy đặt lịch?", "em đặt lịch hôm qua mà
-                 * chưa thấy xác nhận" — cả ba đều bị chạy hết luồng rồi mở trang đặt lịch.
-                 */
                 function looksLikeBookingRequest(text) {
                     const raw = normalizeText(text);
                     if (!/đặt lịch|chuyển sang đặt lịch|tiến hành khám|book lịch|book khám|đặt khám/.test(raw)) {
@@ -476,39 +349,14 @@
                     return true;
                 }
 
-                /**
-                 * Câu này là câu HỎI về lịch làm việc của một bác sĩ, không phải yêu cầu đặt lịch.
-                 *
-                 * Đây là đường DUY NHẤT tới câu trả lời thật khi model trả booking_intent = false:
-                 * mục 1 và 5B của prompt CẤM model khẳng định bác sĩ có khám ngày/buổi nào, nên
-                 * không có nhánh này thì khách chỉ nhận một câu chung chung và bên dưới KHÔNG in gì
-                 * cả — trái hẳn lời hứa "hệ thống lo phần lịch" ở 5B. Khách đọc câu trống rỗng đó
-                 * rồi tự hiểu thành "bác sĩ đang rảnh".
-                 *
-                 * Ở ĐÂY regex đứng TRÊN tín hiệu của model, ngược với booking_intent. Có lý do:
-                 * model bị chính prompt cấm suy luận về lịch làm việc, nên tín hiệu của nó về
-                 * chuyện này yếu hơn hẳn.
-                 *
-                 * Đệm khoảng trắng, không dùng \b (ASCII-only, xem coding-conventions.md).
-                 */
                 function looksLikeAvailabilityQuestion(text) {
                     const raw = normalizeText(text);
                     const padded = ' ' + raw.replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
 
-                    // YÊU CẦU ĐẶT LỊCH LUÔN THẮNG. "bác sĩ X chiều nay còn chỗ không, đặt cho em"
-                    // vẫn phải đi đường đặt lịch — nếu không, cửa này nuốt mất một lượt đặt thật.
                     if (looksLikeBookingRequest(text)) return false;
                     if (/đặt|dat lich|book|lấy lịch|lay lich/.test(raw)) return false;
-
-                    // Phải đang nói về MỘT NGƯỜI. "phòng khám mở cửa mấy giờ" là câu khác hẳn và đã
-                    // có kiến thức mặc định trong prompt trả lời.
                     if (!/bác sĩ|bac si|bs /.test(raw)) return false;
-
-                    // "chiều nay TÔI bận" là KHÁCH bận, không phải bác sĩ bận. Cùng một cái bẫy đã
-                    // ghi ở normalizeTimeHint với chữ "sáng" trong "đặt 4h chiều mai, sáng nay tôi bận".
                     if (/(tôi|em|mình|con|cháu|toi|minh)\s+(bận|ban|rảnh|ranh|nghỉ|nghi)/.test(raw)) return false;
-
-                    // Hỏi VỀ CON NGƯỜI chứ không phải về lịch -> để nhánh hồ sơ bác sĩ lo.
                     if (/phí|giá|bao nhiêu tiền|kinh nghiệm|chuyên môn|giỏi|bằng cấp/.test(raw)) return false;
 
                     const CUES = ['bận', 'ban', 'rảnh', 'ranh', 'nghỉ', 'nghi', 'trực', 'truc',
@@ -521,18 +369,15 @@
                     return CUES.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; });
                 }
 
-                /** Khách hỏi về LỊCH HẸN CỦA CHÍNH MÌNH ("lịch khám của tôi hôm nào?"). */
                 function looksLikeMyBookingQuestion(text) {
                     const raw = normalizeText(text);
                     if (looksLikeBookingRequest(text)) return false;
-                    // Phải có sở hữu ngôi thứ nhất, nếu không "lịch khám hôm nào" là hỏi lịch bác sĩ.
                     if (!/của tôi|cua toi|của mình|cua minh|của em|cua em|tôi đã đặt|toi da dat|mình đã đặt|em đã đặt/.test(raw)) {
                         return false;
                     }
                     return /lịch|lich|hẹn|hen|đặt|dat|khám|kham/.test(raw);
                 }
 
-                /** Khách hỏi GIÁ KHÁM / ĐÁNH GIÁ / KINH NGHIỆM của một bác sĩ. */
                 function looksLikeDoctorInfoQuestion(text) {
                     const raw = normalizeText(text);
                     if (looksLikeBookingRequest(text)) return false;
@@ -540,18 +385,20 @@
                     return /bao nhiêu tiền|bao nhieu tien|giá khám|gia kham|phí khám|phi kham|chi phí|chi phi|có tốt|co tot|đánh giá|danh gia|mấy sao|may sao|kinh nghiệm|kinh nghiem|bằng cấp|bang cap|giỏi không|gioi khong/.test(raw);
                 }
 
-                /** Khách xin GỢI Ý bác sĩ theo tiêu chí ("khoa Tim mạch có bác sĩ nữ nào không?"). */
+                const DOCTOR_SUPERLATIVE = new RegExp(
+                    '(đánh giá|danh gia|nhiều sao|nhieu sao|uy tín|uy tin|nổi tiếng|noi tieng'
+                    + '|chuyên môn|chuyen mon|kinh nghiệm|kinh nghiem|tay nghề|tay nghe|giỏi|gioi)'
+                    + '[^.!?]{0,24}(nhất|nhat)'
+                    + '|rẻ nhất|re nhat|giá thấp nhất|gia thap nhat');
+
                 function looksLikeDoctorFilterQuestion(text) {
                     const raw = normalizeText(text);
-                    if (looksLikeBookingRequest(text)) return false;
                     if (!/bác sĩ|bac si/.test(raw)) return false;
+                    if (DOCTOR_SUPERLATIVE.test(raw)) return true;
+                    if (looksLikeBookingRequest(text)) return false;
                     return /bác sĩ nữ|bac si nu|bác sĩ nam|bac si nam|nhiều kinh nghiệm|nhieu kinh nghiem|giỏi nhất|gioi nhat|rẻ nhất|re nhat|giá thấp|gia thap|có bác sĩ nào|co bac si nao|bác sĩ nào tốt|gợi ý bác sĩ|goi y bac si/.test(raw);
                 }
 
-                /**
-                 * Các cách gọi tên thứ, xếp CHUỖI DÀI TRƯỚC để "thứ hai" không bị "t2"… nuốt mất
-                 * và để "chủ nhật" được thử trước "cn". Số là getDay() của JS (0 = Chủ nhật).
-                 */
                 const WEEKDAY_WORDS = [
                     { words: ['chủ nhật', 'chu nhat', 'cn'], day: 0 },
                     { words: ['thứ hai', 'thu hai', 'thứ 2', 'thu 2', 't2'], day: 1 },
@@ -562,7 +409,6 @@
                     { words: ['thứ bảy', 'thu bay', 'thứ 7', 'thu 7', 't7'], day: 6 }
                 ];
 
-                /** Cộng n ngày vào hôm nay rồi trả về chuỗi ISO. */
                 function isoAfterDays(n) {
                     const target = new Date();
                     target.setDate(target.getDate() + n);
@@ -574,95 +420,51 @@
                     const today = new Date();
                     const padded = ' ' + normalized.replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
                     const nextWeek = /tuần sau|tuan sau|tuần tới|tuan toi/.test(normalized);
-
-                    // ===== TÊN THỨ — xét TRƯỚC "hôm nay"/"ngày mai" =====
-                    // Tên thứ là chỉ định cụ thể hơn, nên nó phải thắng. Xét sau như trước đây thì
-                    // "HÔM NAY em bận, đặt giúp em THỨ 5 nhé" trả về hôm nay: cụm chỉ thời điểm
-                    // TRIỆU CHỨNG bị hiểu thành thời điểm KHÁM.
-                    //
-                    // Đệm khoảng trắng chứ KHÔNG dùng \b — \b trong JS chỉ hiểu chữ ASCII nên không
-                    // bao giờ khớp được từ có dấu (xem coding-conventions.md).
                     for (const entry of WEEKDAY_WORDS) {
                         const hit = entry.words.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; });
                         if (!hit) continue;
 
                         let delta;
                         if (nextWeek) {
-                            // "thứ 2 tuần sau" = thứ Hai của TUẦN SAU, đếm từ thứ Hai tuần sau.
-                            // Cách cũ lấy lần xuất hiện kế tiếp RỒI cộng thêm 7 nên dư đúng một tuần:
-                            // hôm nay thứ Tư thì "thứ 2 tuần sau" ra 12 ngày thay vì 5.
-                            // Tuần bắt đầu từ thứ Hai, cùng quy ước với LeavePolicy.weekStartOf.
                             const daysToNextMonday = (8 - today.getDay()) % 7 || 7;
                             delta = daysToNextMonday + (entry.day + 6) % 7;
                         } else {
                             delta = (entry.day - today.getDay() + 7) % 7;
-                            // Khách nói tên thứ ĐÚNG BẰNG hôm nay: vẫn là hôm nay nếu buổi họ xin chưa
-                            // trôi qua; 14h mà nói "sáng thứ ba" thì ý là thứ Ba TUẦN SAU.
                             if (delta === 0 && sessionAlreadyPassed(extractSessionHint(text))) {
                                 delta = 7;
                             }
                         }
                         return isoAfterDays(delta);
                     }
-
-                    // ===== HÔM NAY, kể cả khi khách nói kèm BUỔI =====
-                    // Thiếu "chiều nay"/"sáng nay" thì câu "bác sĩ X chiều nay bận à?" KHÔNG có ngày
-                    // nào cả, hệ thống mượn lastHandoffDate và đi trả lời về một ngày khách không hề
-                    // hỏi — đúng con đường dẫn tới "bị điều hướng đi ngày khác mà không hiểu gì".
-                    //
-                    // Đặt SAU vòng tên thứ, đúng lý do đã ghi ở trên: "chiều nay em bận, đặt giúp em
-                    // thứ 5" — "chiều nay" là lúc có TRIỆU CHỨNG, "thứ 5" mới là lúc KHÁM.
-                    //
-                    // Dạng hai chữ "sang nay"/"toi nay" an toàn: bẫy đã ghi trong tài liệu là chữ
-                    // "sang"/"toi" ĐỨNG TRẦN (giới từ "sang", đại từ "tôi"), giống cách dự án đã chấp
-                    // nhận "buoi sang".
-                    //
-                    // CỐ Ý KHÔNG gọi sessionAlreadyPassed ở đây (khác hẳn nhánh tên thứ ngay trên):
-                    // khách hỏi lúc 18h "bác sĩ X chiều nay bận à?" là đang hỏi buổi chiều VỪA QUA;
-                    // đẩy sang tuần sau là trả lời một câu khác hẳn. Mã PAST của server mới đúng.
                     const TODAY_WORDS = ['hôm nay', 'hom nay', 'sáng nay', 'sang nay',
                         'chiều nay', 'chieu nay', 'trưa nay', 'trua nay', 'tối nay', 'toi nay'];
                     if (TODAY_WORDS.some(function(w) { return padded.indexOf(' ' + w + ' ') !== -1; })) {
                         return toIsoDate(today);
                     }
-                    // Chỉ nhận các cụm CHẮC CHẮN là "ngày mai". Không bắt chữ "mai" đứng một mình:
-                    // "Mai" là tên người rất phổ biến, "đặt lịch với bác sĩ Mai" mà hiểu thành ngày mai
-                    // thì lại đúng kiểu tự suy diễn đang phải sửa.
                     if (/ngày mai|sáng mai|chiều mai|trưa mai|tối mai|hôm sau/.test(normalized)) {
                         return isoAfterDays(1);
                     }
-                    // "ngày mốt" = ngày kia (cách nói miền Nam).
                     if (/ngày kia|ngay kia|ngày mốt|ngay mot/.test(normalized)) {
                         return isoAfterDays(2);
                     }
-                    // "3 ngày nữa", "sau 2 ngày nữa"
                     const inDays = normalized.match(/(\d{1,2})\s*ngày\s*(?:nữa|sau)/);
                     if (inDays) {
                         const n = parseInt(inDays[1], 10);
                         if (n >= 1 && n <= 90) return isoAfterDays(n);
                     }
-                    // "cuối tuần này" -> thứ Bảy gần nhất (T7 vẫn là ngày làm việc của phòng khám).
                     if (/cuối tuần|cuoi tuan/.test(normalized)) {
                         const toSaturday = (6 - today.getDay() + 7) % 7;
                         return isoAfterDays(nextWeek ? toSaturday + 7 : (toSaturday === 0 ? 0 : toSaturday));
                     }
-                    // "tuần sau" đứng một mình (không kèm tên thứ) -> thứ Hai tuần sau.
                     if (nextWeek) {
                         return isoAfterDays((8 - today.getDay()) % 7 || 7);
                     }
 
-                    // "mùng 5 tháng 8" / "ngày 5 tháng 8" — dạng viết chữ, không có dấu gạch chéo.
                     const wordDate = normalized.match(/(?:ngày|mùng|mồng|mung|mong)\s*(\d{1,2})\s*(?:tháng|thang)\s*(\d{1,2})/);
                     if (wordDate) {
                         return buildDateHint(parseInt(wordDate[1], 10), parseInt(wordDate[2], 10), null, today);
                     }
 
-                    // Dạng "5/8" hoặc "5/8/2026".
-                    //
-                    // CHỈ nhận dấu "/" — người Việt viết ngày là 5/8, còn "-" gần như luôn là một
-                    // KHOẢNG SỐ ĐO trong câu chuyện bệnh: "sốt 39-40 độ" từng thành ngày 39/40,
-                    // "uống 2-3 lần/ngày" thành ngày 02/03. Và phải chặn số dính liền hai đầu, nếu
-                    // không "huyết áp 120/80" khớp thành ngày 20/80.
                     const slashMatch = normalized.match(/(^|[^\d])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?([^\d]|$)/);
                     if (slashMatch) {
                         return buildDateHint(parseInt(slashMatch[2], 10), parseInt(slashMatch[3], 10),
@@ -671,12 +473,6 @@
 
                     return '';
                 }
-
-                /**
-                 * Dựng ngày ISO từ (ngày, tháng, năm?) và kiểm tra tính hợp lệ.
-                 * Trả '' khi không phải một ngày thật — thà không có ngày còn hơn có ngày rác, vì ngày
-                 * rác được ghi vào lastHandoffDate rồi tái dùng cho MỌI lượt sau đó.
-                 */
                 function buildDateHint(day, month, year, today) {
                     if (!(day >= 1 && day <= 31) || !(month >= 1 && month <= 12)) return '';
 
@@ -684,14 +480,9 @@
                     const iso = function(y) {
                         return y + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
                     };
-
-                    // Khách không nêu năm mà ngày đã trôi qua thì ý là năm sau: nói "đặt lịch 3/1"
-                    // vào tháng 12 nghĩa là mùng 3 tháng 1 SANG NĂM, không phải một ngày đã qua.
                     if (year === null && iso(resolvedYear) < toIsoDate(today)) {
                         resolvedYear += 1;
                     }
-
-                    // Chốt lại bằng Date thật để loại 31/02, 30/02…
                     const check = new Date(resolvedYear, month - 1, day);
                     if (check.getMonth() !== month - 1 || check.getDate() !== day) return '';
                     return iso(resolvedYear);
@@ -717,7 +508,6 @@
 
                 const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
-                /** "2026-07-24" + "10:30 - 11:00" -> "T6 24/07 (10:30 - 11:00)" (đúng dạng translateDay ở AiController). */
                 function buildSlotLabelFrom(isoDate, slot) {
                     const parts = (isoDate || '').split('-');
                     if (parts.length !== 3) return slot;
@@ -730,26 +520,17 @@
                     return parts.length === 3 ? parts[2] + '/' + parts[1] : isoDate;
                 }
 
-                /** Câu giải thích VÌ SAO em gợi ý bác sĩ này — khách cần biết lý do, không chỉ cái tên. */
                 function describeLoad(nearbyLoad) {
                     if (nearbyLoad === 0) return 'quanh giờ đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
                     if (nearbyLoad <= 2) return 'quanh giờ đó bác sĩ chỉ có ' + nearbyLoad + ' ca nên anh/chị ít phải chờ';
                     return 'quanh giờ đó bác sĩ có ' + nearbyLoad + ' ca khám';
                 }
-
-                // Hai hướng vừa gợi ý cho khách, đang chờ khách chọn. Danh sách này do hệ thống
-                // tra ra chứ KHÔNG nằm trong hội thoại, nên model hoàn toàn không biết gì về nó.
                 let pendingAlternatives = null;
 
                 function lastNameWord(fullName) {
                     const words = normalizeText(fullName).split(' ').filter(Boolean);
                     return words.length ? words[words.length - 1] : '';
                 }
-
-                /**
-                 * Hiểu câu trả lời cho "anh/chị chọn hướng nào ạ?" ngay tại chỗ.
-                 * Trả về { kind: 'doctor', doctor } | { kind: 'time', option } | null.
-                 */
                 function resolveAlternativeChoice(text, handoff) {
                     const alt = (handoff && handoff.alternatives) || {};
                     const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
@@ -760,40 +541,23 @@
                     if (!raw) return null;
                     const padded = ' ' + raw + ' ';
 
-                    // Thứ tự in ra trong thẻ: (1) đổi bác sĩ giữ giờ, (2) giữ bác sĩ đổi giờ.
                     const directions = [];
                     if (sameTime.length) directions.push('doctor');
                     if (otherTimes.length) directions.push('time');
 
                     let want = null;
-
-                    // 1. Cả câu chỉ là một con số / từ chỉ thứ tự.
-                    //    ĐÃ BỎ "thứ hai"/"thu hai" khỏi nhóm này: từ khi extractDateHint hiểu tên thứ,
-                    //    "thứ hai" là NGÀY chứ không phải "hướng số 2". Ý chọn hướng 2 vẫn bắt được
-                    //    qua "hướng 2"/"cách 2" ở bước 2 và qua số "2" trần ngay dưới đây.
                     if (/^(1|một|mot|đầu tiên|dau tien|cái đầu|cai dau|cái đầu tiên|cai dau tien)$/.test(raw)) want = directions[0];
                     else if (/^(2|hai|cái sau|cai sau|cái thứ hai|cai thu hai)$/.test(raw)) want = directions[1];
-
-                    // 2. "hướng 1", "cách 2", "chọn 1", "lấy cái 1". Chặn con số của giờ giấc
-                    //    ("chọn 10 giờ") bằng cách chỉ nhận số đứng ngay sau từ chỉ lựa chọn và
-                    //    không dính h/:/giờ.
                     if (!want) {
                         const ordinal = raw.match(/(?:hướng|huong|cách|cach|phương án|phuong an|option|số|so|chọn|chon|lấy|lay|cái|cai)\s*(\d)(?!\s*(?:\d|:|h|giờ|gio|rưỡi|ruoi))/);
                         if (ordinal) want = directions[parseInt(ordinal[1], 10) - 1] || null;
                     }
-
-                    // 2b. "cái nào cũng được" / "sớm nhất có thể" / "ok" / "vâng" -> nhận hướng đầu tiên.
-                    //     Trước đây các câu này rơi xuống model KÈM mệnh lệnh "TUYỆT ĐỐI KHÔNG hỏi lại",
-                    //     nên model buộc phải đoán bừa một hướng.
                     if (!want && /^(ok|okay|oke|vâng|vang|dạ|da|ừ|u|uh|được|duoc|đồng ý|dong y|nhất trí)( ạ| a| em| nhé| nhe)?$/.test(raw)) {
                         want = directions[0];
                     }
                     if (!want && /(nào cũng được|nao cung duoc|cái nào cũng|sao cũng được|sao cung duoc|sớm nhất|som nhat|gần nhất|gan nhat|tùy em|tuy em|em chọn giúp|em chon giup)/.test(raw)) {
                         want = directions[0];
                     }
-
-                    // 3. Gọi đích danh một bác sĩ trong danh sách gợi ý.
-                    //    Dò cả otherTimes: khách đọc tên bác sĩ mình muốn GIỮ thì ý là đổi giờ.
                     if (!want) {
                         for (let i = 0; i < sameTime.length; i++) {
                             const given = lastNameWord(sameTime[i].fullName);
@@ -806,10 +570,6 @@
                             want = 'time';
                         }
                     }
-
-                    // 4. Đọc thẳng một khung giờ có trong danh sách.
-                    //    Khớp theo giờ bắt đầu là đủ vì server chỉ trả gợi ý của MỘT ngày duy nhất
-                    //    (dừng ở ngày làm việc đầu tiên tìm được), nên không có hai mục trùng giờ.
                     if (!want) {
                         const spokenTime = normalizeTimeHint(text);
                         if (spokenTime) {
@@ -817,16 +577,6 @@
                             if (hit) return { kind: 'time', option: hit };
                         }
                     }
-
-                    // 5. Nói thẳng ý định. Ba bước, và THỨ TỰ NÀY LÀ CỐ Ý:
-                    //
-                    //    (a) "giữ bác sĩ" — câu này cũng chứa chữ "bác sĩ" nên phải xét trước (b),
-                    //        nếu không sẽ bị hiểu ngược thành đổi bác sĩ.
-                    //    (b) có nhắc "bác sĩ" + từ chỉ sự thay đổi -> ĐỔI BÁC SĨ. Phải đứng TRƯỚC (c):
-                    //        "đổi LỊCH sang BÁC SĨ khác" và "DỜI sang bác sĩ khác" đều khớp cụm
-                    //        "đổi lịch"/"dời" ở (c), nên xét (c) trước là giữ nguyên bác sĩ cũ rồi
-                    //        đổi giờ — ngược hẳn ý khách, mà thẻ còn ghi "em giữ bác sĩ X".
-                    //    (c) còn lại mà nói tới giờ giấc -> đổi giờ.
                     if (!want) {
                         if (/giữ bác sĩ|giu bac si|vẫn bác sĩ|van bac si|bác sĩ này|bac si nay|bác sĩ cũ|bac si cu/.test(raw)) {
                             want = 'time';
@@ -841,14 +591,6 @@
                     if (want === 'time' && otherTimes.length) return { kind: 'time', option: otherTimes[0] };
                     return null;
                 }
-
-                /**
-                 * Biến lựa chọn của khách thành một handoff hoàn chỉnh (đã hết fallback).
-                 *
-                 * Mỗi gợi ý mang theo `date` của RIÊNG nó: khi bác sĩ nghỉ nguyên ngày khách xin,
-                 * server đã quét sang ngày làm việc gần nhất. Lấy ngày của handoff cũ ở đây là đặt
-                 * đúng giờ nhưng sai ngày.
-                 */
                 function handoffFromAlternative(prev, choice) {
                     if (choice.kind === 'doctor') {
                         const d = choice.doctor;
@@ -885,7 +627,6 @@
                     };
                 }
 
-                /** Nhét danh sách vừa gợi ý vào lượt hỏi tiếp theo, để model không trả lời mù. */
                 function buildAlternativeContext(handoff) {
                     const alt = handoff.alternatives || {};
                     const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
@@ -911,7 +652,42 @@
                     return lines.join('\n');
                 }
 
-                /** Câu mô tả điều khách vừa xin, dùng khi server không trả về lý do cụ thể. */
+                function buildDoctorChoiceRow(doc, fallbackDate, buttonLabel, reasonText) {
+                    return `<div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#fff;border-radius:6px;">
+                        <img src="${doc.avatar}" alt="" onerror="this.src='/assets/img/default-doctor.png'"
+                             style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                        <div style="flex:1;font-size:13px;color:#334155;">
+                            <div><strong>${doc.fullName}</strong>${doc.degree ? ' — ' + doc.degree : ''}</div>
+                            <div style="color:#64748b;">${doc.slotLabel || ''}${reasonText ? ' — ' + reasonText + '.' : ''}</div>
+                        </div>
+                        <a href="${buildAppointmentUrl(doc.id, doc.date || fallbackDate, doc.slot)}"
+                           class="btn btn-sm btn-outline-primary">${buttonLabel}</a>
+                    </div>`;
+                }
+
+                function pickOtherDoctors(list, selfId, limit) {
+                    return (Array.isArray(list) ? list : [])
+                        .filter(function(d) { return d && d.slot && String(d.id) !== String(selfId); })
+                        .slice(0, limit || 2);
+                }
+
+                function loadOfPicked(alternatives, doctorId, key) {
+                    const list = (alternatives && alternatives.sameTimeDoctors) || [];
+                    for (let i = 0; i < list.length; i++) {
+                        if (String(list[i].id) === String(doctorId)) {
+                            const v = list[i][key];
+                            return (v === undefined || v === null) ? null : v;
+                        }
+                    }
+                    return null;
+                }
+
+                function describeDayLoad(dayLoad) {
+                    if (!dayLoad) return 'hôm đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
+                    if (dayLoad <= 3) return 'hôm đó bác sĩ mới có ' + dayLoad + ' ca nên anh/chị ít phải chờ';
+                    return 'hôm đó bác sĩ có ' + dayLoad + ' ca khám';
+                }
+
                 function describeWanted(handoff) {
                     if (handoff.requestedTime) return 'Khung giờ ' + handoff.requestedTime;
                     if (handoff.requestedSession === 'morning') return 'Buổi sáng';
@@ -919,23 +695,14 @@
                     return 'Khung giờ anh/chị yêu cầu';
                 }
 
-                /**
-                 * Thẻ "không đặt được khung giờ này" — thay cho việc âm thầm đẩy khách sang giờ khác.
-                 * Nói thẳng LÝ DO (do server trả về ở reasonText: bác sĩ không đăng ký ca làm việc buổi đó,
-                 * đã có người đặt, bác sĩ báo bận…), rồi đưa hai hướng: đổi bác sĩ mà giữ giờ, hoặc
-                 * giữ bác sĩ mà đổi giờ. Mỗi bác sĩ gợi ý đều kèm lý do vì sao em chọn người đó.
-                 */
                 function buildSlotFullHtml(handoff) {
                     const alt = handoff.alternatives || {};
                     const wantedTime = handoff.requestedTime || 'khung giờ anh/chị yêu cầu';
                     const sameTime = Array.isArray(alt.sameTimeDoctors) ? alt.sameTimeDoctors : [];
                     const otherTimes = Array.isArray(alt.otherTimes) ? alt.otherTimes : [];
 
-                    // Lý do thật từ server. Không có (endpoint lỗi) thì mới nói chung chung "đã kín".
                     const reasonLine = alt.reasonText
                         || (describeWanted(handoff) + ' ngày ' + formatDayMonth(handoff.appointmentDate) + ' đã kín lịch rồi ạ.');
-                    // ĐỔI NGÀY phải nằm ở DÒNG TIÊU ĐỀ, không được nhét xuống dòng phụ: khách đọc
-                    // "dời sang khung giờ gần nhất" rồi bấm nút và tới NHẦM HÔM.
                     const headline = alt.otherTimesMovedDay
                         ? reasonLine + ' ' + (alt.otherTimesText || 'Em phải tìm sang ngày khác ạ.')
                         : reasonLine;
@@ -950,24 +717,13 @@
                             Em gợi ý anh/chị mấy bác sĩ cùng chuyên khoa vẫn còn nhận <strong>${wantedTime}</strong>:
                         </div>`;
                         sameTime.forEach(function(doc) {
-                            html += `<div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#fff;border-radius:6px;">
-                                <img src="${doc.avatar}" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
-                                <div style="flex:1;font-size:13px;color:#334155;">
-                                    <div><strong>${doc.fullName}</strong>${doc.degree ? ' — ' + doc.degree : ''}</div>
-                                    <div style="color:#64748b;">${doc.slotLabel} — em gợi ý bác sĩ này vì ${describeLoad(doc.nearbyLoad)}.</div>
-                                </div>
-                                <a href="${buildAppointmentUrl(doc.id, doc.date || handoff.appointmentDate, doc.slot)}"
-                                   class="btn btn-sm btn-primary">Chọn</a>
-                            </div>`;
+                            html += buildDoctorChoiceRow(doc, handoff.appointmentDate, 'Chọn',
+                                'em gợi ý bác sĩ này vì ' + describeLoad(doc.nearbyLoad));
                         });
                     }
 
                     if (otherTimes.length > 0) {
                         const keepName = alt.requestedDoctorName || handoff.doctorName || 'bác sĩ hiện tại';
-                        // Gợi ý có thể rơi sang NGÀY KHÁC (bác sĩ nghỉ nguyên ngày khách xin), nên nút
-                        // phải lấy `item.date` của chính nó và hiện nhãn có thứ/ngày. Dùng ngày của
-                        // handoff ở đây là đặt đúng giờ nhưng sai ngày.
-                        // Ưu tiên cờ của server; giữ nhánh tự suy ra để payload đã cache còn chạy.
                         const movedDay = (alt.otherTimesMovedDay !== undefined)
                             ? alt.otherTimesMovedDay
                             : (otherTimes[0].date && otherTimes[0].date !== handoff.appointmentDate);
@@ -996,16 +752,6 @@
                     return html + `</div>`;
                 }
 
-                /**
-                 * Thẻ TRẢ LỜI câu hỏi "bác sĩ X chiều nay bận à?".
-                 *
-                 * Màu XANH THÔNG TIN, cố ý khác màu hổ phách của buildSlotFullHtml: hổ phách nghĩa
-                 * là "yêu cầu của anh/chị không thực hiện được", còn đây là một câu trả lời bình
-                 * thường — khách có hỏi xin đặt gì đâu.
-                 *
-                 * Không nút "Mở trang đặt lịch", không đếm ngược, không giữ chỗ: hỏi thăm không
-                 * phải là chốt lịch. Ngày nào còn khung trống thì mới có LINK để khách tự bấm.
-                 */
                 function buildAvailabilityHtml(av) {
                     const anchor = av.anchor || {};
                     const week = Array.isArray(av.week) ? av.week : [];
@@ -1023,8 +769,6 @@
                         week.forEach(function(day) {
                             let note;
                             if (day.dayState === 'NO_SCHEDULE') {
-                                // KHÔNG được in giờ ở đây: hệ thống chưa có lịch nào của bác sĩ, mọi
-                                // khung giờ hiện ra đều là bịa (xem DaySlots.workingRanges).
                                 note = 'chưa có lịch đăng ký';
                             } else if (day.dayState === 'OFF_ALL_DAY') {
                                 note = 'nghỉ';
@@ -1052,18 +796,10 @@
                     return html + `</div>`;
                 }
 
-                /** Khung ngoài dùng chung cho mọi thẻ TRA CỨU — xanh thông tin, không phải hổ phách. */
                 function lookupCard(inner) {
                     return `<div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">${inner}</div>`;
                 }
 
-                /**
-                 * Thẻ "lịch hẹn của anh/chị".
-                 *
-                 * Nút Dời/Hủy chỉ hiện khi SERVER nói là còn được — cùng hai hàm whyCannotCancel /
-                 * whyCannotReschedule mà trang hồ sơ dùng. Không có thì in đúng câu lý do đó, chứ
-                 * không mời khách bấm một nút chắc chắn lỗi.
-                 */
                 function buildMyBookingsHtml(data) {
                     if (data.needLogin) {
                         return lookupCard(`<div style="font-size:13px;color:#334155;">
@@ -1108,7 +844,6 @@
                     return lookupCard(inner);
                 }
 
-                /** Thẻ hồ sơ bác sĩ — giá và số sao lấy từ DB, không để model tự nghĩ ra. */
                 function buildDoctorProfileHtml(p) {
                     if (p.error) {
                         return lookupCard(`<div style="font-size:13px;color:#334155;">
@@ -1130,8 +865,6 @@
                         </div><div class="quick-replies-container">${names}</div>`);
                     }
 
-                    // "chưa có đánh giá" phải xét reviewCount: getAverageRating trả 0.0 chứ không
-                    // null khi chưa ai đánh giá, xét avgRating là dán nhãn 0 sao cho bác sĩ mới.
                     const ratingLine = (p.reviewCount > 0)
                         ? `⭐ ${Number(p.avgRating).toFixed(1)}/5 · ${p.reviewCount} đánh giá`
                         : 'Chưa có đánh giá nào';
@@ -1159,7 +892,6 @@
                         </div>`);
                 }
 
-                /** Thẻ "bác sĩ phù hợp tiêu chí anh/chị vừa nêu". */
                 function buildDoctorFilterHtml(data) {
                     if (data.error) {
                         return lookupCard(`<div style="font-size:13px;color:#334155;">
@@ -1177,16 +909,37 @@
                     const criteria = [];
                     if (data.gender) criteria.push('bác sĩ ' + data.gender.toLowerCase());
                     if (data.sortBy === 'price') criteria.push('mức giá thấp nhất');
+                    else if (data.sortBy === 'rating') criteria.push('điểm đánh giá thật cao nhất');
                     else if (data.sortBy === 'experience') criteria.push('nhiều kinh nghiệm nhất');
+
+                    const byRating = (data.sortBy === 'rating');
+                    const ratedCount = doctors.filter(function(d) { return d.reviewCount > 0; }).length;
 
                     let inner = `<div class="fw-bold mb-2" style="color:#075985;">
                         <i class="bi bi-person-badge"></i> Em gợi ý anh/chị${criteria.length ? ' ' + criteria.join(', ') : ''} ạ
                     </div>`;
+                    if (byRating && ratedCount === 0) {
+                        inner += `<div style="font-size:12px;color:#b45309;margin-bottom:6px;">
+                            Hiện chưa bác sĩ nào ở đây có lượt đánh giá thật của người bệnh ạ, nên em
+                            xếp giúp anh/chị theo số năm kinh nghiệm.
+                        </div>`;
+                    }
+
+                    let dividerDone = false;
                     doctors.forEach(function(d) {
-                        const rating = (d.reviewCount > 0)
-                            ? '⭐ ' + Number(d.avgRating).toFixed(1) : 'chưa có đánh giá';
+                        const hasReal = d.reviewCount > 0;
+                        const rating = hasReal
+                            ? '⭐ ' + Number(d.avgRating).toFixed(1) + ' (' + d.reviewCount + ' đánh giá)'
+                            : 'chưa có đánh giá';
                         const price = (d.price !== null && d.price !== undefined)
                             ? Number(d.price).toLocaleString('vi-VN') + ' đ' : '';
+
+                        if (byRating && ratedCount > 0 && !hasReal && !dividerDone) {
+                            dividerDone = true;
+                            inner += `<div style="font-size:12px;color:#64748b;margin:6px 0 4px;">
+                                Các bác sĩ dưới đây chưa có lượt đánh giá nào ạ:
+                            </div>`;
+                        }
                         inner += `<div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#fff;border-radius:6px;">
                             <img src="${d.avatar}" onerror="this.src='/assets/img/default-doctor.png'"
                                  style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
@@ -1195,7 +948,7 @@
                                 <div style="color:#64748b;">${d.experienceYears || 0} năm KN · ${price} · ${rating}</div>
                                 ${d.worksOnDate ? '' : '<div style="color:#94a3b8;font-size:12px;">Không có ca làm việc ngày anh/chị hỏi</div>'}
                             </div>
-                            <a href="${buildAppointmentUrl(d.id, d.date, '')}" class="btn btn-sm btn-primary">Chọn</a>
+                            <a href="${d.appointmentUrl || buildAppointmentUrl(d.id, d.date, '')}" class="btn btn-sm btn-primary">Chọn</a>
                         </div>`;
                     });
                     return lookupCard(inner);
@@ -1209,25 +962,6 @@
                     return url.toString();
                 }
 
-                /**
-                 * Chọn đúng bác sĩ khách nhắc tới trong danh sách trả về.
-                 *
-                 * KHÔNG được dùng kiểu "khớp chuỗi con rồi lấy phần tử đầu": API tìm kiếm chạy
-                 * LIKE %keyword% trên họ tên, nên "bác sĩ B" khớp gần như mọi bác sĩ và sẽ chọn nhầm.
-                 * Ở đây chỉ khớp theo RANH GIỚI TỪ.
-                 *
-                 * So khớp KHÔNG DẤU (stripDiacritics) để khách gõ "bac si binh" vẫn ra "Trần Văn Bình".
-                 * Bỏ dấu chỉ nới phần CHÍNH TẢ, luật ranh giới từ giữ nguyên.
-                 *
-                 * Ba kết quả có thể trả về:
-                 *   - object bác sĩ  : chắc chắn đúng một người
-                 *   - {ambiguous}    : nhiều người cùng khớp -> PHẢI hỏi lại khách
-                 *   - null           : không ai khớp
-                 *
-                 * Nhánh `ambiguous` là bắt buộc: bệnh viện có hai bác sĩ tên Bình thì "đặt lịch với
-                 * bác sĩ Bình" trước đây lặng lẽ lấy người đầu danh sách — đúng kiểu đặt nhầm người
-                 * mà cả hàm này sinh ra để chống.
-                 */
                 function pickBestDoctorMatch(doctors, requestedName) {
                     const want = stripDiacritics(requestedName);
                     if (!want) return null;
@@ -1242,21 +976,18 @@
                         return { ambiguous: true, candidates: list.slice(0, 4) };
                     };
 
-                    // 1. Trùng khít cả họ và tên
                     const exact = doctors.filter(function(doc) {
                         return stripDiacritics(doc.fullName) === want;
                     });
                     if (exact.length === 1) return exact[0];
                     if (exact.length > 1) return ambiguous(exact);
 
-                    // 2. Trùng tên gọi — từ cuối trong họ tên tiếng Việt ("bác sĩ Bình" -> "Trần Văn Bình")
                     const byGivenName = doctors.filter(function(doc) {
                         const words = wordsOf(doc);
                         return words.length > 0 && words[words.length - 1] === wantLast;
                     });
                     if (byGivenName.length === 1) return byGivenName[0];
 
-                    // 3. Chứa đủ mọi từ khách nói, xét theo từ nguyên vẹn
                     const byAllWords = doctors.filter(function(doc) {
                         const words = wordsOf(doc);
                         return wantWords.every(function(w) { return words.indexOf(w) !== -1; });
@@ -1268,8 +999,46 @@
                     return null;
                 }
 
-                // Ngày của lịch hẹn vừa chốt gần nhất — xem chỗ dùng bên dưới.
                 let lastHandoffDate = '';
+
+                function parseWishes(userText, bookingTarget) {
+                    bookingTarget = bookingTarget || {};
+                    const textTime = normalizeTimeHint(userText);
+                    const textSession = extractSessionHint(userText);
+
+                    const time = textTime
+                        || (textSession ? '' : normalizeTimeHint(bookingTarget.appointment_time || ''));
+                    const session = textTime ? '' : textSession;
+
+                    const textDate = extractDateHint(userText);
+                    let date = textDate || '';
+                    const dateExplicit = !!date;
+
+                    if (!date && lastHandoffDate && lastHandoffDate >= toIsoDate(new Date())) {
+                        date = lastHandoffDate;
+                    }
+                    if (!date) date = bookingTarget.appointment_date || '';
+
+                    return { time: time, session: session, date: date, dateExplicit: dateExplicit };
+                }
+
+                /**
+                 * Gắn mong muốn của khách vào URL danh sách bác sĩ, để SERVER xếp hạng theo chỗ
+                 * trống thật thay vì trả về thứ tự bảng.
+                 *
+                 * CỐ Ý KHÔNG gửi `date` khi khách chỉ nêu giờ: lúc đó ngày mới được quyết định bên
+                 * trong nhánh A, dựa vào chính response này — vòng tròn. Để server tự quét từ hôm
+                 * nay rồi trả `matchedDate` cho biết nó đã chấm cả khoa trên ngày nào.
+                 */
+                function buildDeptUrl(departmentId, wishes, doctorId) {
+                    const url = new URL('/api/chat/doctors/department/' + departmentId, window.location.origin);
+                    if (sessionId) url.searchParams.set('sessionId', sessionId);
+                    if (doctorId) url.searchParams.set('doctorId', doctorId);
+                    if (wishes && wishes.time) url.searchParams.set('time', wishes.time);
+                    if (wishes && wishes.session) url.searchParams.set('session', wishes.session);
+                    if (wishes && wishes.dateExplicit && wishes.date) url.searchParams.set('date', wishes.date);
+                    return url.toString();
+                }
 
                 /**
                  * Bác sĩ vừa được HỎI THĂM ở lượt trước, để hiểu câu tiếp "thế mai thì sao?".
@@ -1279,6 +1048,17 @@
                  * nhầm ngày khách mới chỉ HỎI chứ chưa hề chọn.
                  */
                 let lastAvailabilityDoctor = null;
+
+                /**
+                 * Bác sĩ khách đã CHỌN từ danh sách gợi ý (khác hẳn "vừa hỏi thăm" ở trên).
+                 *
+                 * Đây là một QUYẾT ĐỊNH của khách, nên nó phải sống qua các lượt sau: câu tiếp theo
+                 * gần như không bao giờ nhắc lại tên ("chọn luôn giờ cho tôi chiều nay"), mà model
+                 * cũng hay quên chép tên vào booking_target. Thiếu biến này thì resolveBookingHandoff
+                 * không có ai để ghim và rơi về availableDoctors[0] — tức tự đổi sang bác sĩ khác
+                 * ngay sau khi khách vừa mất công so sánh để chọn người.
+                 */
+                let lastChosenDoctor = null;
 
                 /**
                  * Hỏi server xem còn cách nào cho khung giờ khách vừa xin: bác sĩ cùng khoa
@@ -1357,7 +1137,12 @@
                         requestedSession: opts.requestedSession || '',
                         fallback: !!opts.fallback,
                         suggested: !!opts.suggested,
-                        alternatives: opts.alternatives || null
+                        alternatives: opts.alternatives || null,
+                        // Bác sĩ cùng khoa cũng trống đúng thứ khách xin — để thẻ đã chốt mời đổi.
+                        otherDoctors: opts.otherDoctors || [],
+                        // Căn cứ để nói RÕ vì sao chọn người này. null = không có số liệu -> không nêu lý do.
+                        pickNearbyLoad: (opts.pickNearbyLoad === undefined) ? null : opts.pickNearbyLoad,
+                        pickDayLoad: (opts.pickDayLoad === undefined) ? null : opts.pickDayLoad
                     };
                 }
 
@@ -1371,6 +1156,12 @@
                     //
                     // An toàn vì looksLikeAvailabilityQuestion trả false với mọi câu có chữ "đặt".
                     if (looksLikeAvailabilityQuestion(userText)) return null;
+                    // Khách nêu TIÊU CHÍ so sánh nhất ("đặt lịch với bác sĩ đánh giá tốt nhất") thì
+                    // nhánh gợi ý bác sĩ trả lời. Chạy tiếp ở đây là vừa in bảng so sánh vừa đặt
+                    // chỗ 3 phút và bật đếm ngược cho MỘT người trong bảng — chốt hộ khách đúng cái
+                    // việc khách vừa nhờ so sánh. Không như câu hỏi lịch, câu này CÓ chữ "đặt lịch",
+                    // nên cửa thoát bên dưới (vốn nhường model và bỏ qua khi có chữ "đặt") không đỡ được.
+                    if (looksLikeDoctorFilterQuestion(userText)) return null;
                     // Model cũng nhận ra đây là câu tra cứu -> nhường cho nhánh tra cứu.
                     const lookupType = aiData && aiData.lookup && aiData.lookup.type;
                     if (lookupType && lookupType !== 'none' && !looksLikeBookingRequest(userText)) {
@@ -1389,39 +1180,14 @@
                         : [];
 
                     const requestedDoctorName = (bookingTarget.doctor_name || extractDoctorName(userText) || '').trim();
-                    // MONG MUỐN CỦA KHÁCH LẤY TỪ CHÍNH CÂU KHÁCH NÓI, không lấy từ model.
-                    // Model bịa rất nhiều: khách nói "sáng thứ 3" thì nó điền appointment_time
-                    // "09:00 - 11:00", khách nói "chuyển sang buổi chiều" thì nó điền "13:30 - 17:30".
-                    // Tin mấy con số đó là chốt một khung giờ khách chưa hề chọn.
-                    const textTime = normalizeTimeHint(userText);
-                    const textSession = extractSessionHint(userText);
 
-                    // Khách nêu BUỔI mà không nêu giờ -> buổi thắng, bỏ hẳn giờ model bịa ra. Chỉ khi
-                    // câu của khách không có cả giờ lẫn buổi mới dùng giờ của model (lúc đó nó thường
-                    // chỉ lặp lại khung giờ đã chốt ở lượt trước).
-                    const requestedTime = textTime
-                        || (textSession ? '' : normalizeTimeHint(bookingTarget.appointment_time || ''));
-                    // Buổi chỉ có nghĩa khi khách CHƯA nói giờ cụ thể ("3 giờ chiều" đã thành 15:00).
-                    const requestedSession = textTime ? '' : textSession;
+                    // Mong muốn của khách — xem parseWishes để biết vì sao model là nguồn CUỐI CÙNG.
+                    const wishes = parseWishes(userText, bookingTarget);
+                    const requestedTime = wishes.time;
+                    const requestedSession = wishes.session;
+                    const requestedDate = wishes.date;
+                    const dateExplicit = wishes.dateExplicit;
 
-                    // Ngày cũng vậy: câu của khách trước, rồi tới ngày đã chốt ở lượt trước, CUỐI CÙNG
-                    // mới tới model. Trình duyệt biết hôm nay là ngày mấy, model thì không — nó từng
-                    // trả "ngày 29 tháng 7" cho "thứ Ba" trong khi thứ Ba là 28/07.
-                    const textDate = extractDateHint(userText);
-                    let requestedDate = textDate || '';
-                    // Ngày khách THẬT SỰ vừa nêu, KHÔNG tính ngày mượn lại của lượt trước — đây là
-                    // căn cứ để biết có phải hệ thống đang đổi ngày sau lưng khách hay không.
-                    const dateExplicit = !!requestedDate;
-
-                    // Câu sửa ("đổi thành 10h30", "sang buổi chiều") không mang theo ngày. Ngày đã chốt
-                    // ở lượt trước là ngày hệ thống ĐÃ tra và ĐÃ in cho khách xem, nên đáng tin hơn hẳn
-                    // ngày model tự nghĩ ra.
-                    if (!requestedDate && lastHandoffDate && lastHandoffDate >= toIsoDate(new Date())) {
-                        requestedDate = lastHandoffDate;
-                    }
-                    if (!requestedDate) {
-                        requestedDate = bookingTarget.appointment_date || '';
-                    }
                     const requestedDepartmentId = bookingTarget.department_id || deptIds[0] || null;
 
                     let doctorSearchResult = null;
@@ -1491,6 +1257,30 @@
                     let candidateDoctorName = doctorSearchResult ? doctorSearchResult.fullName : requestedDoctorName;
                     let availableDoctors = [];
 
+                    // KHÁCH ĐÃ CHỌN BÁC SĨ Ở LƯỢT TRƯỚC THÌ GIỮ NGUYÊN NGƯỜI ĐÓ.
+                    //
+                    // Câu tiếp theo của khách hầu như không bao giờ nhắc lại tên ("chọn luôn giờ cho
+                    // tôi chiều nay"), mà model cũng thường quên chép tên vào booking_target. Không có
+                    // cái ghim này thì requestedDoctorName rỗng -> không ai được chỉ đích danh ->
+                    // selectedDoctor rơi về availableDoctors[0], tức HỆ THỐNG TỰ ĐỔI SANG BÁC SĨ KHÁC
+                    // mà không nói một lời. Khách vừa mất công so đánh giá để chọn người xong.
+                    //
+                    // Ghim xong, mọi thứ còn lại tự đúng: nhánh /slot-alternatives nhận doctorId nên
+                    // khi bác sĩ đó không có ca buổi khách xin, nó trả về reason = OFF_DUTY kèm câu
+                    // giải thích, và thẻ "khung giờ kín" nói rõ vì sao thay vì lặng lẽ đổi người.
+                    //
+                    // Chỉ ghim khi CÙNG KHOA (hoặc chưa biết khoa): khách đổi hẳn triệu chứng sang
+                    // khoa khác thì bác sĩ cũ không còn liên quan.
+                    if (!candidateDoctorId && lastChosenDoctor && lastChosenDoctor.id) {
+                        const sameDept = !candidateDepartmentId
+                            || String(candidateDepartmentId) === String(lastChosenDoctor.departmentId);
+                        if (sameDept) {
+                            candidateDoctorId = lastChosenDoctor.id;
+                            candidateDoctorName = lastChosenDoctor.fullName;
+                            if (!candidateDepartmentId) candidateDepartmentId = lastChosenDoctor.departmentId;
+                        }
+                    }
+
                     if (candidateDoctorId && doctorSearchResult && doctorSearchResult.departmentId) {
                         candidateDepartmentId = doctorSearchResult.departmentId;
                     }
@@ -1499,10 +1289,10 @@
                     if (candidateDepartmentId) {
                         try {
                             // Gửi kèm doctorId để backend ghim bác sĩ được chỉ đích danh lên đầu,
-                            // không bị .limit(3) cắt mất.
-                            let deptUrl = '/api/chat/doctors/department/' + candidateDepartmentId + '?sessionId=' + encodeURIComponent(sessionId);
-                            if (candidateDoctorId) deptUrl += '&doctorId=' + encodeURIComponent(candidateDoctorId);
-                            const deptRes = await fetch(deptUrl);
+                            // không bị cắt mất; và gửi giờ/buổi khách xin để server XẾP HẠNG theo
+                            // chỗ trống thật. Thiếu mấy tham số này thì danh sách về theo thứ tự
+                            // bảng và availableDoctors[0] luôn là cùng một người, bất kể khách xin giờ nào.
+                            const deptRes = await fetch(buildDeptUrl(candidateDepartmentId, wishes, candidateDoctorId));
                             if (deptRes.ok) {
                                 const parsed = await deptRes.json();
                                 if (Array.isArray(parsed)) {
@@ -1536,8 +1326,12 @@
 
                     // Khách đã nêu đích danh một bác sĩ nhưng hệ thống không tìm ra người đó:
                     // TUYỆT ĐỐI không được lặng lẽ chọn bác sĩ khác rồi điều hướng, vì như vậy là đặt nhầm người.
-                    if (!selectedDoctor && requestedDoctorName) {
-                        return { doctorNotFound: true, requestedDoctorName: requestedDoctorName };
+                    // Bác sĩ khách CHỌN TỪ DANH SÁCH ở lượt trước cũng được bảo vệ y như vậy: server
+                    // xếp hạng chỉ đổi thứ tự chứ không loại ai, nên không tìm thấy nghĩa là dữ liệu
+                    // lệch — im lặng rơi về availableDoctors[0] chính là con bug này.
+                    if (!selectedDoctor && (requestedDoctorName || candidateDoctorName)) {
+                        return { doctorNotFound: true,
+                                 requestedDoctorName: requestedDoctorName || candidateDoctorName };
                     }
 
                     if (!selectedDoctor) {
@@ -1579,8 +1373,15 @@
                         // 4 khung giờ của ngày gần nhất nên đã cắt mất khung đó.
                         if (alternatives && alternatives.requestedDoctorFree && alternatives.slot) {
                             lastHandoffDate = date;
+                            // GẮN alternatives cả ở nhánh THÀNH CÔNG. Server đã xếp hạng sẵn mọi bác
+                            // sĩ cùng khoa còn trống đúng khung này, lâu nay giao diện vứt hết đi nên
+                            // khách không hề biết mình có lựa chọn nào khác.
                             return makeHandoff(Object.assign({}, baseOpts, {
-                                date: date, slot: alternatives.slot, fallback: false
+                                date: date, slot: alternatives.slot, fallback: false,
+                                alternatives: alternatives,
+                                otherDoctors: pickOtherDoctors(alternatives.sameTimeDoctors, selectedDoctor.id, 2),
+                                pickNearbyLoad: loadOfPicked(alternatives, selectedDoctor.id, 'nearbyLoad'),
+                                pickDayLoad: loadOfPicked(alternatives, selectedDoctor.id, 'dayLoad')
                             }));
                         }
 
@@ -1599,9 +1400,11 @@
 
                     // ===== NHÁNH A — khách nêu GIỜ CỤ THỂ =====
                     if (requestedTime) {
-                        // Không có ngày thì lấy ngày của khung xem trước (ngày gần nhất bác sĩ còn
-                        // nhận); vẫn không có thì hôm nay — server sẽ trả lý do PAST nếu đã muộn.
+                        // Không có ngày thì lấy NGÀY SERVER VỪA CHẤM CẢ KHOA (matchedDate) — chính
+                        // xác hơn hẳn parseSlotLabel, vốn phải đoán năm từ nhãn "T5 24/07".
+                        // Giữ previewInfo làm lớp đỡ cho payload cũ còn nằm trong cache.
                         const date = requestedDate
+                            || selectedDoctor.matchedDate
                             || (previewInfo && previewInfo.appointmentDate)
                             || toIsoDate(new Date());
 
@@ -1637,7 +1440,11 @@
                         if (alternatives && alternatives.requestedDoctorFree && alternatives.slot) {
                             lastHandoffDate = date;
                             return makeHandoff(Object.assign({}, baseOpts, {
-                                date: date, slot: alternatives.slot, fallback: false, suggested: true
+                                date: date, slot: alternatives.slot, fallback: false, suggested: true,
+                                alternatives: alternatives,
+                                otherDoctors: pickOtherDoctors(alternatives.sameTimeDoctors, selectedDoctor.id, 2),
+                                pickNearbyLoad: loadOfPicked(alternatives, selectedDoctor.id, 'nearbyLoad'),
+                                pickDayLoad: loadOfPicked(alternatives, selectedDoctor.id, 'dayLoad')
                             }));
                         }
 
@@ -1673,12 +1480,26 @@
                     }
 
                     lastHandoffDate = suggestedDate;
+                    // Nhánh này KHÔNG có payload /slot-alternatives, và cố ý không gọi thêm một
+                    // lượt mạng nữa (đây là nhánh chạy nhiều nhất). Lấy từ availableDoctors — nay
+                    // đã được SERVER xếp hạng — và lọc `matchedDate === suggestedDate`: bác sĩ rảnh
+                    // thứ Ba tuần sau không phải là "cũng còn trống khung này".
+                    const sameDayOthers = availableDoctors
+                        .filter(function(d) { return d.matchedDate === suggestedDate && d.matchedSlot; })
+                        .map(function(d) {
+                            return { id: d.id, fullName: d.fullName, avatar: d.avatar, degree: d.degree,
+                                     slot: d.matchedSlot, date: d.matchedDate, slotLabel: d.matchedSlotLabel,
+                                     nearbyLoad: d.nearbyLoad, dayLoad: d.dayLoad };
+                        });
                     return makeHandoff(Object.assign({}, baseOpts, {
                         date: suggestedDate,
                         slot: suggestedSlot,
                         label: suggestedLabel,
                         fallback: false,
-                        suggested: true
+                        suggested: true,
+                        otherDoctors: pickOtherDoctors(sameDayOthers, selectedDoctor.id, 2),
+                        pickNearbyLoad: (selectedDoctor.nearbyLoad === undefined) ? null : selectedDoctor.nearbyLoad,
+                        pickDayLoad: (selectedDoctor.dayLoad === undefined) ? null : selectedDoctor.dayLoad
                     }));
                 }
 
@@ -1872,9 +1693,17 @@
                     if (/bác sĩ nữ|bac si nu/.test(raw)) gender = 'Nữ';
                     else if (/bác sĩ nam|bac si nam/.test(raw)) gender = 'Nam';
 
+                    // Nhận diện tiêu chí ở trình duyệt ĐÈ LÊN model, cùng lý do đã ghi cho
+                    // looksLikeAvailabilityQuestion: model bị chính prompt cấm nói về đánh giá và
+                    // lịch, nên tín hiệu của nó ở hai chủ đề này yếu hơn.
+                    //
+                    // "đánh giá" và "chuyên môn" là HAI tiêu chí khác nhau và không được gộp:
+                    // đánh giá là điểm bệnh nhân khác chấm, chuyên môn là số năm kinh nghiệm +
+                    // học vị. Thẻ trả về nói rõ đã xếp theo tiêu chí nào.
                     let sortBy = filter.sort_by || '';
                     if (/rẻ nhất|re nhat|giá thấp|gia thap/.test(raw)) sortBy = 'price';
-                    else if (/kinh nghiệm|kinh nghiem|giỏi nhất|gioi nhat/.test(raw)) sortBy = 'experience';
+                    else if (/đánh giá|danh gia|nhiều sao|nhieu sao|mấy sao|may sao|uy tín|uy tin|nổi tiếng|noi tieng/.test(raw)) sortBy = 'rating';
+                    else if (/kinh nghiệm|kinh nghiem|giỏi nhất|gioi nhat|chuyên môn|chuyen mon|tay nghề|tay nghe/.test(raw)) sortBy = 'experience';
 
                     try {
                         const url = new URL('/api/chat/doctors/filter', window.location.origin);
@@ -1891,6 +1720,12 @@
                         if (!Array.isArray(doctors) || doctors.length === 0) {
                             return { kind: 'doctor_filter', doctors: [], gender: gender, sortBy: sortBy };
                         }
+                        // Gắn sẵn link đặt lịch vào TỪNG dòng, để nút "Chọn" trên thẻ chat và câu
+                        // "em mở trang đặt lịch với bác sĩ X nhé" của chế độ gọi dùng CHUNG một URL.
+                        // Dựng riêng ở hai nơi là sớm muộn cũng lệch tham số.
+                        doctors.forEach(function(d) {
+                            d.appointmentUrl = buildAppointmentUrl(d.id, d.date, '');
+                        });
                         return { kind: 'doctor_filter', doctors: doctors, gender: gender, sortBy: sortBy };
                     } catch (err) {
                         console.error(err);
@@ -2359,13 +2194,42 @@ maximizeBtn.addEventListener('click', (e) => {
 
         /** In thẻ "đã chốt lịch" rồi mở trang đặt lịch (trừ khi đang trong cuộc gọi thoại). */
         function finishBookingHandoff(typingMsg, handoff, aiData, userText) {
+            // Nơi DUY NHẤT ghi nhớ bác sĩ đang được chốt. Mọi thẻ đã chốt đều đi qua đây (luồng
+            // đặt lịch thường, khách chọn hướng thay thế, khách chọn từ danh sách gợi ý), nên các
+            // lượt sau bám đúng người vừa hiện trên màn hình thay vì lấy lại phần tử đầu danh sách.
+            if (handoff && handoff.doctor && handoff.doctor.id) {
+                lastChosenDoctor = {
+                    id: handoff.doctor.id,
+                    fullName: handoff.doctorName || handoff.doctor.fullName,
+                    departmentId: handoff.doctor.departmentId
+                };
+            }
+
             // Câu "khung giờ anh/chị vừa chọn" CHỈ được nói khi khách thật sự đã chọn. Khách chưa
             // nêu giờ mà hệ thống tự lấy khung sớm nhất thì phải nhận là EM chọn — nói vống lên
             // chính là thứ khiến khách tưởng đã đặt đúng ý rồi mở trang ra mới thấy khác.
             const inSession = handoff.requestedSession === 'morning' ? ' trong buổi sáng'
                 : (handoff.requestedSession === 'afternoon' ? ' trong buổi chiều' : '');
+            const picked = handoff.doctorName || handoff.doctor.fullName;
+            const askedTime = !!(handoff.requestedTime || handoff.requestedSession);
+
+            // LUẬT: MỌI CÂU SO SÁNH NHẤT PHẢI NÊU RÕ PHẠM VI.
+            // Câu cũ "khung giờ trống sớm nhất" được in mỗi khi suggested = true, với ĐÚNG 0 dữ
+            // liệu về những bác sĩ khác — trong khi bác sĩ lại do trình duyệt lấy đại phần tử đầu
+            // danh sách. Khách xin 9h30 mà đọc "sớm nhất" rồi thấy bác sĩ khác cùng khoa rảnh sớm
+            // hơn thì đó là nói sai, không phải nói gọn.
+            //
+            // Không có số liệu -> KHÔNG nêu lý do. Thà nói ngắn còn hơn nói một câu chưa ai kiểm chứng.
+            const why = askedTime
+                ? (handoff.pickNearbyLoad !== null ? describeLoad(handoff.pickNearbyLoad) : '')
+                : (handoff.pickDayLoad !== null ? describeDayLoad(handoff.pickDayLoad) : '');
+
             const headline = handoff.suggested
-                ? 'Em xin phép chọn giúp anh/chị khung giờ trống sớm nhất' + inSession + ' của bác sĩ.'
+                ? (askedTime
+                    ? 'Em chọn giúp anh/chị bác sĩ ' + picked + (why ? ' vì ' + why : '') + ' ạ.'
+                    // "sớm nhất CỦA BÁC SĨ" — nêu rõ phạm vi, vì đó đúng là thứ đã kiểm chứng.
+                    : 'Em chọn giúp anh/chị bác sĩ ' + picked + ' và khung trống sớm nhất của bác sĩ'
+                      + inSession + (why ? ', vì ' + why : '') + ' ạ.')
                 : 'Em đã mở đúng bác sĩ và khung giờ anh/chị vừa chọn.';
             const note = handoff.suggested
                 ? `<div style="font-size:12px;color:#64748b;margin-top:4px;">
@@ -2373,14 +2237,39 @@ maximizeBtn.addEventListener('click', (e) => {
                    </div>`
                 : '';
 
+            // Bác sĩ cùng khoa cũng còn trống. CHỈ hiện khi EM tự chọn giúp (suggested): khách đã
+            // tự chọn bác sĩ thì mời đổi là đang nghi ngờ lựa chọn của họ.
+            // Rỗng thì KHÔNG in gì — câu "trong khoa chỉ còn mỗi bác sĩ X" là một khẳng định phủ
+            // định mới mà chưa ai kiểm chứng.
+            const others = handoff.suggested ? (handoff.otherDoctors || []) : [];
+            let othersHtml = '';
+            if (others.length > 0) {
+                // Số lượng lấy từ chính danh sách, KHÔNG viết cứng "2": cắt top 3 trừ chính mình
+                // có thể chỉ còn 1 người.
+                const lead = handoff.requestedTime
+                    ? 'Cùng khung <strong>' + handoff.requestedTime + '</strong> còn ' + others.length + ' bác sĩ khác đang trống ạ:'
+                    : (handoff.requestedSession
+                        // Khách nêu BUỔI thì mỗi người một khung khác nhau — nói "cùng buổi", tuyệt
+                        // đối không nói "cùng khung 07:30".
+                        ? 'Cùng' + inSession + ' hôm đó còn ' + others.length + ' bác sĩ khác đang trống ạ:'
+                        : 'Hôm đó còn ' + others.length + ' bác sĩ khác trong khoa đang trống ạ:');
+                othersHtml = `<div style="font-size:13px;color:#334155;margin-top:8px;">${lead}</div>`;
+                others.forEach(function(doc) {
+                    const reason = handoff.requestedTime || handoff.requestedSession
+                        ? describeLoad(doc.nearbyLoad) : describeDayLoad(doc.dayLoad);
+                    othersHtml += buildDoctorChoiceRow(doc, handoff.appointmentDate, 'Đổi', reason);
+                });
+            }
+
             typingMsg.innerHTML += `
                 <div class="mt-3 p-3" style="background: #eef6ff; border-left: 4px solid #0d6efd; border-radius: 8px;">
                     <div class="fw-bold mb-1" style="color: #0d6efd;"><i class="bi bi-calendar-check"></i> ${headline}</div>
                     <div style="font-size: 13px; color: #334155;">
-                        <div><strong>Bác sĩ:</strong> ${handoff.doctorName || handoff.doctor.fullName}</div>
+                        <div><strong>Bác sĩ:</strong> ${picked}</div>
                         <div><strong>Lịch hẹn:</strong> ${handoff.selectedSlotLabel}</div>
                     </div>
                     ${note}
+                    ${othersHtml}
                     <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
                         <a href="${handoff.appointmentUrl}" class="btn btn-sm btn-primary">Mở trang đặt lịch</a>
                         <button type="button" class="btn btn-sm btn-outline-secondary js-cancel-redirect">Ở lại trang này</button>
@@ -2482,6 +2371,9 @@ maximizeBtn.addEventListener('click', (e) => {
             if (parseCancelIntent(text)) {
                 pendingAlternatives = null;
                 lastHandoffDate = '';
+                // Khách dừng hẳn thì bác sĩ đã chọn cũng hết hiệu lực, kẻo lần đặt lịch sau lại
+                // bị ghim vào người của cuộc trò chuyện cũ.
+                lastChosenDoctor = null;
                 const byeText = 'Dạ vâng ạ, em dừng việc đặt lịch tại đây. '
                     + 'Khi nào cần anh/chị nhắn lại giúp em nhé.';
                 const byeMsg = appendMessage('bot', byeText);
@@ -2579,10 +2471,14 @@ maximizeBtn.addEventListener('click', (e) => {
                                                 // nên câu đó vừa sai vừa hối thúc khách một cách vô cớ.
                                                 let allActionHtml = `<div class="mt-3">`;
 
+                                                // Cùng bộ mong muốn với nhánh chốt lịch bên dưới. Hai nơi mà gửi khác
+                                                // nhau thì khách đọc 3 thẻ ở đây rồi thẻ xác nhận bên dưới lại chốt
+                                                // một bác sĩ thứ tư không hề có trên màn hình.
+                                                const cardWishes = parseWishes(text, aiData.booking_target);
                                                 for (let i = 0; i < deptIds.length; i++) {
                                                     const deptId = deptIds[i];
                                                     try {
-                                                        const docRes = await fetch(`/api/chat/doctors/department/${deptId}?sessionId=${sessionId}`);
+                                                        const docRes = await fetch(buildDeptUrl(deptId, cardWishes, null));
                                                         if (docRes.ok) {
                                                             const doctors = await docRes.json();
                                                             if (doctors && doctors.length > 0) {
@@ -2790,8 +2686,15 @@ maximizeBtn.addEventListener('click', (e) => {
 
                                             // Lưu lại khung HTML (Đã chạy ngầm memory JSON)
                                             safeStorage.setChatHtml(messagesContainer.innerHTML);
+                                            // `lookup` mang CẢ BỐN nhánh tra cứu sang lớp gọi thoại.
+                                            // Trước đây payload chỉ có `availability`, nên ba nhánh còn lại
+                                            // (lịch hẹn của khách, hồ sơ bác sĩ, danh sách gợi ý bác sĩ) in
+                                            // ra thẻ chat nhưng KHÔNG BAO GIỜ được đọc lên trong chế độ gọi —
+                                            // khách đang gọi rảnh tay thì không nhìn màn hình, coi như câu hỏi
+                                            // của họ rơi vào im lặng. `availability` giữ nguyên để không phải
+                                            // sửa nhánh đã chạy tốt bên kia.
                                             notifyReply({ aiData: aiData, userText: text, bookingHandoff: null,
-                                                          availability: availability });
+                                                          availability: availability, lookup: lookupResult });
 
                                         } catch (renderError) {
                                             // Lỗi ở phần DỰNG GIAO DIỆN (sau khi JSON đã parse xong).
@@ -2975,6 +2878,16 @@ maximizeBtn.addEventListener('click', (e) => {
             appendMessage: appendMessage,
             openChat: function() { if (chatBox.classList.contains('d-none')) toggleBtn.click(); },
             get sessionId() { return sessionId; },
+            // Chế độ gọi cho khách chọn bác sĩ BẰNG LỜI, không đi qua finishBookingHandoff, nên
+            // phải tự báo về đây. Thiếu lời báo này thì lượt sau ("chọn luôn giờ chiều nay")
+            // không có ai để ghim và hệ thống lặng lẽ đổi sang bác sĩ khác.
+            rememberChosenDoctor: function(doc) {
+                lastChosenDoctor = (doc && doc.id)
+                    ? { id: doc.id, fullName: doc.fullName, departmentId: doc.departmentId }
+                    : null;
+            },
+            // Dùng chung một hàm dựng URL cho nút "Chọn" trên thẻ và câu mời của loa.
+            buildAppointmentUrl: buildAppointmentUrl,
             // Chế độ gọi bật cờ này để tự lo phần xác nhận bằng giọng nói
             // thay vì để khung chat tự nhảy trang sau 900ms.
             suppressAutoRedirect: false,

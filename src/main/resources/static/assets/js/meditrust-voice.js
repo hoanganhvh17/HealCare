@@ -217,7 +217,47 @@
         try { synth.cancel(); } catch (e) { /* bỏ qua */ }
     }
 
-    /** Chrome cắt ngang utterance dài, nên chia nhỏ theo câu (~180 ký tự). */
+    /**
+     * Trần độ dài MỘT utterance.
+     *
+     * Lỗi thật của Chrome là hàng đợi TTS tự ngủ sau ~15 GIÂY, chứ không phải sau N ký tự — và
+     * cái đó đã có keep-alive pause/resume lo. Mốc cũ 180 ký tự (~8 giây ở rate 1.5) vì thế quá
+     * chặt: một câu trả lời lịch bình thường (~250 ký tự) bị xé làm hai utterance, mà giữa hai
+     * utterance trình duyệt LUÔN chèn một quãng nghỉ thật. Vì chỗ cắt chỉ rơi vào dấu chấm câu,
+     * quãng nghỉ đó nghe đúng như "đọc tới dấu chấm là đứng hình".
+     *
+     * 300 ký tự ở rate 1.5 vào khoảng 13 giây — vẫn nằm dưới mốc 15 giây, và keep-alive đánh thức
+     * ở giây thứ 10 nên còn dư biên. Nâng cao hơn nữa là bắt đầu cược vào watchdog.
+     */
+    var MAX_CHUNK_CHARS = 300;
+
+    /**
+     * Nối liền các câu để máy đọc KHÔNG nghỉ ở mỗi dấu chấm.
+     *
+     * Hai lý do khiến bản cũ nghỉ quá nhiều:
+     *   1. Giọng đọc tự ngắt rất lâu ở dấu chấm (dài hơn hẳn dấu phẩy).
+     *   2. toSpeechText BIẾN MỖI <br> VÀ MỖI THẺ ĐÓNG THÀNH ". " — thẻ trả lời lịch ghép từ nhiều
+     *      <div> nên số dấu chấm nhiều hơn hẳn số câu thật, nghe như đọc từng dòng rời rạc.
+     *
+     * Chỉ đổi dấu chấm NẰM GIỮA câu; dấu chấm cuối cùng giữ nguyên để câu có chỗ hạ giọng, và
+     * "?" / "!" tuyệt đối không đụng tới — trợ lý luôn kết bằng câu hỏi, mất ngữ điệu hỏi là khách
+     * không biết mình đang được hỏi.
+     *
+     * Bắt buộc có khoảng trắng sau dấu chấm, nên "350.000 đ" không bị đụng (dấu phân cách hàng
+     * nghìn kiểu Việt Nam). KHÔNG dùng lookbehind — Safari cũ coi đó là lỗi cú pháp và vứt cả file
+     * (xem coding-conventions.md); lookahead thì hợp lệ.
+     */
+    function joinSentences(text) {
+        if (!text) return text;
+        try {
+            return text.replace(/([\p{L}\p{N}])\.\s+(?=\S)/gu, '$1, ');
+        } catch (e) {
+            // Trình duyệt không hiểu \p{...} với cờ u -> hạ xuống bản chỉ chữ-số ASCII.
+            return text.replace(/([a-zA-Z0-9])\.\s+(?=\S)/g, '$1, ');
+        }
+    }
+
+    /** Chrome cắt ngang utterance dài, nên chia nhỏ theo câu. */
     function splitIntoChunks(text) {
         // Tách sau dấu kết câu. Cố tình KHÔNG dùng lookbehind (?<=...) vì Safari cũ
         // coi đó là lỗi cú pháp và sẽ vứt bỏ toàn bộ file này.
@@ -226,7 +266,7 @@
 
         for (var i = 0; i < sentences.length; i++) {
             var s = sentences[i];
-            if ((current + ' ' + s).trim().length > 180 && current) {
+            if ((current + ' ' + s).trim().length > MAX_CHUNK_CHARS && current) {
                 chunks.push(current.trim());
                 current = s;
             } else {
@@ -246,6 +286,11 @@
     function speak(text, opts) {
         opts = opts || {};
         var content = opts.raw ? String(text || '') : toSpeechText(text);
+
+        // Nối câu ở ĐÂY chứ không nhét vào toSpeechText: nhánh raw = true (các câu tiếng Việt do
+        // mình tự viết trong lớp gọi thoại) không đi qua hàm kia, mà chính mấy câu đó mới hay bị
+        // ghép nhiều mệnh đề nhất.
+        content = joinSentences(content);
 
         if (!isSpeechSupported() || !content) {
             if (opts.onEnd) opts.onEnd();
@@ -290,8 +335,13 @@
             synth.speak(u);
         });
 
-        // Vá lỗi Chrome: hàng đợi TTS tự "ngủ" sau ~15 giây nếu không được đánh thức
+        // Vá lỗi Chrome: hàng đợi TTS tự "ngủ" sau ~15 giây nếu không được đánh thức.
+        //
+        // CHỈ bật khi câu đủ dài để chạm mốc đó. pause()+resume() giữa chừng có thể tạo một cú
+        // giật nghe rõ, nên câu ngắn (đại đa số câu trả lời) không cần và không nên trả giá đó.
+        // ~150 ký tự ở rate 1.5 khoảng 7 giây — dưới mức này chắc chắn đọc xong trước watchdog.
         if (keepAliveTimer) clearInterval(keepAliveTimer);
+        if (content.length < 150) return;
         keepAliveTimer = setInterval(function () {
             if (!synth.speaking) {
                 clearInterval(keepAliveTimer);

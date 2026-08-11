@@ -172,7 +172,7 @@ public class AiService {
                     "    \"date\": \"(YYYY-MM-DD nếu khách nói rõ ngày, ngược lại để trống)\",\n" +
                     "    \"session\": \"(morning | afternoon | để trống)\",\n" +
                     "    \"scope\": \"(day nếu hỏi về một ngày, week nếu hỏi cả tuần / 'ngày nào')\",\n" +
-                    "    \"filter\": { \"gender\": \"(Nam | Nữ | để trống)\", \"sort_by\": \"(experience | price | earliest | để trống)\" }\n" +
+                    "    \"filter\": { \"gender\": \"(Nam | Nữ | để trống)\", \"sort_by\": \"(experience | price | rating | earliest | để trống)\" }\n" +
                     "  }\n" +
                     "}\n\n" +
                     "⚠️ NHIỆM VỤ CỦA BẠN: Sinh ra câu trả lời cho User hiện tại, và BẮT BUỘC cấu trúc JSON phải có đủ 10 trường y hệt như ví dụ trên. LUÔN LUÔN tạo ra 3 câu cho `suggested_prompts`.\n\n" +
@@ -207,7 +207,10 @@ public class AiService {
                     "  + `doctor_schedule` — hỏi bác sĩ có làm/nghỉ/bận hôm nào, lịch làm việc tuần này (VD: 'bác sĩ Bình chiều nay bận à?', 'bác sĩ Bình tuần này làm ngày nào?'). Chép tên bác sĩ vào `lookup.doctor_name`, ngày vào `lookup.date`, buổi vào `lookup.session`; hỏi cả tuần thì `scope = week`.\n" +
                     "  + `my_bookings` — hỏi về lịch hẹn của CHÍNH KHÁCH (VD: 'lịch khám của tôi hôm nào?', 'tôi đặt với bác sĩ nào?').\n" +
                     "  + `doctor_info` — hỏi giá khám, đánh giá, kinh nghiệm, bằng cấp của một bác sĩ. Chép tên vào `lookup.doctor_name`.\n" +
-                    "  + `doctor_filter` — xin gợi ý bác sĩ theo tiêu chí (VD: 'khoa Tim mạch có bác sĩ nữ nào không?', 'bác sĩ nào nhiều kinh nghiệm nhất?'). Điền `lookup.filter` và `booking_target.department_id`.\n" +
+                    "  + `doctor_filter` — xin gợi ý bác sĩ theo tiêu chí (VD: 'khoa Tim mạch có bác sĩ nữ nào không?', 'bác sĩ nào nhiều kinh nghiệm nhất?', 'cho tôi bác sĩ được đánh giá cao nhất'). Điền `lookup.filter` và `booking_target.department_id`.\n" +
+                    "    · `sort_by = rating` khi khách hỏi về ĐÁNH GIÁ / số sao / uy tín ('bác sĩ nào được đánh giá tốt nhất?'). `sort_by = experience` khi khách hỏi về CHUYÊN MÔN / tay nghề / kinh nghiệm. `sort_by = price` khi khách hỏi giá rẻ.\n" +
+                    "    · Loại này vẫn được điền KỂ CẢ KHI câu có chữ 'đặt lịch' ('đặt lịch với bác sĩ đánh giá tốt nhất'): khách nêu TIÊU CHÍ chứ chưa nêu người, nên hệ thống phải liệt kê để khách chọn trước.\n" +
+                    "    · Điểm đánh giá chỉ tính từ lượt chấm THẬT của bệnh nhân đã khám. TUYỆT ĐỐI KHÔNG nói bác sĩ nào đó 5 sao / được đánh giá cao — bạn không đọc được bảng đánh giá, hệ thống in số thật ngay bên dưới.\n" +
                     "  + `none` — mọi trường hợp còn lại.\n" +
                     "- Với 4 loại trên, `ai_reply` chỉ nên là MỘT câu ngắn dẫn vào ('Dạ em xem giúp anh/chị ngay ạ.') rồi DỪNG — hệ thống in kết quả thật ngay bên dưới. TUYỆT ĐỐI không tự bịa ra lịch, giá tiền hay số sao đánh giá.\n\n" +
 

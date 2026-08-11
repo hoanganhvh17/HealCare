@@ -69,6 +69,22 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    public java.util.Map<Long, RatingStats> getRatingStats(java.util.Collection<Long> doctorIds) {
+        java.util.Map<Long, RatingStats> stats = new java.util.HashMap<>();
+        if (doctorIds == null || doctorIds.isEmpty()) return stats;
+
+        for (Object[] row : reviewRepository.aggregateRatingByDoctorIds(doctorIds)) {
+            Long doctorId = ((Number) row[0]).longValue();
+            double avg = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
+            long count = row[2] == null ? 0L : ((Number) row[2]).longValue();
+            // Làm tròn 1 số thập phân giống getAverageRating, để hai đường đọc cùng một con số.
+            stats.put(doctorId, new RatingStats(Math.round(avg * 10.0) / 10.0, count));
+        }
+        // Bác sĩ chưa có đánh giá CỐ Ý không được thêm vào map — xem javadoc ở interface.
+        return stats;
+    }
+
+    @Override
     public List<Review> getRecentReviews(Long doctorId) {
         return reviewRepository.findTop5ByBooking_Doctor_IdOrderByCreatedAtDesc(doctorId);
     }

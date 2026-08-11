@@ -30,6 +30,10 @@
     var restartBurst = 0;
     var restartBurstResetAt = 0;
     var awaitingConfirm = null;     // bookingHandoff đang chờ khách nói có/không
+    // Danh sách bác sĩ vừa ĐỌC LÊN, đang chờ khách chọn một người ("người thứ hai", "bác sĩ Bình").
+    // Khác hẳn awaitingConfirm: ở đây chưa có lịch hẹn nào, nên một tiếng "vâng" KHÔNG được
+    // chốt gì cả — xem describeDoctorFilter.
+    var pendingChoiceList = null;
     var micMuted = false;
     var els = {};                   // các nút/vùng trên overlay
 
@@ -363,6 +367,26 @@
     // =====================================================================
 
     function handleUserSpeech(text) {
+        // Vừa đọc xong danh sách bác sĩ -> câu này rất có thể là "người thứ hai" / "bác sĩ Bình".
+        //
+        // Phải xử lý TẠI CHỖ, trước khi gửi cho model: model KHÔNG hề biết em vừa đọc những ai
+        // (danh sách do hệ thống tra ra, không nằm trong hội thoại), nên hỏi nó thì nó chỉ có thể
+        // hỏi ngược lại khách — đúng cái vòng lặp mà resolveAlternativeChoice bên ai-chat.js sinh
+        // ra để cắt.
+        //
+        // Không nhận ra thì trả null và chuyển tiếp cho model. TUYỆT ĐỐI không đoán bừa: đoán sai
+        // là mở trang đặt lịch với một bác sĩ khách không hề chọn.
+        if (pendingChoiceList) {
+            var picked = resolveDoctorChoice(text, pendingChoiceList);
+            if (picked) {
+                pendingChoiceList = null;
+                setTranscript('', text);
+                offerNearestSlot(picked);
+                return;
+            }
+            pendingChoiceList = null;
+        }
+
         // Đang chờ khách chốt lịch thì câu nói này là câu trả lời có/không (KB1, KB9)
         if (awaitingConfirm) {
             var answer = parseYesNo(text);
@@ -391,6 +415,12 @@
     /** Được ai-chat.js gọi sau mỗi lượt trả lời, kể cả khi lỗi. */
     function onChatReply(payload) {
         if (state === 'idle' || state === 'emergency') return;
+
+        // Mọi lượt trả lời MỚI đều làm danh sách vừa đọc hết hiệu lực; nhánh doctor_filter bên
+        // dưới sẽ gán lại nếu lượt này lại là một danh sách. Không xoá thì lượt sau khách nói
+        // "người thứ hai" và bị chọn vào một danh sách đã bỏ qua từ lâu — đúng cái bẫy đã ghi
+        // cho pendingAlternatives bên ai-chat.js.
+        pendingChoiceList = null;
 
         if (payload.error) {
             say('Dạ hệ thống đang bận. Anh/chị nói lại giúp em nhé.', function () { startListening(); });
@@ -474,6 +504,33 @@
             return;
         }
 
+        // Ba nhánh tra cứu còn lại. Cùng luật với nhánh lịch làm việc ở trên: awaitingConfirm = null
+        // và kết bằng câu hỏi MỞ. Thiếu chúng thì thẻ chat có nội dung mà chế độ gọi im lặng —
+        // đúng lúc khách rảnh tay, không nhìn màn hình.
+        var lookup = payload.lookup;
+        if (lookup && lookup.kind === 'doctor_filter') {
+            awaitingConfirm = null;
+            var offer = describeDoctorFilter(lookup);
+            // Giữ ĐÚNG những người vừa đọc lên, không nhiều hơn.
+            pendingChoiceList = offer.offered.length ? offer.offered : null;
+            // CỐ Ý KHÔNG đọc lại câu của model ở nhánh này, y như nhánh "khung giờ kín": model bị
+            // chính prompt cấm nói về đánh giá và lịch, nên câu của nó chỉ là một lời dẫn rỗng
+            // ("Dạ em xem giúp anh/chị ngay ạ") — đọc thêm là tốn mất một phần ngân sách hơi đọc
+            // cho chữ không mang tin, và có nguy cơ mâu thuẫn với chính danh sách ngay sau đó.
+            say(offer.text, function () { startListening(); });
+            return;
+        }
+        if (lookup && lookup.kind === 'doctor_info') {
+            awaitingConfirm = null;
+            say(spoken + ' ' + describeDoctorProfile(lookup), function () { startListening(); });
+            return;
+        }
+        if (lookup && lookup.kind === 'my_bookings') {
+            awaitingConfirm = null;
+            say(spoken + ' ' + describeMyBookings(lookup), function () { startListening(); });
+            return;
+        }
+
         // KB1 — đã chốt được bác sĩ + khung giờ: hỏi xác nhận rồi mới điều hướng
         if (payload.bookingHandoff) {
             awaitingConfirm = payload.bookingHandoff;
@@ -483,9 +540,21 @@
             var slot = V().humanizeSchedule(payload.bookingHandoff.selectedSlotLabel || '');
             // Khách chưa nêu giờ nào mà hệ thống tự chọn giúp thì phải nói rõ là EM xếp, y như
             // thẻ chat — nói "em đặt lịch ... anh/chị xác nhận" là ngầm bảo khách đã chọn giờ đó.
+            //
+            // Câu cũ đọc "là khung trống sớm nhất ạ" mà chưa hề so với bác sĩ nào khác. Nay nêu
+            // LÝ DO THẬT lấy từ số liệu server; không có số liệu thì không nêu lý do.
+            // CỐ Ý KHÔNG đọc danh sách bác sĩ khác thành tiếng: nó biến câu hỏi có/không thành một
+            // menu, mà menu là việc của nhánh fallback.
+            var askedTime = !!(payload.bookingHandoff.requestedTime || payload.bookingHandoff.requestedSession);
+            var whyVoice = askedTime
+                ? (payload.bookingHandoff.pickNearbyLoad !== null && payload.bookingHandoff.pickNearbyLoad !== undefined
+                    ? describeLoadVoice(payload.bookingHandoff.pickNearbyLoad) : '')
+                : (payload.bookingHandoff.pickDayLoad !== null && payload.bookingHandoff.pickDayLoad !== undefined
+                    ? describeDayLoadVoice(payload.bookingHandoff.pickDayLoad) : '');
+
             var question = payload.bookingHandoff.suggested
-                ? 'Em xếp giúp anh/chị ' + slot + ' với ' + doctorName
-                    + ', là khung trống sớm nhất ạ. Anh/chị thấy được không ạ?'
+                ? 'Em chọn giúp anh/chị bác sĩ ' + doctorName + ', ' + slot
+                    + (whyVoice ? ', vì ' + whyVoice : '') + '. Anh/chị thấy được không ạ?'
                 : 'Em đặt lịch với ' + doctorName + ', ' + slot + '. Anh/chị xác nhận giúp em nhé?';
 
             say(spoken + ' ' + question, function () { startListening(); });
@@ -500,6 +569,17 @@
         if (!nearbyLoad) return 'quanh giờ đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
         if (nearbyLoad <= 2) return 'quanh giờ đó bác sĩ chỉ có ' + nearbyLoad + ' ca nên anh/chị ít phải chờ';
         return 'quanh giờ đó bác sĩ có ' + nearbyLoad + ' ca khám';
+    }
+
+    /**
+     * Bản dùng khi khách KHÔNG nêu giờ nào. "quanh giờ đó" lúc ấy trỏ vào một mốc khách chưa hề
+     * nhắc tới. Bản song sinh của describeDayLoad trong ai-chat.js — sửa một bên thì sửa cả hai,
+     * kẻo thẻ chat và câu đọc nói khác nhau.
+     */
+    function describeDayLoadVoice(dayLoad) {
+        if (!dayLoad) return 'hôm đó bác sĩ chưa có ca nào nên anh/chị gần như không phải chờ';
+        if (dayLoad <= 3) return 'hôm đó bác sĩ mới có ' + dayLoad + ' ca nên anh/chị ít phải chờ';
+        return 'hôm đó bác sĩ có ' + dayLoad + ' ca khám';
     }
 
     /**
@@ -583,11 +663,308 @@
         return text + 'Anh/chị muốn em xem lịch ngày nào ạ?';
     }
 
+    // =====================================================================
+    // 5b. ĐỌC DANH SÁCH GỢI Ý VÀ CHO KHÁCH CHỌN BẰNG LỜI
+    // =====================================================================
+
+    // Đọc TỐI ĐA 3 người, và cắt bớt nữa nếu câu vượt NGÂN SÁCH KÝ TỰ bên dưới.
+    var MAX_DOCTORS_READ = 3;
+    var ORDINAL_WORDS = ['nhất', 'hai', 'ba'];
+
+    // Một hơi đọc của trình duyệt chỉ chịu được MAX_CHUNK_CHARS = 300 ký tự (~13 giây, xem
+    // meditrust-voice.js). Vượt ngưỡng là splitIntoChunks xé thành nhiều utterance, mà giữa hai
+    // utterance trình duyệt LUÔN chèn một quãng nghỉ thật — đúng tiếng "đứng hình giữa câu" đã
+    // phải đi sửa một lần rồi. Chừa 30 ký tự cho những cái tên dài bất thường.
+    var SPEECH_BUDGET = 270;
+
+    var CRITERION_VOICE = {
+        rating: 'theo điểm đánh giá thật của người bệnh',
+        experience: 'theo số năm kinh nghiệm',
+        price: 'theo mức giá khám từ thấp lên'
+    };
+
+    /**
+     * "4.8" -> "4 phẩy 8". Giọng Việt đọc dấu chấm thập phân thành "chấm" nghe rất máy móc,
+     * mà số sao là con số khách nghe để so sánh nên phải rõ.
+     */
+    function speakNumber(value) {
+        // Number(null) là 0 chứ không phải NaN, nên phải loại rỗng TRƯỚC khi ép kiểu — bằng không
+        // một bác sĩ chưa ai chấm (avgRating = null) sẽ được đọc lên là "0 sao".
+        if (value === null || value === undefined || value === '') return '';
+        var n = Number(value);
+        if (!isFinite(n)) return '';
+        var rounded = Math.round(n * 10) / 10;
+        var whole = Math.floor(rounded);
+        var decimal = Math.round((rounded - whole) * 10);
+        return decimal === 0 ? String(whole) : whole + ' phẩy ' + decimal;
+    }
+
+    /** Từ cuối trong họ tên — cách người Việt gọi nhau. Bản song sinh của lastNameWord bên ai-chat.js. */
+    function lastNameWord(fullName) {
+        var words = String(fullName || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+        return words.length ? words[words.length - 1] : '';
+    }
+
+    /**
+     * Đọc danh sách bác sĩ gợi ý rồi MỜI KHÁCH CHỌN.
+     *
+     * Ba điều bắt buộc, đều là bản sao bằng lời của luật đã áp cho thẻ chat:
+     *  - Nói rõ ĐANG XẾP THEO TIÊU CHÍ GÌ. Đọc trống một dãy tên thì khách không có gì để so,
+     *    mà "tốt nhất" đo bằng đánh giá hay bằng kinh nghiệm là hai chuyện khác hẳn.
+     *  - Bác sĩ chưa ai chấm phải nói thẳng "chưa có lượt đánh giá nào". Trang /doctors cố ý
+     *    quảng cáo 5 sao cho họ; khung chat và loa đều không được nhắc lại con số đó.
+     *  - Đọc kèm SỐ LƯỢT đánh giá, vì đó là thứ duy nhất phân biệt điểm thật với điểm mặc định.
+     *
+     * Luôn kết bằng câu hỏi MỞ ("chọn người nào ạ?"), không bao giờ câu có/không: ở đây chưa
+     * có lịch hẹn nào để một tiếng "vâng" chốt.
+     */
+    function describeDoctorFilter(data) {
+        if (data.error) {
+            return { text: 'Dạ em chưa tra được danh sách bác sĩ lúc này ạ. Anh/chị thử lại giúp em nhé?',
+                     offered: [] };
+        }
+        var all = data.doctors || [];
+        if (!all.length) {
+            return { text: 'Dạ em chưa tìm được bác sĩ nào khớp tiêu chí đó ạ. '
+                         + 'Anh/chị cho em biết thêm chuyên khoa hoặc yêu cầu khác nhé?',
+                     offered: [] };
+        }
+
+        var byRating = data.sortBy === 'rating';
+        var ratedCount = all.filter(function (d) { return d.reviewCount > 0; }).length;
+
+        var intro = (byRating && ratedCount === 0)
+            ? 'Dạ chưa bác sĩ nào có lượt đánh giá thật của người bệnh, nên em xếp theo số năm kinh nghiệm. '
+            : 'Dạ em xếp ' + (CRITERION_VOICE[data.sortBy] || CRITERION_VOICE.experience) + '. ';
+
+        // MỖI BÁC SĨ ĐÚNG MỘT DỮ KIỆN, và dữ kiện đó chính là tiêu chí đang xếp. Đọc kèm cả
+        // kinh nghiệm lẫn giá lẫn số sao là vừa dài (vỡ ngân sách một hơi đọc) vừa khiến khách
+        // không biết đang so bằng cái gì — nghe thì không lướt lại được như nhìn thẻ trên màn hình.
+        // MỌI DÒNG PHẢI CÙNG MỘT ĐƠN VỊ. Đọc người này "5 sao" người kia "18 năm kinh nghiệm" là
+        // khách không so được gì cả — nghe thì không lướt ngược lên được như nhìn thẻ trên màn hình.
+        function factOf(d) {
+            if (byRating) {
+                return d.reviewCount > 0
+                    ? speakNumber(d.avgRating) + ' sao sau ' + d.reviewCount + ' lượt đánh giá'
+                    : 'chưa có lượt đánh giá nào';
+            }
+            if (data.sortBy === 'price' && d.price !== null && d.price !== undefined) {
+                return Math.round(Number(d.price) / 1000) + ' nghìn đồng';
+            }
+            return (d.experienceYears || 0) + ' năm kinh nghiệm';
+        }
+
+        function assemble(list) {
+            var lines = list.map(function (d, i) {
+                return 'Thứ ' + ORDINAL_WORDS[i] + ', bác sĩ ' + d.fullName + ', ' + factOf(d);
+            });
+            var left = all.length - list.length;
+            return intro + lines.join('. ') + '.'
+                + (left > 0 ? ' Em còn ' + left + ' bác sĩ nữa.' : '')
+                + ' Anh/chị chọn người nào ạ?';
+        }
+
+        // Cắt dần cho tới khi lọt một hơi đọc. Danh sách trả về PHẢI đúng bằng những người vừa
+        // đọc lên: giữ lại nhiều hơn thì "người thứ ba" sẽ chọn trúng một cái tên khách chưa
+        // từng nghe.
+        var offered = all.slice(0, MAX_DOCTORS_READ);
+        var text = assemble(offered);
+        while (offered.length > 1 && text.length > SPEECH_BUDGET) {
+            offered = offered.slice(0, offered.length - 1);
+            text = assemble(offered);
+        }
+        return { text: text, offered: offered };
+    }
+
+    /** Hồ sơ MỘT bác sĩ: giá khám và đánh giá thật. */
+    function describeDoctorProfile(p) {
+        if (p.error) return 'Dạ em chưa tra được thông tin bác sĩ lúc này ạ. Anh/chị thử lại giúp em nhé?';
+        if (p.doctorNotFound) {
+            return 'Dạ em chưa tìm thấy bác sĩ ' + p.requestedDoctorName + '. Anh/chị đọc lại tên giúp em ạ?';
+        }
+        if (p.doctorAmbiguous) {
+            var names = (p.candidates || []).map(function (d) { return d.fullName; });
+            return 'Dạ bên em có ' + names.length + ' bác sĩ cùng tên ' + p.requestedDoctorName
+                + ': ' + names.join(', ') + '. Anh/chị hỏi về bác sĩ nào ạ?';
+        }
+
+        var parts = ['Dạ bác sĩ ' + p.fullName];
+        if (p.experienceYears) parts.push(p.experienceYears + ' năm kinh nghiệm');
+        if (p.price !== null && p.price !== undefined) {
+            parts.push('giá khám ' + Math.round(Number(p.price) / 1000) + ' nghìn đồng một lần');
+        }
+        // Điều kiện là SỐ LƯỢT chứ không phải điểm: getAverageRating trả 0.0 chứ không null.
+        parts.push(p.reviewCount > 0
+            ? 'được ' + speakNumber(p.avgRating) + ' sao sau ' + p.reviewCount + ' lượt đánh giá'
+            : 'chưa có lượt đánh giá nào');
+
+        return parts.join(', ') + '. Anh/chị muốn em xem lịch khám của bác sĩ không ạ?';
+    }
+
+    /** Lịch hẹn của CHÍNH khách. Chỉ đọc 2 lịch gần nhất — phần còn lại đã có trên màn hình. */
+    function describeMyBookings(data) {
+        if (data.needLogin) {
+            return 'Dạ anh/chị đăng nhập giúp em thì em mới tra được lịch hẹn của mình ạ. '
+                + 'Anh/chị muốn em mở trang đăng nhập không ạ?';
+        }
+        if (data.error) return 'Dạ em chưa tra được lịch hẹn lúc này ạ. Anh/chị thử lại giúp em nhé?';
+
+        var upcoming = data.upcoming || [];
+        if (!upcoming.length) {
+            return 'Dạ anh/chị chưa có lịch hẹn nào sắp tới ạ. Anh/chị muốn em đặt lịch giúp không ạ?';
+        }
+        var lines = upcoming.slice(0, 2).map(function (b) {
+            return 'bác sĩ ' + b.doctorName + ', ' + V().humanizeSchedule((b.time || '') + ', ' + (b.date || ''));
+        });
+        var extra = upcoming.length > 2 ? ' Anh/chị còn ' + (upcoming.length - 2) + ' lịch nữa.' : '';
+        return 'Dạ anh/chị có ' + upcoming.length + ' lịch hẹn sắp tới: '
+            + lines.join('. ') + '.' + extra + ' Anh/chị cần em giúp gì thêm ạ?';
+    }
+
+    /**
+     * Khách vừa nghe danh sách và nói người mình chọn: theo THỨ TỰ ("người thứ hai", "số 1")
+     * hoặc theo TÊN ("bác sĩ Bình").
+     *
+     * Trả về bác sĩ, hoặc null để câu đó đi tiếp tới AI — im lặng đoán bừa ở đây là mở trang
+     * đặt lịch với một người khách không hề chọn.
+     *
+     * Đệm khoảng trắng chứ KHÔNG dùng \b: \b của JS chỉ hiểu chữ cái ASCII nên không bao giờ
+     * khớp một từ tiếng Việt có dấu (xem coding-conventions.md).
+     */
+    function resolveDoctorChoice(text, list) {
+        var raw = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!raw || !list || !list.length) return null;
+        var padded = ' ' + raw + ' ';
+
+        // 1. Gọi đích danh. Xét TRƯỚC thứ tự: "bác sĩ Hai" là tên người, không phải "người thứ hai".
+        for (var i = 0; i < list.length; i++) {
+            var given = lastNameWord(list[i].fullName);
+            if (given && padded.indexOf(' ' + given + ' ') !== -1) return list[i];
+        }
+
+        // 2. Thứ tự trong danh sách vừa đọc.
+        var ORDINALS = [
+            { words: [' thứ nhất ', ' thu nhat ', ' đầu tiên ', ' dau tien ', ' người đầu ', ' nguoi dau ',
+                      ' số 1 ', ' so 1 ', ' số một ', ' so mot ', ' cái đầu ', ' cai dau '], index: 0 },
+            { words: [' thứ hai ', ' thu hai ', ' thứ 2 ', ' thu 2 ', ' số 2 ', ' so 2 ', ' số hai ', ' so hai '], index: 1 },
+            { words: [' thứ ba ', ' thu ba ', ' thứ 3 ', ' thu 3 ', ' số 3 ', ' so 3 ', ' số ba ', ' so ba '], index: 2 }
+        ];
+        for (var k = 0; k < ORDINALS.length; k++) {
+            for (var w = 0; w < ORDINALS[k].words.length; w++) {
+                if (padded.indexOf(ORDINALS[k].words[w]) !== -1) return list[ORDINALS[k].index] || null;
+            }
+        }
+
+        // 3. Cả câu chỉ là một con số / một từ chỉ thứ tự.
+        if (/^(1|một|mot)$/.test(raw)) return list[0] || null;
+        if (/^(2|hai)$/.test(raw)) return list[1] || null;
+        if (/^(3|ba)$/.test(raw)) return list[2] || null;
+
+        // 4. "người đầu tiên cũng được", "ai cũng được" -> lấy người em vừa xếp đầu.
+        if (/(nào cũng được|nao cung duoc|ai cũng được|ai cung duoc|người đầu|nguoi dau|em chọn giúp|em chon giup|tùy em|tuy em)/.test(raw)) {
+            return list[0] || null;
+        }
+        return null;
+    }
+
+    /**
+     * Khách vừa chọn được bác sĩ -> TỰ tra khung trống gần nhất của CHÍNH người đó rồi mời luôn.
+     *
+     * Trước đây chỗ này chỉ nói "em mở trang đặt lịch để anh/chị chọn khung giờ nhé?", nên khách
+     * phải nói tiếp "chọn luôn giờ cho tôi chiều nay" — và lượt đó đi qua model, nơi tên bác sĩ
+     * thường bị bỏ rơi, khiến hệ thống lặng lẽ chốt sang một bác sĩ khác. Tra ngay tại đây thì
+     * khách có giờ luôn, và cái tên vừa chọn cũng được ghim lại cho các lượt sau.
+     */
+    function offerNearestSlot(doc) {
+        setState('thinking');
+        // Ghim bác sĩ sang ai-chat.js: các lượt sau ("chiều nay thì sao") phải bám đúng người này.
+        if (chat() && chat().rememberChosenDoctor) chat().rememberChosenDoctor(doc);
+
+        fetch('/api/chat/doctor-availability?doctorId=' + encodeURIComponent(doc.id) + '&days=7')
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (av) {
+                var offer = describeNearestSlot(doc, av);
+                // null = câu hỏi MỞ ("tìm bác sĩ khác không ạ?"), không có gì để một tiếng "vâng" chốt.
+                awaitingConfirm = offer.handoff;
+                say(offer.text, function () { startListening(); });
+            });
+    }
+
+    /** Dựng câu mời khung gần nhất + LÝ DO nếu phải dời sang ngày khác. */
+    function describeNearestSlot(doc, av) {
+        function urlFor(date, slot) {
+            return (chat() && chat().buildAppointmentUrl)
+                ? chat().buildAppointmentUrl(doc.id, date || '', slot || '')
+                : (doc.appointmentUrl || '/appointment?doctorId=' + doc.id);
+        }
+
+        // Tra hỏng thì nói là tra hỏng. Im lặng ở đây khiến khách tưởng bác sĩ kín lịch.
+        if (!av || av.error) {
+            return {
+                text: 'Dạ bác sĩ ' + doc.fullName + '. Em chưa tra được khung trống lúc này ạ. '
+                    + 'Em mở trang đặt lịch để anh/chị tự chọn giờ nhé?',
+                handoff: { doctorName: doc.fullName, appointmentUrl: urlFor('', ''),
+                           selectedSlotLabel: 'Bác sĩ ' + doc.fullName }
+            };
+        }
+
+        var week = av.week || [];
+        var free = null;
+        for (var i = 0; i < week.length; i++) {
+            if (week[i].freeCount > 0 && week[i].firstFreeSlot) { free = week[i]; break; }
+        }
+
+        // Cả tuần không còn khung nào: HỎI khách, TUYỆT ĐỐI không tự nhảy sang bác sĩ khác —
+        // đó đúng là hành vi đang phải sửa. Đổi người là quyết định của khách, không phải của em.
+        if (!free) {
+            return {
+                text: 'Dạ 7 ngày tới bác sĩ ' + doc.fullName + ' chưa còn khung nào trống ạ. '
+                    + 'Anh/chị muốn em tìm bác sĩ khác cùng khoa không ạ?',
+                handoff: null
+            };
+        }
+
+        var slot = V().humanizeSchedule(free.firstFreeSlot);
+        var isFirstDay = week.length > 0 && free.date === week[0].date;
+
+        // Khung gần nhất KHÔNG phải hôm nay thì BẮT BUỘC nói vì sao, chứ không đọc trống một ngày
+        // khác rồi để khách tự đoán. reasonText do server dựng và phân biệt rõ "không đăng ký ca
+        // làm việc" với "đã có người đặt" — hai chuyện ngược nhau.
+        //
+        // Không lặp lại tên bác sĩ ở vế sau: reasonText đã nêu tên rồi, nhắc lại là tốn ngân sách
+        // một hơi đọc cho chữ thừa.
+        if (!isFirstDay && av.anchor && av.anchor.reasonText) {
+            return {
+                text: 'Dạ ' + V().humanizeSchedule(av.anchor.reasonText)
+                    + ' Ngày sớm nhất bác sĩ còn trống là ' + V().humanizeSchedule(free.dayLabel)
+                    + ', khung ' + slot + '. Em mở trang đặt lịch khung đó nhé?',
+                handoff: {
+                    doctorName: doc.fullName,
+                    appointmentUrl: urlFor(free.date, free.firstFreeSlot),
+                    selectedSlotLabel: free.dayLabel + ' (' + free.firstFreeSlot + ')'
+                }
+            };
+        }
+
+        return {
+            text: 'Dạ bác sĩ ' + doc.fullName + ' còn trống sớm nhất '
+                + V().humanizeSchedule(free.dayLabel) + ', khung ' + slot
+                + '. Em mở trang đặt lịch khung đó nhé?',
+            handoff: {
+                doctorName: doc.fullName,
+                appointmentUrl: urlFor(free.date, free.firstFreeSlot),
+                selectedSlotLabel: free.dayLabel + ' (' + free.firstFreeSlot + ')'
+            }
+        };
+    }
+
     /** KB3 — chuyển overlay sang chế độ cảnh báo cấp cứu. */
     function enterEmergency(aiData) {
         stopListening();
         setState('emergency');
         awaitingConfirm = null;
+        pendingChoiceList = null;
 
         els.overlay.classList.add('emergency');
         els.avatar.classList.remove('pulse');
@@ -685,6 +1062,7 @@
         micMuted = false;
         unclearCount = 0;
         awaitingConfirm = null;
+        pendingChoiceList = null;
         restartBurst = 0;
 
         // Mở khung chat phía sau để kết thúc cuộc gọi là thấy nguyên đoạn hội thoại
@@ -714,6 +1092,9 @@
         V().stopAll();
         state = 'idle';
         awaitingConfirm = null;
+        // Danh sách của cuộc gọi vừa rồi không được sống sang cuộc gọi sau, kẻo "người thứ hai"
+        // chọn trúng một người của lần gọi trước.
+        pendingChoiceList = null;
         micMuted = false;
 
         if (chat()) chat().suppressAutoRedirect = false;

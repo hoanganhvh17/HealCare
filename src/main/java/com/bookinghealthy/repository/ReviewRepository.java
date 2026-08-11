@@ -53,4 +53,19 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     // Tìm các đánh giá dựa vào danh sách số sao (Ví dụ: 1 sao, 2 sao)
     List<Review> findByRatingInOrderByCreatedAtDesc(List<Integer> ratings);
+
+    /**
+     * Điểm trung bình + số lượt đánh giá của NHIỀU bác sĩ trong MỘT truy vấn.
+     *
+     * Mỗi dòng là {doctorId, avg, count}. Bác sĩ chưa có đánh giá nào KHÔNG có dòng nào ở đây —
+     * đó chính là thứ giúp phân biệt "5.0 thật" với "chưa ai chấm", nên đừng bọc thêm COALESCE
+     * hay LEFT JOIN để ép ra 0.0: mất luôn khả năng phân biệt.
+     *
+     * Tồn tại để xếp hạng theo đánh giá: xếp hạng phải chấm TOÀN BỘ bác sĩ trước khi cắt danh
+     * sách, mà gọi getAverageRating + countReviews cho từng người là 2 truy vấn × N bác sĩ
+     * (toàn viện hiện có 132 người → 264 truy vấn cho một câu hỏi trong khung chat).
+     */
+    @Query("SELECT r.booking.doctor.id, AVG(r.rating), COUNT(r) FROM Review r "
+            + "WHERE r.booking.doctor.id IN :doctorIds GROUP BY r.booking.doctor.id")
+    List<Object[]> aggregateRatingByDoctorIds(@Param("doctorIds") java.util.Collection<Long> doctorIds);
 }
