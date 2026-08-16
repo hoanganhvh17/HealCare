@@ -3,6 +3,9 @@
 [SecurityConfig.java](src/main/java/com/bookinghealthy/config/SecurityConfig.java) is the **single source of truth** for URL authorization. Five roles drive the whole app: `ROLE_ADMIN`, `ROLE_DOCTOR`, `ROLE_HEAD_DOCTOR` (trưởng khoa), `ROLE_RECEPTIONIST` (lễ tân), `ROLE_USER` (patient).
 
 ## URL-to-role mapping
+- `/actuator/health` → `permitAll` (block 0), rest of `/actuator/**` → ADMIN. Without the first line every nginx/systemd/docker healthcheck got a 302 to `/login` and the instance was marked unhealthy and restarted in a loop. **Never expose `/actuator/env` or `/actuator/configprops`** — they print the very secrets that were just moved into environment variables.
+- `/api/payment/webhook` → `permitAll` (block 0); everything else under `/api/payment/**` → authenticated. The webhook is called server-to-server by Casso/SePay so it has no session; it is authenticated by a **shared secret in a header** inside `VietQRController`, not by Spring Security. The whole prefix used to be `permitAll`, which also opened `/api/payment/check-status` — an endpoint taking an arbitrary `?id=`.
+- `/checkout-qr` → authenticated (block 0) **plus an ownership check in the controller**. It was `permitAll` with only a `paymentStatus == UNPAID` guard, so any anonymous visitor could walk `?id=1,2,3…` and read another patient's name, price, doctor and appointment time.
 - `/admin/**` and `/api/admin/chat/**` → ADMIN
 - `/doctor/**` and `/api/doctor/chat/**` → DOCTOR
 - `/head/**` → HEAD_DOCTOR
@@ -40,5 +43,35 @@ The principal may be either a `UserDetails` (form login) or an `OAuth2User` (soc
 ## Seeding roles
 `DataInitializer` only seeds when the `users` table is empty, so a role added later would never appear on an existing dev database. `ensureReceptionistAccount()` runs **outside** that guard and creates `ROLE_RECEPTIONIST` plus the `receptionist`/`123456` account idempotently. **Follow this pattern for any future role** — and keep the block after the `if`, since creating a user first would make `count() == 0` false and skip the whole seed.
 
+## Sessions live in MySQL, not in Tomcat memory
+`spring-session-jdbc` backs the session store (`spring.session.store-type=jdbc`; tables in `db/manual/002_spring_session.sql`). The app never touches `HttpSession` directly, but three things live in it and all three break on failover or restart without a shared store:
+
+- Spring Security's `SecurityContext` (every logged-in user);
+- the OAuth2 `state` / `OAuth2AuthorizationRequest` — a failover mid-redirect surfaces as `authorization_request_not_found`, which looks like a broken Google login button;
+- the **FlashMap** behind every `RedirectAttributes` — and that is this app's *only* error-reporting channel, since there is no `@ControllerAdvice`.
+
+Chosen over Redis because it reuses the existing MySQL, and over nginx `ip_hash` sticky sessions because those still log everyone out on a rolling deploy and fail for users behind carrier NAT.
+
+Two details that bite: `ATTRIBUTE_BYTES` is **`MEDIUMBLOB`, not `BLOB`** — 64KB is reachable and MySQL *truncates*, surfacing as random logouts. And the session cookie is **`SameSite=lax`, never `strict`**: strict withholds the cookie on cross-site top-level navigation, which breaks both the OAuth2 callback and VNPay's redirect back to `/payment-return`.
+
+### The principal must hold plain strings, never an entity
+Anything stored in the session must be `Serializable`, **including the whole graph reachable from the principal** — and this is not theoretical: switching the store to JDBC turned *every* login into an HTTP 500 with `NotSerializableException: com.bookinghealthy.model.User`, thrown by `JdbcIndexedSessionRepository.serialize` while writing `SPRING_SESSION_ATTRIBUTES`. `CustomUserDetails` held the `User` entity; in Tomcat's in-memory store nothing ever serialized it, so the defect was invisible for the whole life of the project and surfaced the moment the store changed.
+
+Both principals now flatten at construction time — same rule as `MedicalRecordMailDTO`: data crossing a boundary (another thread, or serialization) is plain strings, not entities. **Adding a field means reading its value in the constructor**; keeping the `User` around "to read later" puts the entity straight back into the session.
+
+Three things that make this trap hard to see, all worth keeping in mind:
+
+- **The compiler cannot warn you.** `UserDetails` already extends `Serializable`, so `CustomUserDetails` always *promised* to be serializable while a field silently broke the promise. Only the field types matter.
+- **`OAuth2User` does NOT extend `Serializable`** — unlike `UserDetails`. Spring declares it by hand on its own `DefaultOAuth2User`, so `CustomOAuth2User` must declare it explicitly too. Drop that keyword and social login breaks again, with no compiler complaint.
+- **`CustomOAuth2User.getAttributes()` must keep the provider's raw map.** Seven call sites identify the user with `principal.getAttribute("email")` (`AiController` ×3, `DoctorAiController`, `DoctorExamAiController`, `PatientChatLookupApiController`, `BookingController`, `ProfileController`, `CurrentUserService`). Flattening it away makes every one of them read `null`, and a Google user silently becomes an anonymous visitor — no exception anywhere. Only `OAuth2UserInfo` is reduced to three strings, because it is the one part that is neither serializable nor read for anything but name/email/avatar.
+
+`User.roles` being `@ManyToMany` is a second reason to flatten: holding the entity drags a Hibernate `PersistentSet` into the session, which is both unserializable and frozen stale until the user logs out.
+
+**Changing the shape of either principal invalidates every stored session** — old rows deserialize into the new class and fail. Clear `SPRING_SESSION_ATTRIBUTES` then `SPRING_SESSION` when you do (it just forces everyone to log in again).
+
+Verified end-to-end from the packaged jar: all four roles land on their correct dashboard, the session round-trips through MySQL (`SPRING_SECURITY_CONTEXT` present in `SPRING_SESSION_ATTRIBUTES`), `principal.fullName` / `principal.avatar` still render, and `/api/notifications` + `/api/chat/my-bookings` still resolve the user. **Google and Facebook login still need a real browser test** — the fix above is the same defect on both paths, but only the form path could be exercised from the CLI.
+
 ## Gotcha
 **CSRF is disabled globally.** Keep this in mind for any form or API change; do not assume a CSRF token is present or required.
+
+**This is an open security debt, not a design choice.** Every state-changing POST in the app is CSRF-able — wallet operations, `/user/booking/edit/{id}`, all admin CRUD. `SameSite=Lax` on the session cookie (above) withholds the cookie on cross-site POSTs in every current browser, which is most of the practical mitigation, but it is not the fix. Re-enabling CSRF across this many Thymeleaf forms and `fetch()` calls is **the first thing to do after deployment** — it was deliberately kept out of the deploy-hardening batch because doing it alongside a session-store swap and a security-matcher reshuffle is how a launch breaks.

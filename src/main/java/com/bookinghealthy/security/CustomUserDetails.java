@@ -1,56 +1,74 @@
 package com.bookinghealthy.security;
 
+import com.bookinghealthy.model.Role;
 import com.bookinghealthy.model.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Set;
 
 public class CustomUserDetails implements UserDetails {
 
-    private User user;
+    private static final long serialVersionUID = 1L;
+    private final Long id;
+    private final String username;
+    private final String password;
+    private final String fullName;
+    private final String avatar;
+    private final String email;
+    private final List<GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
-        this.user = user;
+        this.id = user.getId();
+        this.username = user.getUsername();
+        this.password = user.getPassword();
+        this.fullName = user.getFullName();
+        this.avatar = user.getAvatar();
+        this.email = user.getEmail();
+        this.authorities = new ArrayList<>();
+        Set<Role> roles = user.getRoles();
+        if (roles != null) {
+            for (Role role : roles) {
+                this.authorities.add(new SimpleGrantedAuthority(role.getName()));
+            }
+        }
     }
 
-    // === CÁC HÀM QUAN TRỌNG ĐỂ THYMELEAF GỌI ===
-    // Gọi bằng: ${#authentication.principal.fullName}
     public String getFullName() {
-        return user.getFullName();
+        return fullName;
     }
 
     // Gọi bằng: ${#authentication.principal.avatar}
     public String getAvatar() {
-        return user.getAvatar();
+        return avatar;
     }
 
     public Long getId() {
-        return user.getId();
+        return id;
     }
 
     public String getEmail() {
-        return user.getEmail();
+        return email;
     }
     // ==========================================
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(Collectors.toList());
+        return authorities;
     }
 
     @Override
     public String getPassword() {
-        return user.getPassword();
+        return password;
     }
 
     @Override
     public String getUsername() {
-        return user.getUsername(); // Hoặc user.getEmail() tùy logic đăng nhập của bạn
+        return username; // Hoặc user.getEmail() tùy logic đăng nhập của bạn
     }
 
     @Override

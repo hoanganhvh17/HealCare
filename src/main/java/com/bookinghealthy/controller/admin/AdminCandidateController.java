@@ -24,6 +24,30 @@ public class AdminCandidateController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private com.bookinghealthy.service.FileStorageService fileStorageService;
+
+    @GetMapping("/{id}/cv")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> downloadCv(
+            @PathVariable("id") Long id) {
+
+        Candidate candidate = candidateRepository.findById(id).orElse(null);
+        if (candidate == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        java.nio.file.Path file = fileStorageService.resolveCv(candidate.getCvFile());
+        if (file == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+
+        String downloadName = "CV-" + id + "-" + file.getFileName();
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + downloadName + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(new org.springframework.core.io.FileSystemResource(file));
+    }
+
     // 1. HIỂN THỊ DANH SÁCH ỨNG VIÊN
     @GetMapping
     public String listCandidates(Model model) {

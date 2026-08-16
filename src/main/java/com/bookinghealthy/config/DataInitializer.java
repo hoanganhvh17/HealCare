@@ -30,37 +30,45 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private ScheduleRepository scheduleRepository;
     @Autowired private StaffProfileRepository staffProfileRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${seed.enabled}")
+    private boolean seedEnabled;
+
+    @org.springframework.beans.factory.annotation.Value("${seed.admin.username}")
+    private String seedAdminUsername;
+
+    @org.springframework.beans.factory.annotation.Value("${seed.admin.password}")
+    private String seedAdminPassword;
+
+    @org.springframework.beans.factory.annotation.Value("${seed.demo-accounts.enabled}")
+    private boolean seedDemoAccounts;
+
+    @org.springframework.beans.factory.annotation.Value("${seed.doctor.default-password}")
+    private String seedDoctorPassword;
+
     @Override
     public void run(String... args) throws Exception {
 
-        // Chỉ chạy nếu DB rỗng
+        if (!seedEnabled) {
+            System.out.println(">>> Bỏ qua khởi tạo dữ liệu (seed.enabled=false).");
+            return;
+        }
         if (userRepository.count() == 0) {
-
             System.out.println(">>> ĐANG KHỞI TẠO DỮ LIỆU BẰNG JAVA...");
-
-            // === 1. TẠO ROLES ===
             Role adminRole = new Role(); adminRole.setName("ROLE_ADMIN");
             Role doctorRole = new Role(); doctorRole.setName("ROLE_DOCTOR");
             Role userRole = new Role(); userRole.setName("ROLE_USER");
             Role receptionistRole = new Role(); receptionistRole.setName("ROLE_RECEPTIONIST");
             roleRepository.saveAll(List.of(adminRole, doctorRole, userRole, receptionistRole));
-
-            // 2. Mã hóa mật khẩu
-            String pass123 = passwordEncoder.encode("123456");
+            String pass123 = passwordEncoder.encode(seedDoctorPassword);
             String passABC = passwordEncoder.encode("abc123!@#");
-            String adminPass = passwordEncoder.encode("admin123");
-
-            // 3. Tạo Users (ĐÃ THÊM BIGDECIMAL.ZERO Ở CUỐI)
-            // Cấu trúc: new User(id, username, email, pass, name, phone, avatar, gender, provider, roles, BALANCE)
-
-            // ADMIN
-            User admin = new User(null, "admin", "admin@gmail.com", adminPass, "Administrator", "0900000000", null, "Nam", AuthProvider.LOCAL, Set.of(adminRole), BigDecimal.ZERO);
-
-            // USER THƯỜNG
+            String adminPass = passwordEncoder.encode(seedAdminPassword);
+            if ("admin123".equals(seedAdminPassword)) {
+                System.err.println("!!! CẢNH BÁO: tài khoản admin đang dùng mật khẩu mặc định. "
+                        + "Đặt biến môi trường SEED_ADMIN_PASSWORD trước khi chạy thật.");
+            }
+            User admin = new User(null, seedAdminUsername, "admin@gmail.com", adminPass, "Administrator", "0900000000", null, "Nam", AuthProvider.LOCAL, Set.of(adminRole), BigDecimal.ZERO);
             User patientTom = new User(null, "patient_tom", "tom@gmail.com", pass123, "Tom Patient", "0900000001", null, "Nam", AuthProvider.LOCAL, Set.of(userRole), BigDecimal.ZERO);
             User testSang = new User(null, "testsang31", "testsang31@gmail.com", passABC, "Test Sang 31", "0900000002", null, "Nam", AuthProvider.LOCAL, Set.of(userRole), BigDecimal.ZERO);
-
-            // DANH SÁCH BÁC SĨ
             List<User> doctorUsers = List.of(
                     new User(null, "doctor_walter", "walter@gmail.com", pass123, "Walter White", "0912345678", "doctor-1.jpg", "Nam", AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO),
                     new User(null, "doctor_sarah", "sarah@gmail.com", pass123, "Sarah Connor", "0987654321", "doctor-2.jpg", "Nữ", AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO),
@@ -85,13 +93,14 @@ public class DataInitializer implements CommandLineRunner {
                     new User(null, "bs_lamanhdung", "lamanhdung@example.com", pass123, "Lâm Anh Dũng", "0933444555", "doctor-21.jpg", "Nam", AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO),
                     new User(null, "bs_thanhtam", "thanhtam.nguyen@example.com", pass123, "Nguyễn Thanh Tâm", "0909666777", "doctor-22.jpg", "Nữ", AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO)
             );
-
             userRepository.save(admin);
-            userRepository.save(patientTom);
-            userRepository.save(testSang);
+            if (seedDemoAccounts) {
+                userRepository.save(patientTom);
+                userRepository.save(testSang);
+            } else {
+                System.out.println(">>> Bỏ qua tài khoản demo (seed.demo-accounts.enabled=false).");
+            }
             List<User> savedDoctorUsers = userRepository.saveAll(doctorUsers);
-
-            // 4. Tạo Departments (Giữ nguyên)
             List<Department> departments = List.of(
                     new Department(null, "Tim mạch", "Chuyên thăm khám...", "dept-1.jpg"),
                     new Department(null, "Nội thần kinh", "Chuyên điều trị đột quỵ...", "dept-2.jpg"),
@@ -121,7 +130,6 @@ public class DataInitializer implements CommandLineRunner {
             Map<String, Department> departmentsMap = departmentRepository.findAll().stream()
                     .collect(Collectors.toMap(Department::getName, dept -> dept));
 
-            // 5. Tạo List Bios (Giữ nguyên)
             List<String> bios = List.of(
                     "Tiến sĩ, Bác sĩ chuyên khoa Tim mạch...", "Thạc sĩ, Bác sĩ chuyên khoa Nội thần kinh...", "Bác sĩ Nguyễn Thị Thu Hà – chuyên khoa Nhi...",
                     "Bác sĩ Trần Quang Dũng – chuyên khoa Da liễu...", "Bác sĩ Lê Minh Tuấn – hơn 15 năm kinh nghiệm...", "Bác sĩ Phạm Hồng Nhung – chuyên khoa Mắt...",
@@ -133,7 +141,6 @@ public class DataInitializer implements CommandLineRunner {
                     "Bác sĩ Nguyễn Thanh Tâm – hơn 11 năm kinh nghiệm..."
             );
 
-            // 6. Tạo Doctors (Giữ nguyên)
             List<Doctor> doctorsToSave = new ArrayList<>();
             doctorsToSave.add(new Doctor(null, savedDoctorUsers.get(0), departmentsMap.get("Tim mạch"), bios.get(0), 15, "Tiến sĩ", new BigDecimal("500000")));
             doctorsToSave.add(new Doctor(null, savedDoctorUsers.get(1), departmentsMap.get("Nội thần kinh"), bios.get(1), 10, "Thạc sĩ", new BigDecimal("400000")));
@@ -159,9 +166,6 @@ public class DataInitializer implements CommandLineRunner {
             doctorsToSave.add(new Doctor(null, savedDoctorUsers.get(21), departmentsMap.get("Y học gia đình"), bios.get(21), 11, "Bác sĩ", new BigDecimal("300000")));
 
             List<Doctor> savedDoctors = doctorRepository.saveAll(doctorsToSave);
-
-            // 7. Tạo Lịch làm việc. weekStart = null: lịch định kỳ mặc định, áp dụng cho mọi
-            // tuần bác sĩ chưa đăng ký riêng (xem Schedule.weekStart).
             Schedule s1 = new Schedule(null, savedDoctors.get(0), DayOfWeek.MONDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"), null);
             Schedule s2 = new Schedule(null, savedDoctors.get(0), DayOfWeek.TUESDAY, LocalTime.parse("08:00:00"), LocalTime.parse("11:00:00"), null);
             Schedule s3 = new Schedule(null, savedDoctors.get(0), DayOfWeek.THURSDAY, LocalTime.parse("14:00:00"), LocalTime.parse("16:00:00"), null);
@@ -172,42 +176,19 @@ public class DataInitializer implements CommandLineRunner {
 
             System.out.println(">>> KHỞI TẠO DỮ LIỆU JAVA HOÀN TẤT (ĐÃ THÊM BIGDECIMAL) <<<");
         }
-
-        // === ĐẢM BẢO VAI TRÒ LỄ TÂN LUÔN TỒN TẠI ===
-        // Khối này chạy NGOÀI điều kiện "users rỗng" ở trên, vì DataInitializer chỉ seed
-        // trên DB trống. Với DB đã có sẵn dữ liệu cũ, không có khối này thì phải drop
-        // schema mới dùng được vai trò mới.
         ensureReceptionistAccount();
-
-        // === BỔ SUNG 5 BÁC SĨ CHO MỖI CHUYÊN KHOA ===
-        // Cũng chạy NGOÀI điều kiện "users rỗng" để áp dụng được cho DB đã có sẵn dữ liệu.
         ensureExtraDoctors();
-
-        // === HỒ SƠ NHÂN SỰ + TRƯỞNG KHOA ===
-        // Phải chạy SAU ensureExtraDoctors() để bao gồm cả các bác sĩ vừa được bổ sung.
         ensureStaffProfiles();
         ensureHeadDoctors();
     }
 
-    /**
-     * Tạo hồ sơ nhân sự cho mọi bác sĩ và lễ tân chưa có (idempotent).
-     *
-     * Hồ sơ này quyết định số ngày phép năm theo BLLĐ 2019 Điều 113/114:
-     * - Khoa nặng nhọc, độc hại (xem {@link LeavePolicy#HEAVY_DEPARTMENTS}) -> 14 ngày
-     * - Còn lại -> 12 ngày
-     * - Cộng thêm 1 ngày cho mỗi 5 năm thâm niên
-     *
-     * Dữ liệu seed không có ngày vào làm nên suy từ experienceYears của bác sĩ.
-     */
     private void ensureStaffProfiles() {
         int created = 0;
-
         for (Doctor doctor : doctorRepository.findAll()) {
             User user = doctor.getUser();
             if (user == null || staffProfileRepository.existsByUserId(user.getId())) {
                 continue;
             }
-
             int experience = (doctor.getExperienceYears() != null) ? doctor.getExperienceYears() : 0;
             boolean heavy = doctor.getDepartment() != null
                     && LeavePolicy.HEAVY_DEPARTMENTS.contains(doctor.getDepartment().getName());
@@ -222,7 +203,6 @@ public class DataInitializer implements CommandLineRunner {
             created++;
         }
 
-        // Lễ tân: điều kiện lao động bình thường, chưa có thâm niên.
         for (User staff : userRepository.findAll()) {
             boolean isReceptionist = staff.getRoles() != null && staff.getRoles().stream()
                     .anyMatch(role -> "ROLE_RECEPTIONIST".equals(role.getName()));
@@ -246,14 +226,6 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    /**
-     * Tạo ROLE_HEAD_DOCTOR và gán trưởng khoa cho MỖI chuyên khoa (idempotent).
-     *
-     * Trưởng khoa là người duyệt đơn nghỉ và lịch trực của khoa mình. Họ GIỮ NGUYÊN
-     * ROLE_DOCTOR nên vẫn vào /doctor/dashboard như cũ, chỉ có thêm quyền vào /head/**.
-     *
-     * Chọn bác sĩ nhiều kinh nghiệm nhất trong khoa làm trưởng khoa.
-     */
     private void ensureHeadDoctors() {
         Role headRole = roleRepository.findByName("ROLE_HEAD_DOCTOR")
                 .orElseGet(() -> {
@@ -265,7 +237,6 @@ public class DataInitializer implements CommandLineRunner {
 
         int assigned = 0;
         for (Department department : departmentRepository.findAll()) {
-            // Khoa đã có trưởng khoa thì bỏ qua — đây là điểm làm cho hàm chạy lại được.
             if (!staffProfileRepository.findByHeadOfDepartmentId(department.getId()).isEmpty()) {
                 continue;
             }
@@ -303,9 +274,6 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    /**
-     * Tạo ROLE_RECEPTIONIST và tài khoản lễ tân mặc định nếu chưa có (idempotent).
-     */
     private void ensureReceptionistAccount() {
         Role receptionistRole = roleRepository.findByName("ROLE_RECEPTIONIST")
                 .orElseGet(() -> {
@@ -319,25 +287,19 @@ public class DataInitializer implements CommandLineRunner {
             // Thứ tự tham số theo @AllArgsConstructor của User:
             // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
             User receptionist = new User(null, "receptionist", "receptionist@gmail.com",
-                    passwordEncoder.encode("123456"), "Lễ tân NNL Hospital", "0900000009", null,
+                    passwordEncoder.encode(seedDoctorPassword), "Lễ tân NNL Hospital", "0900000009", null,
                     "Nữ", AuthProvider.LOCAL, Set.of(receptionistRole), BigDecimal.ZERO);
             userRepository.save(receptionist);
-            System.out.println(">>> Tạo mới tài khoản lễ tân: receptionist / 123456");
+            System.out.println(">>> Tạo mới tài khoản lễ tân: receptionist (mật khẩu theo seed.doctor.default-password)");
         }
     }
 
-    // ==========================================================================
-    // ===== BỔ SUNG 5 BÁC SĨ / CHUYÊN KHOA (dữ liệu ở DoctorSeedData) =========
-    // ==========================================================================
-
-    /** Đầu số di động Việt Nam dùng để sinh số điện thoại cho bác sĩ seed. */
     private static final String[] PHONE_PREFIXES = {
             "090", "091", "094", "096", "097", "098", "032", "033", "034", "035", "036",
             "037", "038", "039", "070", "076", "077", "078", "079", "081", "082", "083",
             "085", "086", "088"
     };
 
-    /** Câu kết của tiểu sử, xoay vòng theo thứ tự bác sĩ trong khoa để bio không lặp y hệt nhau. */
     private static final String[] BIO_CLOSINGS = {
             "Bác sĩ nhận khám theo lịch hẹn tại NNL Hospital, tư vấn rõ phác đồ và chi phí trước khi điều trị.",
             "Bác sĩ ưu tiên điều trị bảo tồn, chỉ định cận lâm sàng hợp lý và theo dõi sát sau điều trị.",
@@ -346,7 +308,6 @@ public class DataInitializer implements CommandLineRunner {
             "Bác sĩ dành thời gian giải thích rõ tình trạng bệnh và hướng dẫn chăm sóc tại nhà cho người bệnh."
     };
 
-    /** Các nhóm ngày trực trong tuần, xoay vòng theo thứ tự bác sĩ trong khoa. */
     private static final DayOfWeek[][] SCHEDULE_DAYS = {
             {DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY},
             {DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY},
@@ -355,13 +316,6 @@ public class DataInitializer implements CommandLineRunner {
             {DayOfWeek.MONDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY}
     };
 
-    /**
-     * Tạo thêm 5 bác sĩ cho MỖI chuyên khoa (22 khoa = 110 bác sĩ), kèm lịch trực.
-     *
-     * Chạy NGOÀI khối "users rỗng" và idempotent theo username, nên chạy lại nhiều lần
-     * cũng không sinh dữ liệu trùng, và áp dụng được cho DB đã có sẵn dữ liệu cũ.
-     * Mật khẩu mặc định: 123456.
-     */
     private void ensureExtraDoctors() {
         if (departmentRepository.count() == 0) {
             System.out.println(">>> Bỏ qua seed bác sĩ bổ sung: DB chưa có chuyên khoa nào.");
@@ -377,10 +331,7 @@ public class DataInitializer implements CommandLineRunner {
 
         Map<String, Department> departmentsMap = departmentRepository.findAll().stream()
                 .collect(Collectors.toMap(Department::getName, dept -> dept, (a, b) -> a));
-
-        // Mã hóa MỘT LẦN rồi dùng lại: mỗi lần BCrypt tốn ~100ms, 110 bác sĩ sẽ làm chậm khởi động.
-        String pass123 = passwordEncoder.encode("123456");
-
+        String pass123 = passwordEncoder.encode(seedDoctorPassword);
         int seq = 0;
         int created = 0;
         for (Map.Entry<String, List<SeedDoctor>> entry : DoctorSeedData.BY_DEPARTMENT.entrySet()) {
@@ -393,8 +344,6 @@ public class DataInitializer implements CommandLineRunner {
 
             int position = 0;
             for (SeedDoctor seed : entry.getValue()) {
-                // Tăng seq TRƯỚC khi kiểm tra tồn tại để số điện thoại của từng bác sĩ
-                // không đổi giữa các lần chạy.
                 seq++;
                 position++;
 
@@ -403,9 +352,6 @@ public class DataInitializer implements CommandLineRunner {
                 if (userRepository.existsByUsername(username)) {
                     continue;
                 }
-
-                // Thứ tự tham số theo @AllArgsConstructor của User:
-                // (id, username, email, password, fullName, phone, avatar, gender, authProvider, roles, balance)
                 User user = userRepository.save(new User(null, username, slug + "@nnlhospital.vn", pass123,
                         seed.fullName(), generatePhone(seq), "bs-" + slug + ".jpg", seed.gender(),
                         AuthProvider.LOCAL, Set.of(doctorRole), BigDecimal.ZERO));
@@ -424,14 +370,12 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    /** Bỏ dấu tiếng Việt và ký tự đặc biệt: "Nguyễn Đức Toàn" -> "nguyenductoan". */
     private String slugify(String fullName) {
         String noMark = Normalizer.normalize(fullName, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
         // đ/Đ không tách dấu theo NFD nên phải thay tay.
         return noMark.replace("đ", "d").replace("Đ", "D").toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
-    /** Sinh số di động 10 chữ số, khác nhau cho từng bác sĩ và ổn định giữa các lần chạy. */
     private String generatePhone(int seq) {
         return PHONE_PREFIXES[seq % PHONE_PREFIXES.length] + String.format("%07d", 2450000 + seq * 1373L);
     }
@@ -444,10 +388,6 @@ public class DataInitializer implements CommandLineRunner {
                 + BIO_CLOSINGS[(position - 1) % BIO_CLOSINGS.length];
     }
 
-    /**
-     * 3 ca khám mỗi tuần: vị trí lẻ trong khoa làm ca sáng, vị trí chẵn làm ca chiều
-     * (đều nằm trong giờ hành chính 07:30–11:30 và 13:30–17:30 — khung giờ nhận đặt khám).
-     */
     private List<Schedule> buildSchedules(Doctor doctor, int position) {
         DayOfWeek[] days = SCHEDULE_DAYS[(position - 1) % SCHEDULE_DAYS.length];
         LocalTime start = (position % 2 == 1) ? LocalTime.of(7, 30) : LocalTime.of(13, 30);
@@ -455,7 +395,6 @@ public class DataInitializer implements CommandLineRunner {
 
         List<Schedule> schedules = new ArrayList<>();
         for (DayOfWeek day : days) {
-            // weekStart = null: lịch định kỳ mặc định, dùng cho mọi tuần chưa đăng ký riêng.
             schedules.add(new Schedule(null, doctor, day, start, end, null));
         }
         return schedules;

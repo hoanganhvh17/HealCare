@@ -31,9 +31,6 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Đặt lịch hộ tại quầy cho khách vãng lai (walk-in).
- */
 @Controller
 @RequestMapping("/receptionist/walk-in")
 public class ReceptionistWalkInController {
@@ -57,7 +54,6 @@ public class ReceptionistWalkInController {
     }
 
     @PostMapping
-    @Transactional
     public String createWalkIn(@RequestParam("doctorId") Long doctorId,
                                @RequestParam("appointmentDate")
                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate appointmentDate,
@@ -85,12 +81,9 @@ public class ReceptionistWalkInController {
             booking.setBookingPrice(doctor.getPrice());
             booking.setPatientName(patientName);
             booking.setPatientPhone(patientPhone);
-            // Khách đến tận quầy nên xác nhận luôn, thu tiền mặt tại chỗ
             booking.setStatus(BookingStatus.CONFIRMED);
             booking.setPaymentStatus("UNPAID");
             booking.setPaymentMethod("CASH");
-
-            // Bắt buộc dùng reserve() để không đặt trùng khung giờ
             Booking saved = bookingService.reserve(booking);
 
             emailService.sendBookingConfirmation(saved);
@@ -107,10 +100,6 @@ public class ReceptionistWalkInController {
         }
     }
 
-    /**
-     * Tìm bệnh nhân theo email; chưa có thì tạo tài khoản mới với mật khẩu ngẫu nhiên.
-     * Username sinh từ số điện thoại để bệnh nhân dễ nhận lại tài khoản sau này.
-     */
     private User findOrCreatePatient(String patientName, String patientPhone, String patientEmail) {
         String email = (patientEmail != null && !patientEmail.isBlank())
                 ? patientEmail.trim()

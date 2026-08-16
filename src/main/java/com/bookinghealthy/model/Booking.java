@@ -98,4 +98,21 @@ public class Booking {
     // trong DataInitializer.
     @Column(name = "reminder_sent", nullable = false)
     private boolean reminderSent = false;
+
+    // === ĐỐI SOÁT THANH TOÁN ===
+    // Mã giao dịch gửi lên VNPay (vnp_TxnRef). Trước đây mã này được sinh ngẫu nhiên rồi VỨT
+    // ĐI, nên khi VNPay trả kết quả về không có gì nối nó với lịch hẹn ngoài chuỗi tự do
+    // vnp_OrderInfo — mà chuỗi đó được bóc bằng cách cắt tiền tố "Thanh toan lich kham #",
+    // hễ VNPay đổi một ký tự là parse hỏng và lỗi bị catch-all nuốt mất.
+    //
+    // CỐ Ý nullable: lịch trả bằng ví hoặc tại quầy không có mã này, và một cột NOT NULL
+    // không DEFAULT thêm vào bảng đã có dữ liệu sẽ làm hỏng MỌI lệnh INSERT
+    // (xem environment-setup.md).
+    @Column(name = "vnp_txn_ref", length = 64)
+    private String vnpTxnRef;
+
+    // Mã giao dịch của ngân hàng/cổng trung gian cho luồng chuyển khoản VietQR.
+    // Dùng để chống xử lý trùng khi Casso/SePay gửi lại cùng một webhook.
+    @Column(name = "bank_txn_ref", length = 128)
+    private String bankTxnRef;
 }

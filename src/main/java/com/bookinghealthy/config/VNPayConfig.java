@@ -1,43 +1,29 @@
 package com.bookinghealthy.config;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.context.annotation.Configuration;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Random;
 
-@Configuration
-public class VNPayConfig {
-    public static String vnp_PayUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    public static String vnp_ReturnUrl = "http://localhost:8080/payment-return"; // URL nhận kết quả
-    public static String vnp_TmnCode = "S9U6WCSW"; // Mã Website của bạn
-    public static String vnp_HashSecret = "9J6U7W5KKELXY9XY6GL7EACW161AGTVM"; // Secret Key của bạn
-    public static String vnp_ApiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
+public final class VNPayConfig {
 
-    // Hàm tiện ích để lấy IP người dùng
-    public static String getIpAddress(HttpServletRequest request) {
-        String ipAdress;
-        try {
-            ipAdress = request.getHeader("X-FORWARDED-FOR");
-            if (ipAdress == null) {
-                ipAdress = request.getRemoteAddr();
-            }
-        } catch (Exception e) {
-            ipAdress = "Invalid IP:" + e.getMessage();
-        }
-        return ipAdress;
+    private VNPayConfig() {
     }
 
-    // Hàm tạo mã băm (Checksum) HMAC SHA512
+    public static String getIpAddress(HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        return (ip == null || ip.isBlank()) ? "127.0.0.1" : ip;
+    }
+
     public static String hmacSHA512(String key, String data) {
         try {
             if (key == null || data == null) {
                 throw new NullPointerException();
             }
             final Mac hmac512 = Mac.getInstance("HmacSHA512");
-            byte[] hmacKeyBytes = key.getBytes();
+            byte[] hmacKeyBytes = key.getBytes(StandardCharsets.UTF_8);
             final SecretKeySpec secretKey = new SecretKeySpec(hmacKeyBytes, "HmacSHA512");
             hmac512.init(secretKey);
             byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
@@ -52,7 +38,6 @@ public class VNPayConfig {
         }
     }
 
-    // Hàm tạo Random số
     public static String getRandomNumber(int len) {
         Random rnd = new Random();
         String chars = "0123456789";

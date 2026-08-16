@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Controller
@@ -31,6 +32,9 @@ public class BookingController {
     @Autowired private PaymentService paymentService;
     @Autowired private WalletService walletService; // <-- 1. Inject WalletService
     @Autowired private NotificationService notificationService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.base-url}")
+    private String appBaseUrl;
 
     private User getCurrentUser(Authentication authentication) {
         Object principal = authentication.getPrincipal();
@@ -62,7 +66,6 @@ public class BookingController {
     }
 
     @PostMapping("/appointment")
-    @Transactional
     public String processAppointment(
             @RequestParam("appointmentType") String appointmentType,
             @RequestParam("doctorId") Long doctorId,
@@ -80,16 +83,12 @@ public class BookingController {
             User currentUser = getCurrentUser(authentication);
             Doctor doctor = doctorService.findById(doctorId)
                     .orElseThrow(() -> new RuntimeException("Doctor not found"));
-
-            // Chặn đặt vào khung giờ NGOÀI ca làm việc của bác sĩ (ví dụ đặt buổi chiều khi
-            // bác sĩ chỉ đăng ký ca sáng). Chặn ở server để POST tự chế cũng không lách được.
             if (!bookingService.isSlotWithinWorkingHours(doctorId, appointmentDate, appointmentTime)) {
                 redirectAttributes.addFlashAttribute("errorMessage",
                         "Bác sĩ không nhận khám vào khung giờ này. Vui lòng chọn khung giờ trong ca làm việc của bác sĩ.");
                 return "redirect:/appointment?doctorId=" + doctorId;
             }
 
-            // Tạo Booking object
             Booking booking = new Booking();
             booking.setUser(currentUser);
             booking.setDoctor(doctor);
@@ -103,14 +102,8 @@ public class BookingController {
             String finalPhone = (patientPhone != null && !patientPhone.trim().isEmpty()) ? patientPhone : currentUser.getPhone();
             booking.setPatientName(finalName);
             booking.setPatientPhone(finalPhone);
-
-            // Bệnh nhân TỰ đặt thì khung giờ phải còn ở tương lai. Giao diện đã gạch bỏ những
-            // khung đã qua, nhưng nó tính lúc TẢI TRANG: một tab mở từ sáng, bấm đặt lúc 16h,
-            // vẫn gửi lên được khung 08:00 của chính hôm nay.
-            // reserve() cố ý chỉ chặn tới mức NGÀY (để quầy lễ tân còn đăng ký được khách vãng
-            // lai đang đứng đợi giữa khung giờ), nên mức khung giờ phải chặn ở đây.
-            java.time.LocalDateTime slotStart = bookingService.appointmentStart(booking);
-            if (slotStart != null && slotStart.isBefore(java.time.LocalDateTime.now())) {
+            LocalDateTime slotStart = bookingService.appointmentStart(booking);
+            if (slotStart != null && slotStart.isBefore(LocalDateTime.now())) {
                 redirectAttributes.addFlashAttribute("errorMessage",
                         "Khung giờ vừa chọn đã trôi qua, vui lòng chọn khung giờ khác.");
                 return "redirect:/appointment?doctorId=" + doctorId;
@@ -124,10 +117,8 @@ public class BookingController {
             if ("WALLET".equals(paymentMethod)) {
                 booking.setPaymentMethod("WALLET");
                 Booking reservedBooking = bookingService.reserve(booking);
-
-                // Gọi Service trừ tiền sau khi slot đã được giữ
-                boolean success = walletService.payWithWallet(currentUser, doctor.getPrice(), "Thanh toán đặt lịch khám bác sĩ " + doctor.getUser().getFullName());
-
+                boolean success = walletService.payWithWallet(currentUser, doctor.getPrice(),
+                        "Thanh toán đặt lịch khám bác sĩ " + doctor.getUser().getFullName());
                 if (success) {
                     reservedBooking.setStatus(BookingStatus.CONFIRMED);
                     reservedBooking.setPaymentStatus("PAID");
@@ -136,7 +127,8 @@ public class BookingController {
                     notificationService.pushBookingEvent(savedBooking, "bi-calendar-check text-success",
                             "Đặt lịch thành công");
 
-                    redirectAttributes.addFlashAttribute("successMessage", "Đặt lịch và thanh toán bằng Ví thành công!");
+                    redirectAttributes.addFlashAttribute("successMessage",
+                            "Đặt lịch và thanh toán bằng Ví thành công!");
                     return "redirect:/user/profile"; // Về trang lịch sử
                 } else {
                     reservedBooking.setStatus(BookingStatus.CANCELED);
@@ -150,21 +142,20 @@ public class BookingController {
             else if ("BANK_TRANSFER".equals(paymentMethod)) {
                 booking.setPaymentMethod("BANK_TRANSFER");
                 Booking savedBooking = bookingService.reserve(booking);
-
-                // Chuyển hướng sang trang quét mã QR, truyền theo ID lịch hẹn
                 return "redirect:/checkout-qr?id=" + savedBooking.getId();
             }
             // CASE 2: THANH TOÁN VNPAY (Mặc định)
             else {
                 booking.setPaymentMethod("VNPAY");
                 Booking savedBooking = bookingService.reserve(booking);
-
                 long amount = doctor.getPrice().longValue();
                 String orderInfo = "Thanh toan lich kham #" + savedBooking.getId();
-                String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-                String vnpayUrl = paymentService.createVnPayPayment(request, amount, orderInfo, baseUrl + "/payment-return");
+                PaymentService.VnPayPayment payment = paymentService.createVnPayPayment(
+                        request, amount, orderInfo, appBaseUrl + "/payment-return");
+                savedBooking.setVnpTxnRef(payment.txnRef());
+                bookingService.save(savedBooking);
 
-                return "redirect:" + vnpayUrl;
+                return "redirect:" + payment.paymentUrl();
             }
 
         } catch (IllegalStateException e) {

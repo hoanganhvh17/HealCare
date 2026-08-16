@@ -31,11 +31,34 @@ The public doctors list (`/doctors`) never hides a doctor whose slots are full f
 `BookingController.processAppointment` (`POST /appointment`) branches on `paymentMethod`:
 
 - **WALLET** — reserve the slot, then `WalletService.payWithWallet` debits `User.balance`. On success → `CONFIRMED`/`PAID` plus a confirmation email; on insufficient funds → `CANCELED`/`FAILED`.
-- **BANK_TRANSFER** — reserve, then redirect to `/checkout-qr?id=` (VietQR page).
-- **VNPAY** (default) — reserve, then build a VNPay sandbox URL via `PaymentService`. The gateway calls back to `/payment-return`, handled by [PaymentController](src/main/java/com/bookinghealthy/controller/user/PaymentController.java), which **parses the booking id out of the `vnp_OrderInfo` string** (`"Thanh toan lich kham #<id>"`) and marks PAID+CONFIRMED or FAILED+CANCELED. That string format is load-bearing — changing it on the outbound side breaks the callback.
+- **BANK_TRANSFER** — reserve, then redirect to `/checkout-qr?id=` (VietQR page). See the webhook rules in [supporting-subsystems.md](supporting-subsystems.md); the transfer memo is owned by `util/PaymentMemo` and `vietqr.memo-prefix`.
+- **VNPAY** (default) — reserve, persist `vnp_TxnRef`, then redirect to the URL built by `PaymentService`. The gateway calls back to `/payment-return`.
+
+### `/payment-return` verifies six things, in this order
+It used to verify **none**. The old handler bound only `vnp_ResponseCode` and `vnp_OrderInfo` and trusted them, while the route fell through to `anyRequest().authenticated()` — so **any logged-in user could hand-craft a URL and mark any booking PAID+CONFIRMED**, occupying a real slot and triggering a real confirmation email. Sandbox credentials do not soften that: the asset being stolen is the appointment.
+
+1. **`vnp_SecureHash`** — rebuilt through `PaymentService.buildHashData`, the *same* method used on the outbound side. Keep it shared: a single divergence in encoding rules rejects every genuine transaction, and the usual "fix" is to delete the check.
+2. **`vnp_TmnCode`** matches our merchant.
+3. **Lookup by `vnp_TxnRef`**, a new nullable column on `Booking`. The old code parsed the id out of `vnp_OrderInfo` by stripping the literal prefix `"Thanh toan lich kham #"` — a free-text string we generated and then re-parsed, failing silently if the gateway altered it at all. `vnp_OrderInfo` is still sent, for the merchant portal only.
+4. **Ownership** — the booking must belong to the logged-in user.
+5. **Amount** — `bookingPrice × 100`, compared with `compareTo` (`equals` also compares scale).
+6. **Idempotency** — only acts while `paymentStatus == "UNPAID"`, so refreshing the result page cannot send a second email.
+
+`vnp_CreateDate` / `vnp_ExpireDate` use `Asia/Ho_Chi_Minh`. They previously used `TimeZone.getTimeZone("Etc/GMT+7")`, which under POSIX sign inversion is **UTC−7** — 14 hours off. The sandbox ignores it; a production gateway would expire every transaction on creation.
 
 ## 3. Concurrency
 `BookingServiceImpl.reserve()` prevents double-booking with a per-slot `ReentrantLock` keyed by `doctorId|date|time`, held until the surrounding transaction completes via `TransactionSynchronization`. **Do not bypass `reserve()`** when creating bookings from user input — `save()` performs no availability check.
+
+### The lock is a latency optimisation; the DB constraint is the guarantee
+The `ReentrantLock` is **in-process only**, and that is not theoretical: the dev database contains bookings **#17 and #18** — two different patients, same doctor, same slot, both `CONFIRMED`+`PAID`, created 0.6 seconds apart. The real guard is a unique index (`db/manual/001_prod_hardening.sql`).
+
+**A plain `UNIQUE(doctor_id, appointment_date, appointment_time)` is wrong here**, even though it matches `MedicalRecord` / `Review` / `AiChatSession`. Cancelled rows are never deleted — every cancel path just flips `status`, and `BookingCleanupTask` manufactures a fresh `CANCELED` row on that key every 3 minutes for each abandoned payment. The first legitimate re-booking of a previously cancelled slot would be rejected. Instead a **stored generated column `slot_uk` is NULL when `status = 'CANCELED'`** and `CONCAT(doctor_id,'|',date,'|',time)` otherwise; MySQL permits many NULLs in a unique index. Never map that column into `Booking` — see [environment-setup.md](environment-setup.md).
+
+**`@Transactional` sits on the three service methods, not on the controllers**, and moving it back would reintroduce a 500. Per the JPA spec a `PersistenceException` marks the transaction rollback-only, so with the boundary on the controller the flow was: constraint fires → controller catches → returns a friendly redirect → the transaction proxy then tries to commit a doomed transaction and throws `UnexpectedRollbackException`. The patient got `error/500.html` instead of the Vietnamese sentence. `BookingController.processAppointment`, `ReceptionistWalkInController.createWalkIn` and `UserBookingEditController.processEdit` therefore carry no `@Transactional`; `reserve`, `reassign` and `rescheduleByUser` do. The wallet flow keeps its integrity because `WalletServiceImpl.payWithWallet` is independently `@Transactional` and the failure branch already compensates.
+
+`saveGuardingSlot(booking, message)` is the single place that translates `DataIntegrityViolationException` into the **existing** Vietnamese sentence for each site. It uses `saveAndFlush`, not `save`: for a new booking `GenerationType.IDENTITY` forces an immediate INSERT, but `reassign` / `rescheduleByUser` are UPDATEs that Hibernate defers to flush — i.e. to commit, outside the try block and outside the lock.
+
+**There is deliberately no `whyCannotReserve()`.** The `whyCannot…()` convention is for stable properties of a row you are rendering a button for; "somebody took this slot 40 ms ago" is a race, not a state. The UI already greys out taken slots via `booked-slots`, and the `existsBy…` pre-check remains the friendly path.
 
 **The past-date floor lives in `reserve()`, and it stops at the DAY on purpose.** It is the single funnel for every creation path (patient self-booking, receptionist walk-in, AI handoff), so one check covers all of them. It does *not* reject a slot that has merely started, because the walk-in desk registers a patient standing at the counter — 13:30 must still be bookable at 13:45. The stricter rule ("the slot must still be in the future") belongs to patient self-booking and sits in `BookingController.processAppointment`, next to the working-hours check. Both exist because the browser's `min` attribute and greyed-out slots are computed **at page load**: a tab opened in the morning still POSTs this morning's 08:00 slot at 16:00, and a tab left open overnight POSTs yesterday's date.
 

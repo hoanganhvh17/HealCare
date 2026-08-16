@@ -38,8 +38,18 @@ Với ô `<input type="date">`, cách rẻ nhất là `th:min` / `th:max` từ m
 
 Ngoại lệ hợp lệ: **màn hình tra cứu**. Bộ lọc ngày của `/receptionist/queue` và `/receptionist/schedule-change` **không** đặt `max`, vì lễ tân vẫn cần xem lại ngày cũ — chỉ khóa các nút *thao tác*, không khóa việc *xem*.
 
+## Tải tệp lên — chỉ một cửa
+
+**`service/FileStorageService` là nơi DUY NHẤT được ghi tệp người dùng tải lên.** Trước đây bảy chỗ lặp lại đúng bốn dòng `new File(dir).mkdirs()` + `Files.write(Paths.get(dir + millis + "_" + getOriginalFilename()))`, và cùng mang đúng ba lỗi: đường dẫn tương đối theo CWD của tiến trình; hai chỗ ghi thẳng vào cây **mã nguồn** (`src/main/resources/static/...`, không tồn tại trong jar, và ngay ở dev thì tài nguyên tĩnh cũng phục vụ từ `target/classes` nên tệp ghi ra không bao giờ là tệp đọc lại); và dùng thẳng `getOriginalFilename()` — dữ liệu do client gửi, một tên chứa `..\..\` ghi được ra ngoài thư mục upload.
+
+Thêm chỗ ghi mới thì gọi service, đừng viết lại bốn dòng đó. Chi tiết thư mục ở [environment-setup.md](environment-setup.md).
+
 ## Secrets
-`VNPayConfig` holds **hardcoded static sandbox credentials**, and [application.properties](src/main/resources/application.properties) contains live-looking mail, OAuth, and AI keys. Treat all of these as **dev-only** and do not present them as production-safe. Flag it if the app is being prepared for deployment.
+Mọi bí mật nay lấy từ **biến môi trường** qua dạng `${BIEN:mặc-định-dev}` trong [application.properties](src/main/resources/application.properties); `VnPayProperties` và `VietQrProperties` thay cho các hằng số `public static` cũ trong `VNPayConfig`. Xem [environment-setup.md](environment-setup.md).
+
+**Giá trị mặc định đang commit là giá trị DEV, và cả năm bí mật bên ngoài đều đã nằm trong lịch sử git** — đưa ra biến môi trường không thu hồi được chúng. Phải xoay (rotate) trước khi mở cho người dùng thật: mật khẩu MySQL, Gmail app password, Google + Facebook client secret, OpenRouter key. Cặp VNPay sandbox thì giữ được. Checklist ở [deploy/README.md](../../deploy/README.md).
+
+**Đừng gắn `@Value` lên setter tĩnh** để nạp các hằng số đó — mìn thứ tự khởi tạo, xem `VnPayProperties`.
 
 ## Browser APIs (giọng nói)
 The voice layer relies on browser-only APIs, so anything touching it must degrade rather than break:

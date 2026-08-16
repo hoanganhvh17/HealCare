@@ -4,6 +4,7 @@ import com.bookinghealthy.model.Candidate;
 import com.bookinghealthy.model.JobPosting;
 import com.bookinghealthy.repository.CandidateRepository;
 import com.bookinghealthy.service.EmailService;
+import com.bookinghealthy.service.FileStorageService;
 import com.bookinghealthy.service.JobPostingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -12,10 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 @Controller
@@ -28,6 +25,8 @@ public class CareerController {
     private CandidateRepository candidateRepository;
 
     @Autowired private EmailService emailService;
+
+    @Autowired private FileStorageService fileStorageService;
 
     @GetMapping("/careers")
     public String listCareers(Model model) {
@@ -59,16 +58,9 @@ public class CareerController {
             JobPosting job = jobService.findById(jobId)
                     .orElseThrow(() -> new RuntimeException("Tin tuyển dụng không tồn tại"));
 
-            String cvFileName = "no-cv";
+            String cvFileName;
             if (cvFile != null && !cvFile.isEmpty()) {
-                // Lưu vào thư mục static/uploads/cv/
-                String uploadDir = "src/main/resources/static/uploads/cv/";
-                File dir = new File(uploadDir);
-                if (!dir.exists()) dir.mkdirs();
-
-                cvFileName = System.currentTimeMillis() + "_" + cvFile.getOriginalFilename();
-                Path path = Paths.get(uploadDir + cvFileName);
-                Files.write(path, cvFile.getBytes());
+                cvFileName = fileStorageService.storeCv(cvFile);
             } else {
                 throw new RuntimeException("Vui lòng tải lên CV (PDF/Word).");
             }

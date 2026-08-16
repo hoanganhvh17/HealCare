@@ -25,13 +25,6 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Bệnh nhân tự sửa lịch hẹn của mình: đổi bác sĩ cùng chuyên khoa, đổi ngày/giờ,
- * sửa thông tin người khám và ghi chú.
- * <p>
- * Toàn bộ điều kiện (còn hạn 24 tiếng, số lần đổi, cùng chuyên khoa, slot còn trống)
- * do {@link BookingService} quyết định — controller chỉ hiển thị và chuyển tiếp thông báo.
- */
 @Controller
 @RequestMapping("/user/booking")
 public class UserBookingEditController {
@@ -40,7 +33,6 @@ public class UserBookingEditController {
     @Autowired private UserService userService;
     @Autowired private DoctorRepository doctorRepository;
 
-    /** Principal có thể là UserDetails (đăng nhập thường) hoặc OAuth2User (Google/Facebook). */
     private User getCurrentUser(Authentication authentication) {
         Object principal = authentication.getPrincipal();
         String usernameOrEmail;
@@ -74,7 +66,6 @@ public class UserBookingEditController {
             return "redirect:/user/profile#booking-history";
         }
 
-        // Chỉ liệt kê bác sĩ cùng khoa; khoa chỉ có một bác sĩ thì danh sách chỉ còn chính họ
         List<Doctor> sameDepartmentDoctors = (booking.getDoctor() != null && booking.getDoctor().getDepartment() != null)
                 ? doctorRepository.findByDepartmentId(booking.getDoctor().getDepartment().getId())
                 : Collections.emptyList();
@@ -95,7 +86,6 @@ public class UserBookingEditController {
     }
 
     @PostMapping("/edit/{id}")
-    @Transactional
     public String processEdit(@PathVariable("id") Long id,
                               @ModelAttribute RescheduleRequestDTO request,
                               Authentication authentication,
@@ -113,7 +103,6 @@ public class UserBookingEditController {
             return "redirect:/user/profile#booking-history";
 
         } catch (IllegalStateException e) {
-            // Lỗi nghiệp vụ đã có câu chữ dành cho người bệnh, hiển thị nguyên văn
             ra.addFlashAttribute("errorMessage", e.getMessage());
             return "redirect:/user/booking/edit/" + id;
         } catch (Exception e) {

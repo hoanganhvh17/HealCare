@@ -115,7 +115,36 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 
 **No template under `templates/email/` may use a `@{...}` link expression.** `EmailServiceImpl` renders through a plain `org.thymeleaf.context.Context`, not an `IWebContext` — `@{...}` needs the latter and throws `TemplateProcessingException` at send time, silently swallowed by the same try/catch that catches every other mail-sending failure (easy to miss: it looks exactly like an SMTP error in the log). Every existing template routes a call-to-action through plain text ("truy cập website để...") instead, since the app has no configured base URL to build an absolute link from even if `IWebContext` were available.
 
+## Chuyển khoản ngân hàng & webhook (`VietQRController`)
+
+`util/PaymentMemo` là **nguồn sự thật duy nhất** cho nội dung chuyển khoản: `format(prefix, id)` sinh ra nó, `parseBookingId(prefix, description)` đọc lại, và tiền tố đến từ `vietqr.memo-prefix`. Ba nơi tiêu thụ: mã QR, webhook, và `checkout-qr.html`.
+
+Nó tồn tại vì hai hằng số hardcode ở hai file đã lệch nhau: QR in `"HEALCARE <id>"` còn webhook so khớp `"MDTRUST"`, nên **nhánh xử lý của webhook chưa từng chạy lần nào**. Khách quét mã, chuyển tiền thật, webhook nhận rồi lặng lẽ trả `SUCCESS`, và ba phút sau `BookingCleanupTask` huỷ lịch vì "chưa thanh toán".
+
+`parseBookingId` dùng regex `<prefix>\s*0*(\d+)`, **không** `replaceAll("[^0-9]", "")`: nội dung chuyển khoản thật do ngân hàng gửi sang còn kèm số tài khoản người gửi, mã tham chiếu và ngày tháng — gom hết chữ số lại là ghi nhận tiền cho nhầm lịch hẹn của người khác.
+
+Bốn luật của webhook, mỗi luật vá một lỗ hổng riêng:
+
+- **Bí mật trong header là bắt buộc** (`payment.webhook.secret`), so bằng `MessageDigest.isEqual`. Endpoint là `permitAll` và CSRF tắt toàn cục, nên trước đó bất kỳ ai trên internet cũng xác nhận được lịch bất kỳ. **Để rỗng là đóng hẳn webhook** — an toàn hơn mở toang.
+- **Chống trùng bằng `Booking.bankTxnRef`.** Casso/SePay gửi lại cùng một giao dịch là hành vi bình thường của chúng; mỗi lần gửi lại là một email xác nhận nữa tới bệnh nhân.
+- **Đối chiếu số tiền** với `bookingPrice`. Thiếu tiền thì ghi log cho lễ tân xử lý tay, không tự động hoàn/huỷ — đó là quyết định về tiền của người khác.
+- **Parser chịu được cả hai shape** vì chưa chốt nhà cung cấp: SePay phẳng (`content`/`transferAmount`/`referenceCode`) và Casso lồng trong `data[]` (`description`/`amount`/`tid`). Bản cũ deref thẳng `payload.get("description")` nên payload Casso ném NPE, rơi vào catch-all và trả HTTP 400 — trông y hệt một lỗi mạng.
+
+Trang `/checkout-qr` **đếm ngược 3 phút** khớp `BookingCleanupTask` thay vì poll vô hạn, và nhận diện cả trường hợp phiên hết hạn (Spring trả HTML trang đăng nhập kèm status 200, nên chỉ xét `response.ok` là lặp mãi).
+
 ## Scheduled tasks (`task/`)
+
+**Mọi job đều gắn `@SchedulerLock` (ShedLock) — trừ đúng một cái.** Không có khoá thì mỗi instance chạy mỗi job một lần: bệnh nhân nhận email nhắc lịch nhân đôi, `MedicalNewsTask` lấy trùng bài (mỗi bài trùng tốn thêm một lượt gọi AI), `ClinicRegistrationTask` xếp lịch chồng nhau.
+
+Các cờ boolean sẵn có **không thay thế được**, và không theo ba kiểu khác nhau: `AppointmentReminderTask` ghi `reminderSent` **sau** khi gửi (hai instance cùng đọc trước khi ai kịp ghi → cùng gửi), `FollowUpReminderTask` ghi **trước** khi gửi (an toàn hơn nhưng vẫn là đọc-rồi-ghi), còn `ClinicRegistrationTask.remindDoctorsToRegister` **không ghi cờ nào cả** — chạy hai lần là gửi hai lần, luôn luôn.
+
+`config/ShedLockConfig` dùng `JdbcTemplateLockProvider` trên `DataSource` sẵn có (không cần Redis). Hai tham số bắt buộc:
+- **`usingDbTime()`** — thiếu nó ShedLock so đồng hồ của từng máy chủ ứng dụng với nhau, và lệch giờ là cách kinh điển để nó âm thầm cho chạy hai lần.
+- **`lockAtLeastFor`** trên các job cron — một job xong trong 2 giây sẽ nhả khoá kịp cho instance kia (trigger lệch vài trăm mili-giây) chạy lại toàn bộ.
+
+**`AiController.cleanUpExpiredLocks` TUYỆT ĐỐI không được gắn `@SchedulerLock`** — nó dọn `softLockCache`, một map nằm trong bộ nhớ của chính JVM đó, nên mỗi instance phải tự chạy. Gắn khoá phân tán vào là cache của các instance còn lại phình lên và không bao giờ được dọn. Có comment tại chỗ nói rõ điều này, để một lần quét "gắn annotation cho mọi @Scheduled" không phá nó.
+
+**`spring.task.scheduling.pool.size=4`.** Pool mặc định của Spring là **1 luồng** cho cả 8 job. `MedicalNewsTask` chiếm luồng hàng phút (5 RSS + 2 bài, mỗi bài một lượt HTTP 10s + một lượt LLM tối đa 2×25s + tải ảnh), và trong suốt thời gian đó `BookingCleanupTask` không chạy — lịch chưa thanh toán giữ chỗ lâu hơn 3 phút rất nhiều. **Đừng "sửa" bằng `@Async` trên job tin tức**: nó phá `@SchedulerLock` (khoá nhả ngay khi luồng scheduler trả về, còn việc thật chạy không khoá).
 Each cron job is its own `@Component` in `task/` (`ClinicRegistrationTask`, `BookingCleanupTask`, `MedicalNewsTask`, `FollowUpReminderTask`, `AppointmentReminderTask`) — the one exception is the AI chat-session cleanup, a `@Scheduled` method living directly inside `AiService`. `SchedulerConfig` just flips on `@EnableScheduling`.
 
 `AppointmentReminderTask` (daily, `0 30 7 * * ?`) reminds patients of **tomorrow's** appointment by email + bell, over `PENDING`/`CONFIRMED` bookings only, once each (`Booking.reminderSent`). It runs half an hour before `FollowUpReminderTask` so the two mail bursts do not overlap. Its finder carries an `@EntityGraph` for `user` / `doctor.user` on purpose: a cron thread has no open-in-view, and both `pushBookingEvent` and the mail body read those.

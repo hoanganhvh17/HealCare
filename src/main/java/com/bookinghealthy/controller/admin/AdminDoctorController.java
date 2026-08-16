@@ -7,9 +7,9 @@ import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.RoleRepository;
 import com.bookinghealthy.service.DepartmentService;
 import com.bookinghealthy.service.DoctorService;
+import com.bookinghealthy.service.FileStorageService;
 //import com.bookinghealthy.service.ImageService;
 import com.bookinghealthy.service.UserService;
-import jakarta.validation.Path;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,10 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.validation.Valid;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +34,7 @@ public class AdminDoctorController {
     @Autowired private DepartmentService departmentService;
     @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private FileStorageService fileStorageService;
     // === TIÊM IMAGE SERVICE ===
 //    @Autowired private ImageService imageService;
     // 1. HIỂN THỊ DANH SÁCH (READ)
@@ -98,30 +95,10 @@ public class AdminDoctorController {
             user.setPassword(passwordEncoder.encode(rawPassword));
             User savedUser = userService.save(user);
 
-            // --- BẮT ĐẦU ĐOẠN THÊM VÀO: XỬ LÝ LƯU ẢNH ---
-            try {
-                if (avatarFile != null && !avatarFile.isEmpty()) {
-                    // 1. Tạo tên file duy nhất theo thời gian hiện tại
-                    String fileName = System.currentTimeMillis() + "_" + avatarFile.getOriginalFilename();
-
-                    // 2. Chỉ định thư mục lưu ngang hàng với file .jar hoặc pom.xml (CHẠY ĐƯỢC CẢ LOCAL VÀ VPS)
-                    String uploadDir = "uploads/";
-                    File dir = new File(uploadDir);
-                    if (!dir.exists()) {
-                        dir.mkdirs(); // Tự động tạo thư mục nếu chưa có
-                    }
-
-                    // 3. Đẩy file vào thư mục
-                    java.nio.file.Path path = Paths.get(uploadDir + fileName);
-                    Files.write(path, avatarFile.getBytes());
-
-                    // 4. Gắn tên ảnh vào đối tượng User để lát nữa lưu xuống DB
-                    user.setAvatar(fileName);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            // --- XỬ LÝ LƯU ẢNH (qua FileStorageService: đường dẫn tuyệt đối + lọc tên tệp) ---
+            if (avatarFile != null && !avatarFile.isEmpty()) {
+                user.setAvatar(fileStorageService.storeImage(avatarFile, null));
             }
-            // --- KẾT THÚC ĐOẠN THÊM VÀO ---
 
             // 2. Liên kết User với Doctor và Lưu
             doctor.setUser(savedUser);
@@ -188,23 +165,9 @@ public class AdminDoctorController {
             }
 
             // --- XỬ LÝ LƯU ẢNH KHI UPDATE ---
-            try {
-                if (avatarFile != null && !avatarFile.isEmpty()) {
-                    String fileName = System.currentTimeMillis() + "_" + avatarFile.getOriginalFilename();
-                    String uploadDir = "uploads/";
-                    File dir = new File(uploadDir);
-                    if (!dir.exists()) dir.mkdirs();
-
-                    java.nio.file.Path path = Paths.get(uploadDir + fileName);
-                    Files.write(path, avatarFile.getBytes());
-
-                    // Gắn tên ảnh mới vào user
-                    existingUser.setAvatar(fileName);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (avatarFile != null && !avatarFile.isEmpty()) {
+                existingUser.setAvatar(fileStorageService.storeImage(avatarFile, null));
             }
-            // --- KẾT THÚC ---
             userService.save(existingUser); // Lưu User
 
             // 3. Cập nhật Doctor

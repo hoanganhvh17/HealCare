@@ -16,7 +16,9 @@ import com.bookinghealthy.service.EmailService;
 import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -52,8 +54,6 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private EmailService emailService;
 
-    // Thông báo trong ứng dụng đi CẶP với email: email gửi @Async và lỗi chỉ nằm trong log,
-    // nên bệnh nhân không có cách nào chắc chắn biết lịch của mình vừa đổi hay bị hủy.
     @Autowired
     private NotificationService notificationService;
 
@@ -69,23 +69,25 @@ public class BookingServiceImpl implements BookingService {
         return bookingRepository.save(booking);
     }
 
+    private Booking saveGuardingSlot(Booking booking, String conflictMessage) {
+        try {
+            return bookingRepository.saveAndFlush(booking);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalStateException(conflictMessage, e);
+        }
+    }
+
     @Override
+    @Transactional
     public Booking reserve(Booking booking) {
-        // Sàn chung cho MỌI đường tạo lịch (bệnh nhân tự đặt, lễ tân đặt hộ tại quầy, trợ lý
-        // AI): không tạo lịch cho NGÀY đã qua. Giao diện có set min ngày, nhưng thuộc tính đó
-        // tính lúc TẢI TRANG — một tab mở từ hôm qua, hay một POST tự chế, vẫn tạo được lịch
-        // cho ngày đã qua và tiền vẫn bị trừ khỏi ví.
-        //
-        // Cố ý chỉ chặn tới mức NGÀY, không chặn tới mức khung giờ: quầy lễ tân đăng ký cho
-        // khách vãng lai đang đứng trước mặt, nên khung 13:30 vẫn phải nhận được lúc 13:45.
-        // Luật chặt hơn ("khung giờ phải còn ở tương lai") thuộc về đường bệnh nhân TỰ đặt và
-        // nằm ở BookingController.processAppointment.
         if (booking.getAppointmentDate() != null
                 && booking.getAppointmentDate().isBefore(LocalDate.now())) {
             throw new IllegalStateException("Ngày khám "
                     + booking.getAppointmentDate() + " đã qua, vui lòng chọn ngày khác.");
         }
-
+        if (booking.getAppointmentTime() != null) {
+            booking.setAppointmentTime(booking.getAppointmentTime().trim());
+        }
         final String slotKey = buildSlotKey(booking.getDoctor().getId(), booking.getAppointmentDate(), booking.getAppointmentTime());
         final ReentrantLock lock = slotLocks.computeIfAbsent(slotKey, key -> new ReentrantLock());
         final boolean[] releaseAfterReturn = {true};
@@ -98,13 +100,11 @@ public class BookingServiceImpl implements BookingService {
                     booking.getAppointmentTime(),
                     BookingStatus.CANCELED
             );
-
             if (booked) {
                 throw new IllegalStateException("Khung giờ này đã có người giữ chỗ, vui lòng chọn lịch khác.");
             }
-
-            Booking savedBooking = bookingRepository.save(booking);
-
+            Booking savedBooking = saveGuardingSlot(booking,
+                    "Khung giờ này đã có người giữ chỗ, vui lòng chọn lịch khác.");
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 releaseAfterReturn[0] = false;
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -115,7 +115,6 @@ public class BookingServiceImpl implements BookingService {
                     }
                 });
             }
-
             return savedBooking;
         } finally {
             if (releaseAfterReturn[0]) {
@@ -125,14 +124,9 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    // ===================== KIỂM TRA KHUNG GIỜ THEO LỊCH LÀM VIỆC =====================
-
     @Override
     public boolean isSlotWithinWorkingHours(Long doctorId, LocalDate date, String timeSlot) {
-        // Lịch khám gắn với từng TUẦN — phải lấy đúng lịch có hiệu lực của tuần chứa ngày này,
-        // không gộp lịch của mọi tuần lại với nhau.
         List<Schedule> schedules = scheduleRepository.findEffective(doctorId, date);
-        // Bác sĩ chưa đăng ký lịch nào -> không giới hạn (giữ hành vi cũ cho dữ liệu seed).
         if (schedules.isEmpty()) {
             return true;
         }
@@ -147,7 +141,6 @@ public class BookingServiceImpl implements BookingService {
     public List<String> slotsOutsideWorkingHours(Long doctorId, LocalDate date, List<String> slots) {
         List<Schedule> schedules = scheduleRepository.findEffective(doctorId, date);
         List<String> outside = new java.util.ArrayList<>();
-        // Chưa đăng ký lịch -> không gạch bỏ khung nào.
         if (schedules.isEmpty()) {
             return outside;
         }
@@ -162,12 +155,9 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public boolean hasRegisteredSchedule(Long doctorId, LocalDate date) {
-        // Cùng một đường tra tuần với hai hàm trên — KHÔNG được đọc findByDoctorId, hàm đó trộn
-        // mọi tuần lại với nhau.
         return !scheduleRepository.findEffective(doctorId, date).isEmpty();
     }
 
-    /** Slot nằm trọn trong ít nhất một ca làm việc của bác sĩ đúng thứ trong tuần. */
     private boolean isWithinAnySchedule(List<Schedule> schedules, LocalDate date,
                                         LocalTime slotStart, LocalTime slotEnd) {
         for (Schedule schedule : schedules) {
@@ -180,7 +170,6 @@ public class BookingServiceImpl implements BookingService {
         return false;
     }
 
-    /** "07:30 - 08:00" -> [07:30, 08:00]; null nếu sai định dạng. */
     private LocalTime[] parseSlotBounds(String timeSlot) {
         if (timeSlot == null || !timeSlot.contains(" - ")) {
             return null;
@@ -197,57 +186,43 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     public Booking reassign(Long bookingId, Long newDoctorId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
-
         Doctor newDoctor = doctorRepository.findById(newDoctorId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy bác sĩ tiếp nhận."));
-
         if (booking.getDoctor() != null && newDoctorId.equals(booking.getDoctor().getId())) {
             throw new IllegalStateException("Lịch hẹn đã thuộc về bác sĩ này rồi.");
         }
-
         if (booking.getStatus() == BookingStatus.CANCELED || booking.getStatus() == BookingStatus.COMPLETED) {
             throw new IllegalStateException("Chỉ chuyển được lịch đang chờ hoặc đã xác nhận.");
         }
-
-        // Ràng buộc chuyên môn: không được đẩy bệnh nhân sang bác sĩ khác khoa.
-        // Kiểm tra ở đây (không chỉ ẩn trên giao diện) vì đây là chỗ duy nhất đổi bác sĩ.
         Long currentDepartmentId = (booking.getDoctor() != null && booking.getDoctor().getDepartment() != null)
                 ? booking.getDoctor().getDepartment().getId() : null;
         Long newDepartmentId = (newDoctor.getDepartment() != null)
                 ? newDoctor.getDepartment().getId() : null;
-
         if (currentDepartmentId == null || newDepartmentId == null || !currentDepartmentId.equals(newDepartmentId)) {
             throw new IllegalStateException("Chỉ chuyển được sang bác sĩ cùng chuyên khoa.");
         }
-
         final LocalDate date = booking.getAppointmentDate();
         final String time = booking.getAppointmentTime();
-
-        // Dùng CHUNG cơ chế khóa với reserve() để hai luồng không cùng chiếm 1 slot
         final String slotKey = buildSlotKey(newDoctorId, date, time);
         final ReentrantLock lock = slotLocks.computeIfAbsent(slotKey, key -> new ReentrantLock());
         final boolean[] releaseAfterReturn = {true};
-
         lock.lock();
         try {
             boolean booked = bookingRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
                     newDoctorId, date, time, BookingStatus.CANCELED);
-
             if (booked) {
                 throw new IllegalStateException("Bác sĩ tiếp nhận đã có lịch vào khung giờ " + time + ".");
             }
-
             if (isBlockedForDoctor(newDoctorId, date, time)) {
                 throw new IllegalStateException("Bác sĩ tiếp nhận đã chặn khung giờ " + time + ".");
             }
-
-            // Giữ nguyên bookingPrice (giá đã chốt lúc đặt) — không thu thêm/hoàn lại
             booking.setDoctor(newDoctor);
-            Booking savedBooking = bookingRepository.save(booking);
-
+            Booking savedBooking = saveGuardingSlot(booking,
+                    "Bác sĩ tiếp nhận đã có lịch vào khung giờ " + time + ".");
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 releaseAfterReturn[0] = false;
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -281,7 +256,6 @@ public class BookingServiceImpl implements BookingService {
 
         boolean refunded = false;
         if ("PAID".equals(booking.getPaymentStatus())) {
-            // Ghi luôn lý do vào sổ ví: bộ phận hỗ trợ cần biết AI hủy, không chỉ là "đã hoàn".
             walletService.refundToWallet(
                     booking.getUser(),
                     booking.getBookingPrice(),
@@ -300,8 +274,6 @@ public class BookingServiceImpl implements BookingService {
 
         return refunded;
     }
-
-    // ===================== BỆNH NHÂN TỰ ĐỔI LỊCH =====================
 
     @Override
     public LocalDateTime appointmentStart(Booking booking) {
@@ -360,7 +332,6 @@ public class BookingServiceImpl implements BookingService {
         if (start == null) {
             return "Không đọc được khung giờ của lịch hẹn, vui lòng liên hệ hotline.";
         }
-        // So cả giờ chứ không chỉ ngày: ca 08:00 sáng nay đã trôi qua vào buổi chiều.
         if (start.isBefore(LocalDateTime.now())) {
             return "Lịch hẹn đã trôi qua (" + start.format(PAST_APPOINTMENT_FORMATTER)
                     + ") nên không sửa được nữa.";
@@ -370,10 +341,8 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public String whyCannotReschedule(Booking booking) {
-        // Đổi lịch có đủ mọi điều kiện của hủy lịch, cộng thêm hạn mức số lần
         String cancelBlock = whyCannotCancel(booking);
         if (cancelBlock != null) {
-            // Riêng câu chữ về mốc 24 tiếng thì đổi lại cho đúng ngữ cảnh "đổi lịch"
             Long hoursLeft = hoursUntilAppointment(booking);
             if (hoursLeft != null && hoursLeft < MIN_HOURS_BEFORE_CHANGE
                     && booking.getStatus() != BookingStatus.CANCELED
@@ -393,6 +362,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     public Booking rescheduleByUser(Long bookingId, Long userId, RescheduleRequestDTO request) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
@@ -401,7 +371,6 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalStateException("Bạn không có quyền sửa lịch hẹn này.");
         }
 
-        // Kiểm tra lại ở server chứ không tin vào việc giao diện đã ẩn nút
         String blockedReason = whyCannotReschedule(booking);
         if (blockedReason != null) {
             throw new IllegalStateException(blockedReason);
@@ -414,9 +383,6 @@ public class BookingServiceImpl implements BookingService {
 
         Doctor newDoctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy bác sĩ đã chọn."));
-
-        // Cùng ràng buộc chuyên khoa như reassign(): người bệnh không được tự nhảy sang khoa khác,
-        // vì giá đã chốt và hồ sơ bệnh án gắn với chuyên môn của khoa ban đầu.
         Long currentDepartmentId = (booking.getDoctor() != null && booking.getDoctor().getDepartment() != null)
                 ? booking.getDoctor().getDepartment().getId() : null;
         Long newDepartmentId = (newDoctor.getDepartment() != null) ? newDoctor.getDepartment().getId() : null;
@@ -441,23 +407,17 @@ public class BookingServiceImpl implements BookingService {
                 && newDate.equals(booking.getAppointmentDate())
                 && newTime.equals(booking.getAppointmentTime());
 
-        // Chỉ sửa ghi chú / thông tin người khám thì không đụng tới slot và không tính là một lần đổi lịch
         if (slotUnchanged) {
             applyEditableFields(booking, request);
             return bookingRepository.save(booking);
         }
-
-        // Giữ lại thông tin cũ để đưa vào email "trước → sau"
         final String oldDoctorName = (booking.getDoctor() != null && booking.getDoctor().getUser() != null)
                 ? "Dr. " + booking.getDoctor().getUser().getFullName() : "Bác sĩ trước đó";
         final LocalDate oldDate = booking.getAppointmentDate();
         final String oldTime = booking.getAppointmentTime();
-
-        // Dùng CHUNG khóa với reserve()/reassign() để hai người cùng nhắm một slot không thể cùng chiếm
         final String slotKey = buildSlotKey(newDoctor.getId(), newDate, newTime);
         final ReentrantLock lock = slotLocks.computeIfAbsent(slotKey, key -> new ReentrantLock());
         final boolean[] releaseAfterReturn = {true};
-
         lock.lock();
         try {
             boolean booked = bookingRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
@@ -470,37 +430,25 @@ public class BookingServiceImpl implements BookingService {
             if (isBlockedForDoctor(newDoctor.getId(), newDate, newTime)) {
                 throw new IllegalStateException("Bác sĩ đã khóa khung giờ " + newTime + ", vui lòng chọn giờ khác.");
             }
-
-            // Khung giờ phải nằm trong ca khám bác sĩ đã đăng ký. Giao diện /user/booking/edit đã
-            // gạch sẵn các khung ngoài ca (qua booked-slots), nhưng POST thẳng thì vẫn lọt — đúng
-            // lỗ hổng đã bịt cho processAppointment, chỗ này bị sót.
             if (!isSlotWithinWorkingHours(newDoctor.getId(), newDate, newTime)) {
                 throw new IllegalStateException(
                         "Bác sĩ không nhận khám vào khung giờ " + newTime + " ngày "
                                 + newDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                                 + ", vui lòng chọn khung giờ khác.");
             }
-
             booking.setDoctor(newDoctor);
             booking.setAppointmentDate(newDate);
             booking.setAppointmentTime(newTime);
-
-            // Đổi sang khung khám mới thì vị trí hàng chờ cũ của lễ tân không còn ý nghĩa
             booking.setQueueOrder(null);
             booking.setLateMarkedAt(null);
-
             booking.setRescheduleCount(rescheduleCountOf(booking) + 1);
             booking.setLastRescheduledAt(LocalDateTime.now());
-
-            // Giữ nguyên bookingPrice và paymentStatus: bệnh nhân không bị thu thêm
-            // dù bác sĩ mới có giá niêm yết khác.
             applyEditableFields(booking, request);
-            Booking savedBooking = bookingRepository.save(booking);
-
+            Booking savedBooking = saveGuardingSlot(booking,
+                    "Khung giờ " + newTime + " đã có người giữ chỗ, vui lòng chọn giờ khác.");
             emailService.sendBookingRescheduled(savedBooking, oldDoctorName, oldDate, oldTime);
             notificationService.pushBookingEvent(savedBooking, "bi-arrow-repeat text-primary",
                     "Dời lịch thành công");
-
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 releaseAfterReturn[0] = false;
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -511,7 +459,6 @@ public class BookingServiceImpl implements BookingService {
                     }
                 });
             }
-
             return savedBooking;
         } finally {
             if (releaseAfterReturn[0]) {
@@ -521,21 +468,16 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    /** Các trường bệnh nhân được sửa tự do, không ảnh hưởng tới việc giữ slot. */
     private void applyEditableFields(Booking booking, RescheduleRequestDTO request) {
         if (request.getAppointmentType() != null && !request.getAppointmentType().isBlank()) {
             booking.setAppointmentType(request.getAppointmentType().trim());
         }
-
-        // Bỏ trống thì quay về thông tin chủ tài khoản, giống lúc đặt lịch lần đầu
         String name = request.getPatientName();
         booking.setPatientName((name != null && !name.isBlank())
                 ? name.trim() : booking.getUser().getFullName());
-
         String phone = request.getPatientPhone();
         booking.setPatientPhone((phone != null && !phone.isBlank())
                 ? phone.trim() : booking.getUser().getPhone());
-
         booking.setNotes(request.getNotes());
     }
 
@@ -554,24 +496,17 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    /**
-     * Kiểm tra khung giờ "HH:mm - HH:mm" có giao với giờ bận đột xuất của bác sĩ không.
-     * (Cùng logic giao khoảng đang dùng ở BookingApi và TimeSlotService)
-     */
     private boolean isBlockedForDoctor(Long doctorId, LocalDate date, String appointmentTime) {
         List<DoctorBlockTime> blockedTimes = doctorBlockTimeRepository.findByDoctorIdAndBlockDate(doctorId, date);
         if (blockedTimes.isEmpty()) {
             return false;
         }
-
         String[] parts = appointmentTime.split(" - ");
         if (parts.length != 2) {
-            return false; // Không parse được thì bỏ qua, tránh chặn nhầm
+            return false;
         }
-
         LocalTime slotStart = LocalTime.parse(parts[0].trim(), SLOT_TIME_FORMATTER);
         LocalTime slotEnd = LocalTime.parse(parts[1].trim(), SLOT_TIME_FORMATTER);
-
         for (DoctorBlockTime block : blockedTimes) {
             if (slotStart.isBefore(block.getEndTime()) && slotEnd.isAfter(block.getStartTime())) {
                 return true;
@@ -584,7 +519,6 @@ public class BookingServiceImpl implements BookingService {
         return doctorId + "|" + appointmentDate + "|" + appointmentTime;
     }
 
-    // === THÊM 3 PHƯƠNG THỨC MỚI NÀY ===
     @Override
     public List<Booking> findAll() {
         return bookingRepository.findAll();
@@ -593,6 +527,22 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public Optional<Booking> findById(Long id) {
         return bookingRepository.findById(id);
+    }
+
+    @Override
+    public Optional<Booking> findByVnpTxnRef(String vnpTxnRef) {
+        if (vnpTxnRef == null || vnpTxnRef.isBlank()) {
+            return Optional.empty();
+        }
+        return bookingRepository.findByVnpTxnRef(vnpTxnRef);
+    }
+
+    @Override
+    public boolean isBankTxnProcessed(String bankTxnRef) {
+        if (bankTxnRef == null || bankTxnRef.isBlank()) {
+            return false;
+        }
+        return bookingRepository.existsByBankTxnRef(bankTxnRef);
     }
 
     @Override

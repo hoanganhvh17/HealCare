@@ -22,7 +22,27 @@ This is why `Allergy.source` is declared **nullable** even though Java always se
 **Gotcha — renaming an `@Enumerated(EnumType.STRING)` value.** Hibernate 6 maps such a field to a **native MySQL `ENUM(...)` column** whose value list is fixed at table-creation time. `ddl-auto=update` **never rewrites that list**, so after you rename or remove an enum constant, inserting the new value fails with `Data truncated for column '…'` (surfaces as an HTTP 500). Fix it once by hand, e.g. `ALTER TABLE staff_shifts MODIFY COLUMN shift_type ENUM('CA_SANG','CA_CHIEU','TRUC_NGOAI_GIO','TRUC_12H_DEM','TRUC_24H','HOI_CHAN') NOT NULL;` — or drop the table and let it re-create. Adding a *new* constant to the end is safe; only renames/removals on an existing dev DB need this.
 
 ## Configuration file
-Connection settings, credentials, Gmail SMTP, Google/Facebook OAuth2 client secrets, and the OpenRouter AI key all live in [application.properties](src/main/resources/application.properties). The app listens on port **8090**.
+Everything lives in the single [application.properties](src/main/resources/application.properties), in the form `${ENV_VAR:dev-default}` — dev runs with no environment set, production overrides via environment variables. The app listens on port **8090**.
+
+**One file on purpose, not `application-prod.properties`.** Two files are two places that must be kept in sync, and the failure is silent: forget to add a key to the prod file and it quietly falls back to the dev value, i.e. production running on the dev database password with nothing in the log. With one file, `grep '\${' application.properties` *is* the deployment checklist. [deploy/env.example](../../deploy/env.example) lists every variable; [deploy/README.md](../../deploy/README.md) is the runbook.
+
+**The committed defaults are dev values, and all five external secrets are already in git history.** Externalising them does not un-leak them — MySQL password, Gmail app password, Google + Facebook client secrets and the OpenRouter key must all be **rotated** before the app faces real users. Checklist is step 0 of the deploy README.
+
+Secrets that used to be hardcoded **in Java** now come from config too: `VnPayProperties` (`vnpay.*`) and `VietQrProperties` (`vietqr.*`), the project's first `@ConfigurationProperties` classes. `VNPayConfig` is now a pure static-utility class (`hmacSHA512`, `getRandomNumber`, `getIpAddress`) holding no secrets.
+
+**Never populate those with `@Value` on a static setter** (or `@PostConstruct` assigning a static). It is the first thing suggested online, it appears to work, and it is an initialisation-order landmine: anything reading the static before the bean is constructed gets `null`, with nothing in the code making that visible.
+
+### Schema objects Hibernate cannot express — `db/manual/*.sql`
+There is still no migration tool. Three things Hibernate `ddl-auto=update` cannot create live in [db/manual/](../../db/manual/) and are run **by hand, once**, in order:
+
+- `001_prod_hardening.sql` — the `bookings.slot_uk` generated column + `uk_bookings_slot`, `uk_posts_source_url`, and the `shedlock` table.
+- `002_spring_session.sql` — `SPRING_SESSION` + `SPRING_SESSION_ATTRIBUTES`.
+
+`config/SchemaGuard` (an `ApplicationRunner`) checks each object against `information_schema` at boot. By default it only logs loudly — same principle as the lazily-loaded PDF fonts below: a missing artifact must degrade rather than kill startup. Set **`SCHEMA_STRICT=true` in production** so a forgotten migration becomes a boot failure instead of a silent double-booking.
+
+**A generated column is the safe direction of the orphan-column trap** documented above. An orphan *plain* `NOT NULL` column breaks every INSERT because Hibernate stops naming it; an orphan *generated* column is harmless because MySQL computes it and Hibernate's explicit column list never touches it. The corollary: **never add a `slotUk` field to `Booking`** — Hibernate would map it, start naming it in INSERTs, and MySQL rejects any write to a generated column.
+
+`DDL_AUTO` stays `update` for the first boot on an empty database (with no migration tool, `validate` would create nothing); flip it to `validate` afterwards. `validate` ignores extra unmapped columns, so `slot_uk`, `shedlock` and the session tables are all fine.
 
 ### Thu thập tin tức (`news.fetch.*`)
 Four keys drive `MedicalNewsTask`: `enabled` (kill switch), `cron` (default `0 0 6,18 * * ?`), `max-per-run` (2 — each article costs one AI call), `max-age-days` (3). The **list of newspapers is not here** — it is `config/NewsSourceCatalog.SOURCES`, kept in Java for the same reason as `DoctorSeedData`. Set `news.fetch.enabled=false` to develop without the task firing. See [supporting-subsystems.md](supporting-subsystems.md).
@@ -40,7 +60,9 @@ Four blocks run **outside** that guard and are idempotent, so they also apply to
 
   **The email domain is a machine string — no spaces, ever.** `User.email` carries `@Email`, and `DataInitializer` is a `CommandLineRunner`, so a bad address does not merely skip a doctor: the `ConstraintViolationException` kills the whole boot with `Application run failed`. A brand rename done by find-and-replace turned this into `"@NNL Hospital.vn"` and the app would not start at all. Doctors seeded **before** that rename keep their old `@meditrust.vn` address — the idempotency check is `existsByUsername`, not email, so the domain change only applies to newly created rows. Harmless in dev; `UPDATE users SET email = REPLACE(email,'@meditrust.vn','@nnlhospital.vn')` if you want them uniform. The BCrypt hash is computed **once** and reused; encoding per doctor would add ~10s to every boot.
 
-Default logins: `admin`/`admin123`, `patient_tom`/`123456`, doctors such as `doctor_walter`/`123456`, and every seeded doctor with `bs_<slug>`/`123456`.
+Default logins **in dev**: `admin`/`admin123`, `patient_tom`/`123456`, doctors such as `doctor_walter`/`123456`, and every seeded doctor with `bs_<slug>`/`123456`.
+
+**Those defaults must not reach production** — a guessable admin account on a public healthcare site is a day-one incident. Four `seed.*` keys control it: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (the app prints a loud warning while the password is still `admin123`), `SEED_DEMO_ACCOUNTS=false` to skip `patient_tom` / `testsang31`, `SEED_DOCTOR_PASSWORD` for the ~132 doctors and the receptionist, and `SEED_ENABLED=false` to switch the whole runner off after the first boot.
 
 `data.sql` also exists but is disabled (`spring.sql.init.mode=never`).
 
@@ -57,7 +79,18 @@ The mic only works in a **secure context**. `http://localhost:8090` qualifies, s
 Reading answers aloud also needs a Vietnamese voice installed on the OS (Windows: *Settings > Time & Language > Speech*). Without one the assistant falls back to the default voice and mispronounces Vietnamese; a console warning is logged once.
 
 ## Uploads
-Uploaded images are written to an `uploads/` directory beside the running process and served at `/uploads/**` (see [WebConfig.java](src/main/java/com/bookinghealthy/config/WebConfig.java)). Multipart limit is 10MB.
+**`service/FileStorageService` is the only place that writes an uploaded file.** Seven call sites used to repeat the same four lines with the same three bugs; see [coding-conventions.md](coding-conventions.md). Two knobs:
+
+- `app.upload-dir` (`UPLOAD_DIR`, default `uploads`) — served publicly at `/uploads/**`.
+- `app.private-dir` (`PRIVATE_DIR`, default `private`) — **not served by any handler**. Candidate CVs live here.
+
+Both are resolved to an **absolute** path at startup (logged as `[Upload]` lines on boot). The old `file:uploads/` was relative to the process working directory — the comment claiming it sat "beside the .jar" was simply wrong, and a container or systemd unit with a different CWD lost every image. Multipart limit is 10MB; **nginx must be raised to match** (`client_max_body_size`, default 1MB) or large uploads are rejected before reaching the app.
+
+**Uploaded CVs are personal data and are deliberately outside `/uploads`.** Filenames are guessable, `/uploads/**` is `permitAll`, and in production nginx serves that directory directly — where Spring Security never runs. Download goes through `GET /admin/candidates/{id}/cv` instead.
+
+**Service images use two resource locations**, so `AdminServiceController` uploads work without migrating any data: `/assets/img/health/**` resolves from `file:<upload-dir>/health/` first, then `classpath:/static/assets/img/health/`. New uploads come off disk, seeded images still come from inside the jar.
+
+**The 142 seeded doctor portraits under `uploads/` are tracked by git but are NOT in the jar.** They must be copied into the production upload volume or every seeded doctor renders a broken image.
 
 Not everything there arrives by upload: `NewsFeedService.downloadImage` **downloads** the illustration of a collected news article into the same folder (named `<millis>_news.<ext>`, capped at 5MB). Its extension comes from the response `Content-Type`, not the URL — Spring picks the served Content-Type from the file extension, so a `.jpg` holding WebP bytes would mislabel the image to every browser.
 
