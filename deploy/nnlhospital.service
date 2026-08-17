@@ -1,0 +1,69 @@
+# =====================================================================
+#  UNIT SYSTEMD CHO NNL HOSPITAL
+# =====================================================================
+# CÀI ĐẶT:
+#     sudo cp deploy/nnlhospital.service /etc/systemd/system/
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now nnlhospital
+#
+# XEM LOG:
+#     sudo journalctl -u nnlhospital -f
+#
+# Ba đường dẫn dưới đây phải khớp với deploy/README.md:
+#     /opt/nnlhospital/app.jar        — jar béo, chép từ target/ sang
+#     /etc/nnlhospital/.env           — bí mật, chmod 600
+#     /var/lib/nnlhospital/{uploads,private}
+# =====================================================================
+
+[Unit]
+Description=NNL Hospital — hệ thống đặt lịch khám (Spring Boot)
+Documentation=file:///opt/nnlhospital/deploy/README.md
+# CỐ Ý dùng After chứ không Requires. Requires sẽ kéo app chết theo mỗi lần
+# MySQL khởi động lại; với Restart=always bên dưới thì app tự thử lại sau 10 giây
+# cho tới khi MySQL lên, vừa đơn giản vừa chịu được sự cố hơn.
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nnlhospital
+Group=nnlhospital
+WorkingDirectory=/var/lib/nnlhospital
+
+# LƯU Ý ĐỊNH DẠNG — systemd KHÔNG phải shell:
+#   - chỉ chấp nhận dòng bình luận ĐỨNG RIÊNG, không có bình luận cuối dòng.
+#     `SCHEMA_STRICT=true   # ghi chú` sẽ gán nguyên chuỗi "true   # ghi chú"
+#     và Spring ném lỗi ép kiểu boolean, app KHÔNG khởi động được.
+#   - giá trị có dấu cách (NEWS_FETCH_CRON, app password của Gmail,
+#     VIETQR_ACCOUNT_NAME) phải đặt trong dấu nháy kép.
+# deploy/env.example đã tuân thủ cả hai; giữ nguyên khuôn đó khi sửa .env.
+EnvironmentFile=/etc/nnlhospital/.env
+
+# -Xmx1g là dư dùng cho shape A1.Flex 12GB. Nếu buộc phải chạy trên
+# E2.1.Micro (1GB RAM) thì hạ xuống -Xmx512m VÀ tạo swap, nhưng máy đó
+# không đủ chỗ cho cả MySQL lẫn ứng dụng.
+ExecStart=/usr/bin/java -Xms256m -Xmx1g -jar /opt/nnlhospital/app.jar
+
+# JVM nhận SIGTERM thì thoát với mã 143; không khai ở đây thì mỗi lần
+# `systemctl stop` đều bị systemd ghi là thất bại.
+SuccessExitStatus=143
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nnlhospital
+
+# --- Siết quyền ---
+# Ứng dụng chỉ ghi vào UPLOAD_DIR, PRIVATE_DIR và /tmp (thư mục work của Tomcat,
+# đã được PrivateTmp cấp riêng).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/nnlhospital
+
+[Install]
+WantedBy=multi-user.target
