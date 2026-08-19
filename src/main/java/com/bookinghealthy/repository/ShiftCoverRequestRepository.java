@@ -33,4 +33,8 @@ public interface ShiftCoverRequestRepository extends JpaRepository<ShiftCoverReq
                                                @Param("departmentId") Long departmentId);
 
     void deleteByShiftId(Long shiftId);
+
+    void deleteByRequesterId(Long requesterId);
+
+    void deleteByTargetUserId(Long targetUserId);
 }

@@ -23,4 +23,6 @@ public interface AiChatSessionRepository extends JpaRepository<AiChatSession, Lo
     @Modifying
     @Query("DELETE FROM AiChatSession s WHERE s.user IS NULL AND s.updatedAt < :cutoffDate")
     void deleteGuestSessionsOlderThan(@Param("cutoffDate") LocalDateTime cutoffDate);
+
+    void deleteByUserId(Long userId);
 }

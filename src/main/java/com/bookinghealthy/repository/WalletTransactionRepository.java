@@ -10,4 +10,7 @@ import java.util.List;
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long> {
     // Lấy lịch sử giao dịch của user (Sắp xếp mới nhất)
     List<WalletTransaction> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // Sổ ví phải giữ để đối soát; xem UserService.whyCannotDelete.
+    long countByUserId(Long userId);
 }

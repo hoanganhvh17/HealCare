@@ -23,8 +23,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet; // <-- THÊM IMPORT
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set; // <-- THÊM IMPORT
 
@@ -195,8 +197,21 @@ public class AdminController {
 
     // 1. SỬA HÀM NÀY: Dùng findAll() để lấy TẤT CẢ user
     @GetMapping("/manage-user")
-    public String manageUsers(Model model) {
-        model.addAttribute("listUsers", userService.findAll());
+    public String manageUsers(Model model, Authentication authentication) {
+        List<User> users = userService.findAll();
+        String me = authentication != null ? authentication.getName() : null;
+
+        // Cùng khuôn với cancelBlockReasons / actionBlockReasons: template ẩn nút Xoá
+        // và in đúng câu mà controller sẽ dùng để từ chối, nên giao diện không bao giờ
+        // mời admin bấm một nút chắc chắn lỗi.
+        Map<Long, String> deleteBlockReasons = new HashMap<>();
+        for (User u : users) {
+            String reason = userService.whyCannotDelete(u, me);
+            if (reason != null) deleteBlockReasons.put(u.getId(), reason);
+        }
+
+        model.addAttribute("listUsers", users);
+        model.addAttribute("deleteBlockReasons", deleteBlockReasons);
         return "admin/manage-user";
     }
 
@@ -339,22 +354,24 @@ public class AdminController {
     @GetMapping("/manage-user/delete/{id}")
     public String deleteUser(@PathVariable("id") Long id, RedirectAttributes ra, Authentication authentication) {
 
-        // Nghiệp vụ 1: Không cho Admin tự xóa mình
-        String currentAdminUsername = authentication.getName();
         User userToDelete = userService.findById(id).orElse(null);
 
-        if (userToDelete != null && userToDelete.getUsername().equals(currentAdminUsername)) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa tài khoản Admin đang đăng nhập!");
+        // Một hàm duy nhất quyết định, dùng chung với template — xem UserService.whyCannotDelete.
+        String reason = userService.whyCannotDelete(userToDelete, authentication.getName());
+        if (reason != null) {
+            ra.addFlashAttribute("errorMessage", reason);
             return "redirect:/admin/manage-user";
         }
 
         try {
-            userService.deleteById(id);
-            ra.addFlashAttribute("successMessage", "Đã xóa Người dùng thành công.");
+            userService.deleteAccount(id);
+            ra.addFlashAttribute("successMessage", "Đã xoá người dùng thành công.");
         } catch (Exception e) {
-            // Nghiệp vụ 2: Bắt lỗi Khóa ngoại (đã có lịch hẹn,...)
-            ra.addFlashAttribute("errorMessage", "Không thể xóa User (đã có lịch hẹn hoặc liên kết Bác sĩ).");
+            e.printStackTrace();
+            // Còn ràng buộc nào chưa lường tới thì in ra thay vì đoán hộ nguyên nhân.
+            ra.addFlashAttribute("errorMessage", "Không xoá được người dùng: " + e.getMessage());
         }
         return "redirect:/admin/manage-user";
     }
+
 }

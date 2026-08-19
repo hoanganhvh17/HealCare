@@ -118,4 +118,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT SUM(b.bookingPrice) FROM Booking b WHERE b.status = com.bookinghealthy.model.BookingStatus.CANCELED AND b.paymentStatus = 'PAID' AND b.createdAt BETWEEN :start AND :end")
     BigDecimal sumRefundByCreatedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // Dùng cho UserService.whyCannotDelete — lịch hẹn kéo theo hồ sơ bệnh án.
+    long countByUserId(Long userId);
 }

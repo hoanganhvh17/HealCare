@@ -20,4 +20,6 @@ public interface AllergyRepository extends JpaRepository<Allergy, Long> {
      * sẽ tưởng là hai loại dị ứng khác nhau.
      */
     boolean existsByUserIdAndAllergenIgnoreCase(Long userId, String allergen);
+
+    void deleteByUserId(Long userId);
 }

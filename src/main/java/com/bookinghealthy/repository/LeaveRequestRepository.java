@@ -66,4 +66,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             + "  OR (l.emergency = true AND l.status = com.bookinghealthy.model.ApprovalStatus.PENDING))")
     List<LeaveRequest> findBlockingOnDate(@Param("userId") Long userId,
                                           @Param("date") LocalDate date);
+
+    long countByApproverId(Long approverId);
+
+    void deleteByUserId(Long userId);
 }

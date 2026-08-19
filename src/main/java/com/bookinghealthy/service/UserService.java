@@ -16,4 +16,19 @@ public interface UserService {
 
     // === THÊM HÀM MỚI NÀY ===
     List<User> findByRoleName(String roleName);
+
+    /**
+     * Nguồn sự thật duy nhất cho "có còn xoá được tài khoản này không".
+     * Trả về null nếu xoá được; ngược lại là câu tiếng Việt giải thích vì sao không.
+     * Controller dùng để chặn thật, template dùng để ẩn nút — cùng một khuôn với
+     * BookingService.whyCannotCancel.
+     */
+    String whyCannotDelete(User user, String currentUsername);
+
+    /**
+     * Xoá tài khoản cùng các bản ghi PHỤ THUỘC không mang giá trị độc lập
+     * (hồ sơ nhân sự, thông báo, phiên chat, dị ứng, ca trực, đơn nghỉ phép).
+     * Chỉ gọi khi whyCannotDelete trả về null.
+     */
+    void deleteAccount(Long id);
 }

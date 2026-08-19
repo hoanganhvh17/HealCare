@@ -32,7 +32,7 @@ Khi một thao tác không còn hợp lệ — nhất là vì **dữ liệu đã
 2. Controller gọi nó để **chặn thật** (POST/URL tự chế cũng không lách được).
 3. Controller cũng đẩy kết quả xuống model (`Map<Long, String>` hoặc cờ boolean) để template **ẩn nút và in đúng câu đó**.
 
-Nhờ đi qua **một** hàm duy nhất, giao diện và server không bao giờ nói khác nhau. Các hàm hiện có: `BookingService.whyCannotCancel` / `whyCannotReschedule` / `whyStaffCannotChange`, `ReceptionService.whyCannotReorderQueue`, `AllergyService.whyCannotDelete`, `LeaveService.whyCannotDecide`, `StaffScheduleService.whyCannotDecideShift`. **Thêm luật mới thì thêm vào đúng hàm này, đừng viết `if` rời trong controller.**
+Nhờ đi qua **một** hàm duy nhất, giao diện và server không bao giờ nói khác nhau. Các hàm hiện có: `BookingService.whyCannotCancel` / `whyCannotReschedule` / `whyStaffCannotChange`, `ReceptionService.whyCannotReorderQueue`, `AllergyService.whyCannotDelete`, `LeaveService.whyCannotDecide`, `StaffScheduleService.whyCannotDecideShift`, `UserService.whyCannotDelete`. **Thêm luật mới thì thêm vào đúng hàm này, đừng viết `if` rời trong controller.**
 
 Với ô `<input type="date">`, cách rẻ nhất là `th:min` / `th:max` từ một thuộc tính model (`today`, `emergencyMaxDate`): modal đăng ký ca trực, đơn nghỉ phép, báo bận đột xuất và phân công trực của trưởng khoa đều đã có. **Nhưng `min`/`max` chỉ là lớp lịch sự** — nó tính lúc **tải trang**, nên một tab mở từ hôm qua vẫn gửi lên ngày cũ; luật thật vẫn phải nằm ở server (`validateShift`, `LeaveServiceImpl.validate`, `reserve()`).
 

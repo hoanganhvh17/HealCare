@@ -67,4 +67,10 @@ public interface StaffShiftRepository extends JpaRepository<StaffShift, Long> {
             + "com.bookinghealthy.model.ShiftType.TRUC_24H)")
     long countApprovedDutyOnDate(@Param("departmentId") Long departmentId,
                                  @Param("date") LocalDate date);
+
+    long countByApproverId(Long approverId);
+
+    List<StaffShift> findByUserId(Long userId);
+
+    void deleteByUserId(Long userId);
 }

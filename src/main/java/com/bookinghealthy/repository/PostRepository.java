@@ -38,4 +38,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
      * RSS nhiều lần trong ngày, và tiêu đề thì tòa soạn sửa được sau khi đăng.
      */
     boolean existsBySourceUrl(String sourceUrl);
+
+    long countByAuthorId(Long authorId);
 }

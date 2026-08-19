@@ -22,4 +22,6 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, Long
 
     @EntityGraph(attributePaths = {"user", "headOfDepartment"})
     List<StaffProfile> findByHeadOfDepartmentIsNotNull();
+
+    void deleteByUserId(Long userId);
 }
