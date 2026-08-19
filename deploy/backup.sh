@@ -62,6 +62,11 @@ user=${DB_USERNAME}
 password=${DB_PASSWORD}
 EOF
 
+# --no-tablespaces: mysqldump 8 mac dinh co doc thong tin tablespace, viec do doi
+#   quyen PROCESS o cap TOAN SERVER. Tai khoan app chi co quyen tren dung mot
+#   schema (co y), nen moi lan chay in "Access denied; you need the PROCESS
+#   privilege" ra stderr - cron bao loi moi dem du tep dump van day du. Dung
+#   "chua" bang GRANT PROCESS: do la quyen toan server de ne mot thu khong can.
 # --single-transaction: ảnh chụp nhất quán cho InnoDB mà không khoá bảng, nên
 #   lễ tân vẫn đặt lịch được trong lúc sao lưu chạy.
 # --default-character-set=utf8mb4: THIẾU LÀ HỎNG THẦM. Tên bệnh nhân, chẩn đoán
@@ -70,6 +75,7 @@ EOF
 echo "[backup] Đang dump database '$DB_NAME'..."
 mysqldump --defaults-extra-file="$CNF" \
           --single-transaction \
+          --no-tablespaces \
           --routines --triggers --events \
           --default-character-set=utf8mb4 \
           "$DB_NAME" | gzip -9 > "$DEST/db-$STAMP.sql.gz"
