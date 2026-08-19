@@ -1,0 +1,73 @@
+# =====================================================================
+#  MẪU CẤU HÌNH NGINX CHO NNL HOSPITAL
+# =====================================================================
+# Bốn thứ trong tệp này KHÔNG phải tuỳ chọn — thiếu cái nào cũng có một tính năng
+# hỏng lặng lẽ. Đọc chú thích trước khi cắt bớt.
+# =====================================================================
+
+server {
+    listen 80;
+    server_name nnlhospital.example.com;
+
+    # (1) HTTPS LÀ BẮT BUỘC, không phải để cho đẹp.
+    # Web Speech API (nút micro, chế độ gọi rảnh tay) chỉ chạy trong "secure context".
+    # Trên http:// thuần, MediTrustVoice.isSupported() trả false và TOÀN BỘ tính năng
+    # giọng nói biến mất mà KHÔNG có lấy một thông báo lỗi nào — trên localhost thì vẫn
+    # chạy, nên lỗi này không bao giờ lộ ra ở máy dev.
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name nnlhospital.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/nnlhospital.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/nnlhospital.example.com/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # (2) GIỚI HẠN KÍCH THƯỚC BODY.
+    # Ứng dụng cho tải tệp tới 10MB, nhưng mặc định của nginx là 1MB — mọi tệp lớn hơn
+    # bị chặn ở đây và trả 413 TRƯỚC KHI tới được ứng dụng, nên trong log app không có gì.
+    client_max_body_size 12m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+
+        # (3) HEADER CHUYỂN TIẾP.
+        # Ứng dụng đặt server.forward-headers-strategy=framework. Thiếu các header này thì
+        # Tomcat thấy request là http://127.0.0.1:8090, nên mọi `redirect:` và redirect_uri
+        # của OAuth2 đi ra dưới dạng http:// — trình duyệt bị đẩy ngược về https và vòng
+        # `state` của OAuth2 đứt, biểu hiện là nút đăng nhập Google "bị lỗi".
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Port  $server_port;
+
+        proxy_connect_timeout 10s;
+        # Trợ lý AI chờ OpenRouter tới 25 giây; để 60s dư ra cho lượt gọi chậm.
+        proxy_read_timeout    60s;
+    }
+
+    # (4) PHỤC VỤ ẢNH TRỰC TIẾP TỪ Ổ ĐĨA.
+    # Nhanh hơn hẳn và khi thêm instance thứ hai thì ảnh vừa tải lên ở máy A vẫn hiện
+    # được từ máy B (miễn là cùng một ổ đĩa chia sẻ).
+    #
+    # LƯU Ý AN TOÀN: nginx KHÔNG chạy Spring Security. Mọi thứ nằm dưới đây là công khai.
+    # Đó chính là lý do CV ứng viên được lưu ở PRIVATE_DIR chứ không phải UPLOAD_DIR, và
+    # tải về phải đi qua /admin/candidates/{id}/cv — TUYỆT ĐỐI đừng thêm một location nào
+    # trỏ vào PRIVATE_DIR.
+    location /uploads/ {
+        alias /var/lib/nnlhospital/uploads/;
+        expires 7d;
+        access_log off;
+    }
+
+    # Healthcheck: /actuator/health là permitAll; phần còn lại của /actuator chỉ dành cho ADMIN.
+    location = /actuator/health {
+        proxy_pass http://127.0.0.1:8090/actuator/health;
+        access_log off;
+    }
+}

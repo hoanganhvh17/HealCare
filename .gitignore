@@ -31,3 +31,22 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Bí mật & dữ liệu chạy thật ###
+# .env chứa mật khẩu DB, app password của Gmail, client secret OAuth2 và khoá OpenRouter.
+.env
+application-local.properties
+src/main/resources/application-local.properties
+
+# CV ứng viên: dữ liệu cá nhân (họ tên, số điện thoại, email, quá trình làm việc).
+# Nằm ngoài uploads/ để không bị phục vụ công khai — và cũng không được commit.
+/private/
+
+# Ảnh minh hoạ do NewsFeedService TẢI VỀ từ báo (đặt tên <millis>_news.<ext>).
+# Chúng tự sinh lại trên mọi môi trường nên không cần commit, và đây là ảnh của
+# báo khác chứ không phải tài sản của dự án.
+#
+# CỐ Ý chỉ chặn đúng mẫu `_news.` chứ KHÔNG chặn cả `<millis>_*`: 11 ảnh bác sĩ
+# đang được git theo dõi cũng mang tiền tố millis (vd `1766117964208_doctor-1.jpg`),
+# nên một luật rộng hơn sẽ mâu thuẫn với chính những tệp đang có trong repo.
+/uploads/*_news.*
