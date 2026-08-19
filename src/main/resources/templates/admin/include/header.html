@@ -2,7 +2,20 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
-<head th:fragment="header(title)">
+<!--
+  th:fragment="pagehead", KHÔNG phải "header".
+
+  Thymeleaf khớp selector fragment theo tên fragment HOẶC tên thẻ HOẶC id, và trả về MỌI
+  nút khớp. Tệp này có cả <head th:fragment="header"> lẫn <header id="header">, nên
+  `~{... :: pagehead (title='X')}` khớp cả hai và chèn LUÔN thanh header thứ hai vào trang.
+  Hậu quả: 36 trang nhân viên render 2 thẻ <header id="header"> chồng lên nhau, và vì
+  assets-admin/js/main.js nối sự kiện bằng querySelector (chỉ lấy phần tử ĐẦU TIÊN), nút mở
+  sidebar được nối lại là nút của header bị chôn bên dưới — bấm vào nút nhìn thấy thì không
+  có gì xảy ra. Trên desktop không ai nhận ra vì sidebar vốn ghim sẵn.
+
+  Đặt tên khác tên thẻ và khác id là đủ để selector chỉ còn khớp đúng một nút.
+-->
+<head th:fragment="pagehead(title)">
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title th:text="${title} ?: 'Dashboard - BookingHealthy'">Dashboard</title>
@@ -18,6 +31,7 @@
     <link th:href="@{/assets-admin/vendor/remixicon/remixicon.css}" rel="stylesheet">
     <link th:href="@{/assets-admin/vendor/simple-datatables/style.css}" rel="stylesheet">
     <link th:href="@{/assets-admin/css/style.css}" rel="stylesheet">
+    <link th:href="@{/assets-admin/css/responsive-admin.css}" rel="stylesheet">
 </head>
 
 <body>

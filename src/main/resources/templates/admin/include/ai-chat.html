@@ -171,6 +171,18 @@
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
 
         .admin-chat-msg p { margin-bottom: 5px; }
+        /* ĐIỆN THOẠI: panel 400px rộng hơn cả màn hình, mở ra là tràn ngang.
+           Cho chiếm trọn bề ngang; vị trí đóng phải đổi theo (-100vw), nếu để -550px thì
+           trên màn hẹp panel vẫn thò ra một phần và sinh scroll ngang khi ĐANG ĐÓNG.
+           Đặt trong <style> của fragment chứ không ở responsive-admin.css: <style> này nằm
+           trong <body>, tức sau <link> ở <head>, nên luật ở đây mới là luật thắng. */
+        @media (max-width: 575.98px) {
+            .admin-ai-sidepanel {
+                width: 100vw;
+                right: -100vw;
+            }
+        }
+
     </style>
 
     <div id="admin-ai-sidepanel" class="admin-ai-sidepanel">

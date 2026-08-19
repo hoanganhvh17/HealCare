@@ -196,6 +196,18 @@
         .chat-msg p { margin-bottom: 5px; }
         .chat-msg ul { padding-left: 20px; margin-bottom: 5px; }
         .chat-msg strong { color: inherit; }
+        /* ĐIỆN THOẠI: panel 400px rộng hơn cả màn hình, mở ra là tràn ngang.
+           Cho chiếm trọn bề ngang; vị trí đóng phải đổi theo (-100vw), nếu để -550px thì
+           trên màn hẹp panel vẫn thò ra một phần và sinh scroll ngang khi ĐANG ĐÓNG.
+           Đặt trong <style> của fragment chứ không ở responsive-admin.css: <style> này nằm
+           trong <body>, tức sau <link> ở <head>, nên luật ở đây mới là luật thắng. */
+        @media (max-width: 575.98px) {
+            .doctor-ai-sidepanel {
+                width: 100vw;
+                right: -100vw;
+            }
+        }
+
     </style>
 
     <div id="ai-chat-widget-doctor">

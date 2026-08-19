@@ -1,0 +1,206 @@
+/**
+ * Lớp phủ responsive — khu BỆNH NHÂN.
+ *
+ * Nạp SAU assets/css/main.css và bootstrap.min.css trong mọi <head> của templates/user/*.html,
+ * nên thắng cascade một cách tự nhiên. Cố ý KHÔNG sửa vào main.css: đó là tệp theme
+ * BootstrapMade (MediTrust), lần nâng cấp theme sau sẽ nuốt mất mọi luật viết chen vào đó.
+ *
+ * Bản thân theme đã responsive sẵn (69 media query). Tệp này chỉ vá những chỗ markup của dự án
+ * làm hỏng cơ chế đó, cộng vài chỉnh giãn cách cho màn hẹp. Hạn chế !important tối đa —
+ * chỗ nào cần nó thì có ghi chú lý do.
+ *
+ * Ngưỡng bám theo Bootstrap 5 để không sinh ra hệ breakpoint thứ hai:
+ *   <576px  = điện thoại dọc
+ *   <768px  = điện thoại ngang / máy tính bảng nhỏ
+ *   <1200px = ngưỡng theme chuyển sang menu hamburger
+ */
+
+/* ==========================================================================
+   1. Chặn tràn ngang — nguyên nhân số một của "vỡ giao diện" trên điện thoại
+   ========================================================================== */
+
+/* Ảnh không khai width/height trong markup sẽ đẩy rộng trang ra đúng bằng kích thước gốc
+   của tệp — ảnh bác sĩ 512×512 và ảnh tin tức tải về từ báo đều rơi vào diện này. */
+img,
+video,
+iframe,
+canvas,
+svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Ảnh có width/height cứng trong HTML (avatar 32×32 ở header) phải giữ nguyên tỉ lệ,
+   nên loại chúng khỏi luật height:auto ở trên. */
+img[width][height] {
+    height: auto;
+}
+
+.header img.rounded-circle {
+    height: 32px;
+}
+
+/* Chuỗi dài không có dấu cách (URL, mã giao dịch VNPay, email) không xuống dòng được và
+   kéo rộng cả khối chứa nó. */
+.card-body,
+.table td,
+.table th,
+.dropdown-menu {
+    overflow-wrap: break-word;
+}
+
+/* ==========================================================================
+   2. Header — nhóm nút bên phải chật chỗ trên màn hẹp
+   ========================================================================== */
+
+@media (max-width: 767.98px) {
+    /* gap-4 của Bootstrap là 1.5rem cho MỖI khe; cộng với logo, nút "Đặt lịch khám",
+       chuông, avatar và hamburger là chắc chắn tràn ở 360px. */
+    #header .header-actions {
+        gap: 0.5rem !important;
+    }
+
+    #header .header-actions > .d-flex {
+        gap: 0.65rem !important;
+    }
+
+    #header .logo .sitename {
+        font-size: 1.15rem;
+    }
+
+    /* Nút "Đặt lịch khám": px-4 py-2 (1.5rem ngang) là quá rộng ở đây. */
+    #header .header-actions .btn {
+        padding: 0.35rem 0.8rem !important;
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 400px) {
+    /* Dưới 400px thì nút chữ phải nhường chỗ cho hamburger — đổi thành biểu tượng lịch.
+       Nội dung chữ nằm trong text node nên dùng font-size:0 để giấu, rồi vẽ lại icon. */
+    #header .header-actions .btn {
+        font-size: 0;
+        padding: 0.4rem 0.6rem !important;
+    }
+
+    #header .header-actions .btn::before {
+        content: "\F1E4"; /* bi-calendar-plus */
+        font-family: "bootstrap-icons";
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+}
+
+/* ==========================================================================
+   3. Giãn cách & cỡ chữ cho màn hẹp
+   ========================================================================== */
+
+@media (max-width: 767.98px) {
+    /* Theme để .section padding 60px 0 — trên điện thoại thành ra cuộn rất nhiều mà
+       không thấy thêm nội dung nào. */
+    .section {
+        padding: 32px 0;
+    }
+
+    .section-title {
+        padding-bottom: 28px;
+    }
+
+    .section-title h2 {
+        font-size: 24px;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    h2 {
+        font-size: 1.45rem;
+    }
+
+    h3 {
+        font-size: 1.2rem;
+    }
+
+    h4 {
+        font-size: 1.05rem;
+    }
+
+    .card-body {
+        padding: 1rem 0.85rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .container,
+    .container-fluid,
+    .container-xl {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    /* Nhóm nút nằm ngang trong thẻ lịch hẹn / thẻ bác sĩ: xuống hàng thay vì bị bóp
+       tới mức không bấm trúng. */
+    .card .d-flex.gap-2 > .btn,
+    .card .btn-group > .btn {
+        white-space: normal;
+    }
+}
+
+/* ==========================================================================
+   4. Bảng & biểu mẫu
+   ========================================================================== */
+
+/* Bootstrap đã có .table-responsive; thêm quán tính cuộn cho iOS và một gợi ý thị giác
+   rằng còn nội dung bên phải, nếu không người dùng không biết là bảng cuộn được. */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767.98px) {
+    .table-responsive > .table {
+        font-size: 0.86rem;
+    }
+
+    /* Ô nhập dưới 16px làm Safari trên iOS TỰ PHÓNG TO trang khi người dùng chạm vào,
+       và không thu lại — trang trông như vỡ hẳn. 16px là ngưỡng chặn hành vi đó. */
+    input,
+    select,
+    textarea,
+    .form-control,
+    .form-select {
+        font-size: 16px;
+    }
+}
+
+/* ==========================================================================
+   5. Lưới khung giờ đặt lịch
+   ========================================================================== */
+
+@media (max-width: 575.98px) {
+    /* Các nút khung giờ (16 khung) dựng bằng flex-wrap ở appointment.html /
+       booking-edit.html: giữ chúng đủ to để chạm trúng bằng ngón tay. */
+    .time-slot,
+    .slot-btn {
+        min-width: 84px;
+        padding: 0.45rem 0.5rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* ==========================================================================
+   6. Lưới cuối cùng: chặn cuộn ngang toàn trang
+   ========================================================================== */
+
+/* Đặt CUỐI TỆP có chủ ý. Đây là lưới an toàn, không phải cách sửa: nó giấu đi phần tử tràn
+   chứ không làm nó hết tràn. Nếu có phần tử nào bị cắt mất một phần, tìm thủ phạm bằng
+   đoạn này trong console rồi sửa tận gốc, đừng dựa vào luật dưới đây:
+       [...document.querySelectorAll('*')].filter(e =>
+           e.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+   LƯU Ý: overflow-x trên <body> vô hiệu hoá position:sticky của phần tử con. Trang bệnh nhân
+   hiện không dùng sticky (header là fixed-top), nhưng nếu sau này có thì phải gỡ luật này. */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}

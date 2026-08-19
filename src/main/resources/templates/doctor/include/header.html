@@ -2,7 +2,20 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
-<head th:fragment="header(title)">
+<!--
+  th:fragment="pagehead", KHÔNG phải "header".
+
+  Thymeleaf khớp selector fragment theo tên fragment HOẶC tên thẻ HOẶC id, và trả về MỌI
+  nút khớp. Tệp này có cả <head th:fragment="header"> lẫn <header id="header">, nên
+  `~{... :: pagehead (title='X')}` khớp cả hai và chèn LUÔN thanh header thứ hai vào trang.
+  Hậu quả: 36 trang nhân viên render 2 thẻ <header id="header"> chồng lên nhau, và vì
+  assets-admin/js/main.js nối sự kiện bằng querySelector (chỉ lấy phần tử ĐẦU TIÊN), nút mở
+  sidebar được nối lại là nút của header bị chôn bên dưới — bấm vào nút nhìn thấy thì không
+  có gì xảy ra. Trên desktop không ai nhận ra vì sidebar vốn ghim sẵn.
+
+  Đặt tên khác tên thẻ và khác id là đủ để selector chỉ còn khớp đúng một nút.
+-->
+<head th:fragment="pagehead(title)">
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
   <title th:text="${title} ?: 'Dashboard - BookingHealthy'">Dashboard</title>
@@ -29,7 +42,12 @@
       <img th:src="@{/assets-admin/img/logo.png}" alt="">
       <span class="d-none d-lg-block">HealCare</span>
     </a>
-<!--    <i class="bi bi-list toggle-sidebar-btn"></i>-->
+    <!-- Nút mở sidebar. Từng bị comment, và hậu quả rất kín tiếng: style.css:616 đẩy
+         .sidebar ra left:-300px ở mọi màn <=1199px, còn cách DUY NHẤT kéo nó về là class
+         .toggle-sidebar mà chỉ nút này bật (assets-admin/js/main.js:45). Nên 15 trang
+         doctor/head/staff mất sạch điều hướng trên điện thoại, trong khi desktop vẫn bình
+         thường vì ở >=1200px sidebar ghim sẵn bên trái. Đừng comment lại. -->
+    <i class="bi bi-list toggle-sidebar-btn"></i>
   </div>
 
   <nav class="header-nav ms-auto">
@@ -58,7 +76,7 @@
         </a>
 
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow p-3"
-             style="width: 340px; max-height: 420px; overflow-y: auto;">
+             style="width: min(340px, calc(100vw - 24px)); max-height: 420px; overflow-y: auto;">
           <h6 class="fw-bold mb-2">Thông báo</h6>
           <div id="staffNotifList">
             <div class="text-muted small py-2">Đang tải…</div>

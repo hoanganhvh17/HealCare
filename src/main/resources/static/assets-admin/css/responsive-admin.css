@@ -1,0 +1,196 @@
+/**
+ * Lớp phủ responsive — khu NHÂN VIÊN (admin / bác sĩ / trưởng khoa / lễ tân).
+ *
+ * Nạp SAU assets-admin/css/style.css trong 2 fragment <head>:
+ *   - templates/admin/include/header.html       -> 31 trang (admin + doctor + head + staff)
+ *   - templates/receptionist/include/header.html ->  5 trang
+ * Cố ý KHÔNG sửa vào style.css: đó là tệp theme BootstrapMade (NiceAdmin).
+ *
+ * NiceAdmin chỉ có ĐÚNG MỘT ngưỡng thật là 1199/1200px và không có luật nào riêng cho
+ * điện thoại — tệp này bù phần đó.
+ *
+ * BẪY LỚN NHẤT khi sửa tệp này: class .toggle-sidebar mang NGHĨA NGƯỢC NHAU ở hai bên
+ * ngưỡng. Ở >=1200px sidebar ghim sẵn nên .toggle-sidebar nghĩa là ẨN nó đi
+ * (style.css:646). Ở <=1199px sidebar nằm ngoài màn nên .toggle-sidebar nghĩa là HIỆN nó
+ * (style.css:640). Mọi luật gắn với trạng thái "đang mở trên điện thoại" BẮT BUỘC nằm
+ * trong @media (max-width: 1199.98px), nếu không nó sẽ bắn nhầm vào trạng thái đóng của
+ * desktop.
+ */
+
+/* ==========================================================================
+   1. Thanh trên cùng
+   ========================================================================== */
+
+@media (max-width: 1199.98px) {
+    /* style.css:397 đặt .header .search-bar{min-width:360px}. Khối @media ngay dưới nó chỉ
+       đổi position/visibility chứ KHÔNG huỷ min-width, nên khi bật tìm kiếm trên màn 375px
+       thanh này rộng hơn cả viewport. */
+    .header .search-bar {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .header {
+        padding-left: 10px;
+    }
+
+    .logo span {
+        font-size: 19px;
+    }
+
+    /* Dropdown thông báo/hồ sơ neo mép phải: trên màn hẹp chúng thò ra ngoài viewport. */
+    .header .dropdown-menu {
+        max-width: calc(100vw - 20px);
+    }
+}
+
+/* ==========================================================================
+   2. Sidebar trên điện thoại — cần nền mờ và lối thoát
+   ========================================================================== */
+
+@media (max-width: 1199.98px) {
+    /* 300px trên màn 320px là che kín, không còn chỗ nào để chạm ra ngoài mà đóng lại. */
+    .sidebar {
+        width: min(300px, 82vw);
+    }
+
+    /* Nền mờ khi sidebar đang mở: vừa báo cho người dùng biết phần nội dung phía sau đang
+       bị che, vừa cho họ một vùng rộng để chạm vào mà đóng (xử lý ở responsive-admin.js).
+       z-index 995 = ngay dưới .sidebar (996) và dưới .header (997), nên header vẫn bấm được. */
+    body.toggle-sidebar::after {
+        content: "";
+        position: fixed;
+        inset: 60px 0 0 0;
+        background: rgba(1, 41, 112, 0.35);
+        z-index: 995;
+    }
+}
+
+/* ==========================================================================
+   3. Vùng nội dung
+   ========================================================================== */
+
+@media (max-width: 575.98px) {
+    /* style.css:44 -> #main{padding:20px 30px}. 60px bề ngang là 1/6 màn hình 360px,
+       chỉ để làm lề. */
+    #main {
+        padding: 15px 10px;
+    }
+
+    .pagetitle h1 {
+        font-size: 19px;
+    }
+
+    /* Breadcrumb dài ("Trang chủ / Bác sĩ / Quản lý lịch khám") tự xuống dòng thay vì
+       đẩy rộng trang. */
+    .breadcrumb {
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+    }
+
+    .card {
+        margin-bottom: 18px;
+    }
+
+    .card-body {
+        padding: 0 12px 14px 12px;
+    }
+
+    .card-title {
+        font-size: 16px;
+        padding: 16px 0 8px 0;
+    }
+}
+
+/* ==========================================================================
+   4. Bảng
+   ========================================================================== */
+
+/* Wrapper do responsive-admin.js sinh ra lúc chạy (19 tệp có <table> mà không bọc tay).
+   simple-datatables KHÔNG tự thêm overflow-x — đã kiểm vendor/simple-datatables/style.css,
+   .datatable-container không có luật đó — nên bảng datatable cũng cần wrapper này. */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767.98px) {
+    .table-responsive > .table,
+    .table-responsive .datatable-table {
+        font-size: 0.84rem;
+    }
+
+    .table-responsive > .table td,
+    .table-responsive > .table th {
+        white-space: nowrap;
+    }
+
+    /* Thanh công cụ của simple-datatables (ô tìm kiếm + chọn số dòng) nằm ngang, chật ở
+       màn hẹp. */
+    .datatable-top {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .datatable-bottom {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        text-align: center;
+    }
+
+    .datatable-search input {
+        width: 100%;
+    }
+}
+
+/* ==========================================================================
+   5. Biểu mẫu & biểu đồ
+   ========================================================================== */
+
+@media (max-width: 767.98px) {
+    /* .row.mb-3 với <label class="col-sm-2"> là khuôn form ngang của NiceAdmin; Bootstrap
+       đã tự xuống hàng dưới sm, chỉ cần trả lại canh trái cho nhãn. */
+    .row.mb-3 > label.col-form-label {
+        text-align: left !important;
+        padding-bottom: 2px;
+    }
+
+    /* iOS Safari TỰ PHÓNG TO trang khi chạm vào ô nhập có cỡ chữ <16px, và không thu lại —
+       trang trông như vỡ hẳn. */
+    input,
+    select,
+    textarea,
+    .form-control,
+    .form-select {
+        font-size: 16px;
+    }
+
+    /* Nhóm nút hành động ở cuối form: xuống hàng thay vì bị bóp. */
+    .text-center > .btn + .btn,
+    .d-flex.gap-2 > .btn {
+        margin-top: 6px;
+    }
+}
+
+/* ApexCharts/ECharts dựng SVG theo bề rộng lúc khởi tạo; nếu khối cha hẹp hơn thì SVG
+   thò ra ngoài. */
+.chart-container,
+.echart,
+[id^="ApexCharts"] {
+    max-width: 100%;
+}
+
+img,
+video,
+iframe,
+canvas {
+    max-width: 100%;
+}
+
+.card-body,
+.table td,
+.dropdown-menu {
+    overflow-wrap: break-word;
+}

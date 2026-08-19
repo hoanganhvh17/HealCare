@@ -24,6 +24,12 @@
     <script th:src="@{/assets-admin/vendor/php-email-form/validate.js}"></script>
 
     <script th:src="@{/assets-admin/js/main.js}"></script>
+
+    <!-- Tự bọc bảng vào .table-responsive (19 tệp có <table> không bọc tay) và cho
+         phép chạm ra ngoài để đóng sidebar trên điện thoại. Phải đứng SAU main.js:
+         main.js khởi tạo simple-datatables, và bảng datatable chỉ bọc đúng được sau
+         khi plugin đã dựng xong .datatable-wrapper. -->
+    <script th:src="@{/assets-admin/js/responsive-admin.js}"></script>
 </footer>
 
 </body>

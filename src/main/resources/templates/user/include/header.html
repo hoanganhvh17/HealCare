@@ -14,7 +14,12 @@
 
         <!-- Navigation Menu -->
         <nav id="navmenu" class="navmenu mx-auto">
-            <ul class="d-flex list-unstyled m-0 gap-4 align-items-center">
+            <!-- d-xl-flex chứ KHÔNG phải d-flex: Bootstrap sinh `.d-flex{display:flex!important}`,
+                 mà theme ẩn menu trên mobile bằng `.navmenu ul{display:none}` (main.css:387) —
+                 !important thắng, nên menu luôn bung thành panel absolute đè kín màn hình và nút
+                 hamburger vô nghĩa trên cả 22 trang. d-xl-flex chỉ áp dụng từ 1200px, khớp đúng
+                 ngưỡng max-width:1199px của theme, nên dưới ngưỡng đó theme lại tự lo được. -->
+            <ul class="d-xl-flex list-unstyled m-0 gap-4 align-items-center">
                 <li>
                     <a th:href="@{/}" th:classappend="${activePage == 'home'} ? 'active'" class="text-decoration-none fw-medium nav-link-custom">Trang chủ</a>
                 </li>
@@ -37,8 +42,11 @@
             <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
         </nav>
 
-        <!-- Right Side Actions -->
-        <div class="d-flex align-items-center gap-4">
+        <!-- Right Side Actions.
+             class="header-actions" là chỗ bám cho responsive.css thu gọn nhóm nút này trên
+             màn hẹp — bám theo `.d-flex.align-items-center.gap-4` thì chỉ cần ai đó đổi gap
+             là luật CSS chết lặng. -->
+        <div class="header-actions d-flex align-items-center gap-4">
 
             <!-- Nút Đặt lịch khám -->
             <a class="btn fw-bold px-4 py-2 rounded-pill shadow-sm" style="background-color: #00796b; color: white;" th:href="@{/appointment}">
@@ -62,8 +70,11 @@
                               id="userNotifBadge" style="font-size: .6rem;">0</span>
                     </a>
 
+                    <!-- width phải là min(...): 340px cứng thì trên màn 360px dropdown tràn ra
+                         ngoài viewport và kéo theo scroll ngang cho cả trang. Sửa thẳng ở inline
+                         style vì inline thắng stylesheet — phủ từ file ngoài sẽ phải dùng !important. -->
                     <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-3"
-                         style="width: 340px; max-height: 420px; overflow-y: auto;">
+                         style="width: min(340px, calc(100vw - 24px)); max-height: 420px; overflow-y: auto;">
                         <h6 class="fw-bold mb-2">Thông báo</h6>
                         <div id="userNotifList">
                             <div class="text-muted small py-2">Đang tải…</div>
@@ -137,5 +148,11 @@
          bệnh nhân đều có chuông chạy mà không phải sửa từng file. Script tự thoát khi
          trang không render chuông (khách chưa đăng nhập). -->
     <script th:src="@{/assets/js/user-notifications.js}"></script>
+
+    <!-- Nút hamburger ở trên chỉ được bind trong assets/js/main.js, mà 11/23 trang bệnh nhân
+         không nạp tệp đó (không có vendor AOS/Swiper/GLightbox mà main.js gọi vô điều kiện).
+         Đặt script chuyên trách ngay cạnh markup của nó, theo đúng khuôn của chuông ở trên:
+         một tệp, 22 trang. Khối mobile-nav trong main.js đã được gỡ để không bind hai lần. -->
+    <script th:src="@{/assets/js/mobile-nav.js}"></script>
 </header>
 </html>

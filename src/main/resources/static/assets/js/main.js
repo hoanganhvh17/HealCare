@@ -23,30 +23,16 @@
   window.addEventListener('load', toggleScrolled);
 
   /**
-   * Mobile nav toggle
+   * Mobile nav toggle — ĐÃ CHUYỂN sang assets/js/mobile-nav.js.
+   *
+   * Đừng khôi phục khối này. Chỉ 12/23 trang bệnh nhân nạp main.js, nên nút hamburger chết
+   * trên 11 trang còn lại; mobile-nav.js được nạp từ fragment user/include/header.html nên
+   * phủ hết. Để cả hai cùng bind là một cú chạm chạy toggle() hai lần — menu mở rồi đóng ngay
+   * và trông như nút bị liệt.
+   *
+   * Khối "Hide mobile nav on same-page/hash links" cũng chuyển theo, vì nó gọi hàm cục bộ
+   * mobileNavToogle() vừa bị gỡ.
    */
-  const mobileNavToggleBtn = document.querySelector('.mobile-nav-toggle');
-
-  function mobileNavToogle() {
-    document.querySelector('body').classList.toggle('mobile-nav-active');
-    mobileNavToggleBtn.classList.toggle('bi-list');
-    mobileNavToggleBtn.classList.toggle('bi-x');
-  }
-  if (mobileNavToggleBtn) {
-    mobileNavToggleBtn.addEventListener('click', mobileNavToogle);
-  }
-
-  /**
-   * Hide mobile nav on same-page/hash links
-   */
-  document.querySelectorAll('#navmenu a').forEach(navmenu => {
-    navmenu.addEventListener('click', () => {
-      if (document.querySelector('.mobile-nav-active')) {
-        mobileNavToogle();
-      }
-    });
-
-  });
 
   /**
    * Toggle mobile nav dropdowns

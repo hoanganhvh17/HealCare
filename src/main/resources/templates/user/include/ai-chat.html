@@ -91,6 +91,37 @@
 
 
 
+    /* ĐIỆN THOẠI: 380px + right:30px = 410px, tràn mọi màn <=410px và kéo theo scroll
+       ngang cho CẢ trang. min-width:320px ở trên còn chặn không cho co lại, nên phải
+       ghi đè cả hai. Neo bằng left+right thay vì width để hộp tự co theo màn hình.
+       Khối này phải nằm trong <style> của chính fragment, không tách ra responsive.css:
+       <style> này ở trong <body> nên đứng SAU <link> ở <head> trong thứ tự tài liệu —
+       hai luật cùng !important, cùng specificity thì luật sau thắng. */
+    @media (max-width: 575.98px) {
+      .ai-chat-widget { right: 16px; bottom: 16px; }
+
+      .ai-chat-box {
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        min-width: 0 !important;
+        bottom: 84px !important;
+        height: min(70vh, 520px) !important;
+        min-height: 0 !important;
+      }
+
+      /* Chế độ toàn màn hình: 5% mỗi bên trên màn 360px chỉ còn 324px, chật hơn cả
+         chế độ thường ở trên. */
+      .ai-chat-box.fullscreen {
+        top: 8px !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        width: auto !important;
+        height: auto !important;
+      }
+    }
+
   </style>
 
   <div id="ai-chat-widget" class="ai-chat-widget">

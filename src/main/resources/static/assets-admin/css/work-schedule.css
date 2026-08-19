@@ -883,3 +883,46 @@
         overflow-x: auto;
     }
 }
+
+/* ==========================================================================
+   ĐIỆN THOẠI / MÁY TÍNH BẢNG — cho lưới cuộn ngang thay vì bị bóp
+   ==========================================================================
+
+   Lưới tuần ép cứng `44px + repeat(7, minmax(0,1fr))` và `.ws-grid{width:100%}`, nên trên
+   màn 375px mỗi cột ngày còn ~47px — chữ trong ô chồng lên nhau, không đọc được ca nào của
+   ngày nào. `.ws-grid-wrapper{overflow-x:auto}` ở dòng 273 KHÔNG cứu được vì hai lý do:
+   `width:100%` khiến lưới không bao giờ rộng hơn khối cha, và quan trọng hơn — KHÔNG phần
+   tử nào trong DOM mang class đó (work-schedule.js gắn .ws-grid thẳng vào #wsCalendarBody),
+   nên luật ấy chưa từng chạy một lần nào.
+
+   Cách sửa: cho khối chứa thật (#wsCalendarBody, .ws-month) cuộn ngang, và đặt min-width
+   cho lưới để nó thực sự rộng hơn khung. Giữ nguyên grid-template-columns — hàng tiêu đề
+   và phần thân nằm chung MỘT lưới nên chúng luôn cuộn khớp nhau. */
+
+@media (max-width: 991px) {
+    #wsCalendarBody {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 44px cột giờ + 7 ngày × ~102px. Đủ để đọc nhãn "Ca sáng"/"Trực 24h" trong ô. */
+    .ws-grid {
+        min-width: 760px;
+    }
+
+    /* Xem theo NGÀY chỉ có 1 cột — ép min-width ở đây là bắt cuộn ngang vô cớ. */
+    .ws-grid.ws-day-view {
+        min-width: 0;
+    }
+
+    /* .ws-month đang overflow:hidden (để bo góc), nên lưới rộng hơn sẽ bị CẮT chứ không
+       cuộn. Chỉ mở trục ngang; trục dọc giữ hidden để góc bo vẫn nguyên. */
+    .ws-month {
+        overflow-x: auto;
+    }
+
+    .ws-month-dow,
+    .ws-month-body {
+        min-width: 660px;
+    }
+}

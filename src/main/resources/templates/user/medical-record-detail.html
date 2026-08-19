@@ -9,10 +9,11 @@
     <link th:href="@{/assets/vendor/bootstrap/css/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/assets/vendor/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
     <link th:href="@{/assets/css/main.css}" rel="stylesheet">
+    <link th:href="@{/assets/css/responsive.css}" rel="stylesheet">
   </th:block>
 
   <th:block th:if="${role == 'DOCTOR' || role == 'ADMIN'}">
-    <th:block th:replace="~{admin/include/header :: header (title='Xem Bệnh Án')}"></th:block>
+    <th:block th:replace="~{admin/include/header :: pagehead (title='Xem Bệnh Án')}"></th:block>
   </th:block>
 
   <style>
