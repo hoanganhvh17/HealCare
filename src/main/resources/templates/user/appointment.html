@@ -421,6 +421,33 @@
                     <span class="text-muted ms-2">(Số dư: <span class="fw-bold text-success" th:text="${#numbers.formatDecimal(currentUser.balance, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</span>)</span>
                   </label>
                 </div>
+
+                <div class="form-check p-3 border rounded-3 bg-light">
+                  <input class="form-check-input ms-1 me-3" type="radio" name="paymentMethod"
+                         id="payCOUNTER" value="PAY_AT_COUNTER"
+                         th:disabled="${payAtCounterBlockReason != null}">
+                  <label class="form-check-label w-100" for="payCOUNTER">
+                    <i class="bi bi-cash-coin me-2 text-success" style="font-size: 1.2rem;"></i>
+                    <span class="fw-medium">Đặt lịch trước, thanh toán tại quầy khi đến khám</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle ms-2">Không cần trả trước</span>
+                  </label>
+
+                  <div class="small text-muted mt-2 ms-5" th:if="${payAtCounterBlockReason == null}">
+                    <div class="mb-1">Bạn không phải thanh toán gì lúc này. Vui lòng đến quầy lễ tân
+                      <strong>trước giờ khám 15 phút</strong> để đóng phí khám.</div>
+                    <div class="mb-1">Lịch sẽ ở trạng thái <strong>Chờ xác nhận</strong> cho tới khi bệnh viện
+                      gọi xác nhận. Đây là điều bình thường — <strong>bạn không cần đặt lại</strong>.
+                      Đặt trùng nhiều lần sẽ chiếm mất chỗ của bệnh nhân khác.</div>
+                    <div>Mỗi tài khoản chỉ giữ tối đa
+                      <strong th:text="${maxPayAtCounterBookings}">2</strong> lịch chưa khám theo hình thức này.
+                      Nếu không đi được, hãy vào <strong>Hồ sơ &rarr; Lịch sắp tới</strong> để huỷ,
+                      nhường chỗ cho người khác.</div>
+                  </div>
+
+                  <div class="small text-danger mt-2 ms-5"
+                       th:if="${payAtCounterBlockReason != null}"
+                       th:text="${payAtCounterBlockReason}"></div>
+                </div>
               </div>
             </div>
 

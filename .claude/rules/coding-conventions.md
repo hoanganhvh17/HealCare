@@ -30,6 +30,8 @@ In email templates this is invisible until it reaches a real inbox — `EmailSer
 
 **Staff tables no longer need a hand-written `.table-responsive` wrapper.** `assets-admin/js/responsive-admin.js` wraps every unwrapped `<table>` on `window.load` — after `main.js` has initialised simple-datatables, so a `.datatable` gets its whole `.datatable-wrapper` wrapped rather than the bare table. This covers the 19 templates that never had one. It runs only in the staff area; patient pages still wrap by hand.
 
+**A plain `<!-- -->` comment is sent to the browser; `<!--/* */-->` is not.** Thymeleaf strips only the second form. Design notes left in the first form ship in the page source for anyone to read, and inside a `th:each` they are **repeated once per row** — which also makes them show up in any `grep -c` you run against the rendered HTML while verifying a change, so a badge you correctly hid still looks present. Use the parser-level form for anything addressed to developers rather than to the reader.
+
 **Pass Vietnamese strings to JS through `th:attr`, never `th:onclick`.** Vietnamese copy is full of apostrophes ("bác sĩ nào cũng được"), and inlining such a string into an `onclick` breaks the whole script; an attribute (`data-ai-prompt`) is escaped by Thymeleaf and read back with `dataset`. The 8 dashboard insight boxes do it this way.
 
 **A clickable element nested inside `<a>` needs a delegated listener with `preventDefault()`.** Two doctor-dashboard stat cards wrap their whole body in `<a>`; without it, one tap both runs the handler and navigates away, so the handler's effect is never seen.
@@ -44,7 +46,7 @@ Khi một thao tác không còn hợp lệ — nhất là vì **dữ liệu đã
 2. Controller gọi nó để **chặn thật** (POST/URL tự chế cũng không lách được).
 3. Controller cũng đẩy kết quả xuống model (`Map<Long, String>` hoặc cờ boolean) để template **ẩn nút và in đúng câu đó**.
 
-Nhờ đi qua **một** hàm duy nhất, giao diện và server không bao giờ nói khác nhau. Các hàm hiện có: `BookingService.whyCannotCancel` / `whyCannotReschedule` / `whyStaffCannotChange`, `ReceptionService.whyCannotReorderQueue`, `AllergyService.whyCannotDelete`, `LeaveService.whyCannotDecide`, `StaffScheduleService.whyCannotDecideShift`, `UserService.whyCannotDelete`. **Thêm luật mới thì thêm vào đúng hàm này, đừng viết `if` rời trong controller.**
+Nhờ đi qua **một** hàm duy nhất, giao diện và server không bao giờ nói khác nhau. Các hàm hiện có: `BookingService.whyCannotCancel` / `whyCannotReschedule` / `whyStaffCannotChange`, `ReceptionService.whyCannotReorderQueue`, `AllergyService.whyCannotDelete`, `LeaveService.whyCannotDecide`, `StaffScheduleService.whyCannotDecideShift`, `UserService.whyCannotDelete`, `BookingService.whyCannotBookWithoutPayment`. **Thêm luật mới thì thêm vào đúng hàm này, đừng viết `if` rời trong controller.**
 
 Với ô `<input type="date">`, cách rẻ nhất là `th:min` / `th:max` từ một thuộc tính model (`today`, `emergencyMaxDate`): modal đăng ký ca trực, đơn nghỉ phép, báo bận đột xuất và phân công trực của trưởng khoa đều đã có. **Nhưng `min`/`max` chỉ là lớp lịch sự** — nó tính lúc **tải trang**, nên một tab mở từ hôm qua vẫn gửi lên ngày cũ; luật thật vẫn phải nằm ở server (`validateShift`, `LeaveServiceImpl.validate`, `reserve()`).
 

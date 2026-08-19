@@ -442,6 +442,7 @@ public class PdfExportServiceImpl implements PdfExportService {
             case "VNPAY" -> "VNPay";
             case "BANK_TRANSFER" -> "Chuyển khoản ngân hàng";
             case "CASH" -> "Tiền mặt tại quầy";
+            case "PAY_AT_COUNTER" -> "Thanh toán tại quầy khi đến khám";
             default -> method;
         };
     }

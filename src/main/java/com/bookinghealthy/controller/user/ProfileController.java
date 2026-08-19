@@ -117,6 +117,8 @@ public class ProfileController {
         model.addAttribute("cancelBlockReasons", cancelBlockReasons);
         model.addAttribute("hoursLeft", hoursLeft);
         model.addAttribute("reviewedBookingIds", reviewedBookingIds);
+        model.addAttribute("payAtCounterCount", bookingService.countActivePayAtCounterBookings(user));
+        model.addAttribute("maxPayAtCounterBookings", BookingService.MAX_PAY_AT_COUNTER_BOOKINGS);
         List<Allergy> allergies = allergyService.findForUser(user.getId());
         Map<Long, String> allergyBlockReasons = new HashMap<>();
         for (Allergy allergy : allergies) {

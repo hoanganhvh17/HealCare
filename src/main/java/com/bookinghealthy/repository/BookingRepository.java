@@ -71,7 +71,37 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @EntityGraph(attributePaths = {"doctor", "doctor.department"})
     Optional<Booking> findFirstByUserIdAndStatusOrderByAppointmentDateDesc(Long userId, BookingStatus status);
 
-    List<Booking> findByStatusAndPaymentStatusAndCreatedAtBefore(BookingStatus status, String paymentStatus, java.time.LocalDateTime cutoffTime);
+    /**
+     * Lịch giữ chỗ chờ TRẢ TRƯỚC mà khách bỏ dở — dùng bởi BookingCleanupTask.
+     *
+     * Cố ý loại hình thức trả-tại-quầy: nó không có gì để chờ, huỷ nó sau 3 phút là huỷ
+     * một lịch hoàn toàn hợp lệ.
+     *
+     * Vế "b.paymentMethod IS NULL OR" là BẮT BUỘC, không phải phòng xa: cột payment_method
+     * nullable, mà trong SQL "NULL <> :x" cho UNKNOWN chứ không phải TRUE — thiếu vế đó là
+     * mọi lịch cũ có paymentMethod NULL thoát job vĩnh viễn, treo khung giờ mãi mãi mà
+     * không có lấy một dòng lỗi.
+     *
+     * Đây là DENY-LIST chứ không phải allow-list, để giữ nguyên hành vi hiện tại cho mọi
+     * giá trị chưa biết. Cái giá: phương thức thanh toán THÊM SAU NÀY sẽ mặc định bị huỷ
+     * sau 3 phút trừ khi có người nhớ thêm vào vế loại trừ. Bẫy sinh đôi với nhánh else
+     * catch-all trong BookingController.processAppointment.
+     */
+    @Query("SELECT b FROM Booking b "
+         + "WHERE b.status = :status "
+         + "AND b.paymentStatus = :paymentStatus "
+         + "AND b.createdAt < :cutoff "
+         + "AND (b.paymentMethod IS NULL OR b.paymentMethod <> :keepMethod)")
+    List<Booking> findAbandonedPrepayBookings(@Param("status") BookingStatus status,
+                                              @Param("paymentStatus") String paymentStatus,
+                                              @Param("cutoff") LocalDateTime cutoff,
+                                              @Param("keepMethod") String keepMethod);
+
+    // Hạn mức chống spam của BookingService.whyCannotBookWithoutPayment.
+    // So theo NGÀY chứ không theo giờ vì appointmentTime là chuỗi "08:00 - 08:30".
+    long countByUserIdAndPaymentMethodAndStatusInAndAppointmentDateGreaterThanEqual(
+            Long userId, String paymentMethod,
+            java.util.Collection<BookingStatus> statuses, LocalDate fromDate);
 
     @EntityGraph(attributePaths = {"user", "doctor", "doctor.user"})
     List<Booking> findByAppointmentDateAndReminderSentFalseAndStatusIn(

@@ -219,6 +219,7 @@
     }
     .notice-ok { background: #f0fdfa; color: #0f766e; }
     .notice-warn { background: #fff7ed; color: #b45309; }
+    .notice-info { background: #eff6ff; color: #1d4ed8; }
 
     .empty-box {
       border: 1px dashed #cbd5e1;
@@ -519,7 +520,14 @@
                       <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning text-dark">Chờ xác nhận</span>
                       <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
                       <span th:if="${booking.paymentStatus == 'PAID'}" class="badge bg-light text-success border">Đã thanh toán</span>
-                      <span th:if="${booking.paymentStatus == 'UNPAID'}" class="badge bg-light text-muted border">Chưa thanh toán</span>
+                      <!--/* Lịch trả-tại-quầy KHÔNG được mang nhãn "Chưa thanh toán": bệnh nhân
+                             chưa cần trả gì, nhãn đó đọc như một lỗi và khiến họ đặt lại.
+                             Chú thích kiểu này bị Thymeleaf cắt bỏ; chú thích HTML thường sẽ
+                             đi thẳng ra mã nguồn trang cho khách đọc. */-->
+                      <span th:if="${booking.paymentStatus == 'UNPAID' and booking.paymentMethod != 'PAY_AT_COUNTER'}"
+                            class="badge bg-light text-muted border">Chưa thanh toán</span>
+                      <span th:if="${booking.paymentMethod == 'PAY_AT_COUNTER'}"
+                            class="badge bg-light text-primary border">Thanh toán tại quầy</span>
                     </div>
 
                     <div class="d-flex gap-2 justify-content-md-end flex-wrap">
@@ -567,6 +575,14 @@
                      th:if="${cancelBlockReasons.get(booking.id) == null and editBlockReasons.get(booking.id) != null}">
                   <i class="bi bi-info-circle-fill"></i>
                   <span th:text="${editBlockReasons.get(booking.id)}">Lý do</span>
+                </div>
+                <div class="notice-row notice-info"
+                     th:if="${booking.paymentMethod == 'PAY_AT_COUNTER'}">
+                  <i class="bi bi-cash-coin"></i>
+                  Lịch này thanh toán tại quầy khi đến khám — bạn chưa cần trả gì. Đang chờ bệnh viện
+                  xác nhận, <strong>không cần đặt thêm lịch trùng</strong>. Bạn đang giữ
+                  <strong th:text="${payAtCounterCount}">1</strong>/<span th:text="${maxPayAtCounterBookings}">2</span>
+                  lịch loại này; nếu bận, hãy bấm Huỷ lịch ở trên để nhường chỗ cho người khác.
                 </div>
               </div>
 

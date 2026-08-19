@@ -62,6 +62,12 @@ public class BookingController {
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("selectedDoctorId", doctorId);
         model.addAttribute("appointmentDate", appointmentDate);
+
+        // Cùng một hàm quyết định cho cả giao diện lẫn server, nên hai bên không bao giờ
+        // nói khác nhau — cùng khuôn với cancelBlockReasons / actionBlockReasons.
+        model.addAttribute("payAtCounterBlockReason",
+                bookingService.whyCannotBookWithoutPayment(currentUser));
+        model.addAttribute("maxPayAtCounterBookings", BookingService.MAX_PAY_AT_COUNTER_BOOKINGS);
         return "user/appointment";
     }
 
@@ -144,8 +150,33 @@ public class BookingController {
                 Booking savedBooking = bookingService.reserve(booking);
                 return "redirect:/checkout-qr?id=" + savedBooking.getId();
             }
-            // CASE 2: THANH TOÁN VNPAY (Mặc định)
-            else {
+            // === CASE 4: ĐẶT TRƯỚC, TRẢ TIỀN TẠI QUẦY ===
+            // PHẢI đứng trước nhánh VNPay. Nhánh else cũ là catch-all ép MỌI giá trị lạ
+            // thành VNPAY, nên thiếu nhánh này là bệnh nhân chọn "không trả trước" và bị
+            // đẩy thẳng sang cổng thanh toán — không exception, không log.
+            else if (BookingService.PAY_AT_COUNTER.equals(paymentMethod)) {
+                String blocked = bookingService.whyCannotBookWithoutPayment(currentUser);
+                if (blocked != null) {
+                    redirectAttributes.addFlashAttribute("errorMessage", blocked);
+                    return "redirect:/appointment?doctorId=" + doctorId;
+                }
+                booking.setPaymentMethod(BookingService.PAY_AT_COUNTER);
+                // Giữ nguyên PENDING + UNPAID đã đặt phía trên: lịch chờ nhân viên xác nhận.
+                Booking savedBooking = bookingService.reserve(booking);
+                notificationService.pushBookingEvent(savedBooking, "bi-calendar-plus text-primary",
+                        "Đã gửi yêu cầu đặt lịch");
+                // CỐ Ý không gửi email: sendBookingConfirmation nói "đã xác nhận", sai với một
+                // lịch PENDING; rồi khi lễ tân xác nhận thật bệnh nhân nhận lá thứ hai gần y hệt
+                // — đúng thứ khiến người ta tưởng hệ thống lỗi rồi ĐẶT LẠI, tức chính cái spam
+                // mà hạn mức ở trên đang chống.
+                redirectAttributes.addFlashAttribute("successMessage",
+                        "Đã gửi yêu cầu đặt lịch #" + savedBooking.getId() + ". Bệnh viện sẽ xác nhận "
+                        + "trong thời gian sớm nhất — bạn không cần đặt lại. Vui lòng đến quầy lễ tân "
+                        + "trước giờ khám 15 phút để thanh toán phí khám.");
+                return "redirect:/user/profile";
+            }
+            // CASE 2: THANH TOÁN VNPAY
+            else if ("VNPAY".equals(paymentMethod)) {
                 booking.setPaymentMethod("VNPAY");
                 Booking savedBooking = bookingService.reserve(booking);
                 long amount = doctor.getPrice().longValue();
@@ -156,6 +187,13 @@ public class BookingController {
                 bookingService.save(savedBooking);
 
                 return "redirect:" + payment.paymentUrl();
+            }
+            // KHÔNG còn nhánh catch-all: một giá trị lạ phải bị TỪ CHỐI tường minh chứ không
+            // được âm thầm biến thành một hình thức thanh toán khác.
+            else {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                        "Hình thức thanh toán không hợp lệ, vui lòng chọn lại.");
+                return "redirect:/appointment?doctorId=" + doctorId;
             }
 
         } catch (IllegalStateException e) {

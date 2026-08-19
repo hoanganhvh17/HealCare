@@ -339,6 +339,50 @@ public class BookingServiceImpl implements BookingService {
         return null;
     }
 
+    /**
+     * "Chưa khám, đang treo". COMPLETED là đã khám, CANCELED là đã nhả chỗ — cả hai đều
+     * phải nhả hạn mức ra.
+     */
+    private static final List<BookingStatus> OPEN_STATUSES =
+            List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED);
+
+    @Override
+    public long countActivePayAtCounterBookings(User user) {
+        if (user == null || user.getId() == null) {
+            return 0L;
+        }
+        // Mốc ">= hôm nay" là thứ làm hạn mức TỰ NHẢ. Dự án không có màn hình đánh dấu
+        // no-show, nên thiếu nó thì một người quên đến khám hai lần sẽ bị khoá đặt lịch
+        // VĨNH VIỄN và không nhân viên nào có nút để gỡ.
+        return bookingRepository
+                .countByUserIdAndPaymentMethodAndStatusInAndAppointmentDateGreaterThanEqual(
+                        user.getId(), PAY_AT_COUNTER, OPEN_STATUSES, LocalDate.now());
+    }
+
+    /**
+     * Cố ý CHỈ đếm lịch trả-tại-quầy, không đếm lịch đã trả tiền: dự án hỗ trợ đặt hộ
+     * (patientName / patientPhone), nên đếm mọi lịch sắp tới sẽ chặn một tài khoản đặt cho
+     * ba người nhà dù đã trả đủ tiền ba lần. Lịch trả trước tự nó đã có "phí vào cửa".
+     *
+     * Race đã biết và chấp nhận: hai POST đồng thời có thể cùng qua cửa COUNT. Đây là gờ
+     * giảm tốc chống spam, không phải luật tiền bạc — cùng lập trường với ReentrantLock
+     * trong reserve().
+     */
+    @Override
+    public String whyCannotBookWithoutPayment(User user) {
+        if (user == null || user.getId() == null) {
+            return "Vui lòng đăng nhập để đặt lịch.";
+        }
+        long open = countActivePayAtCounterBookings(user);
+        if (open >= MAX_PAY_AT_COUNTER_BOOKINGS) {
+            return "Bạn đang có " + open + " lịch khám đặt theo hình thức thanh toán tại quầy "
+                 + "(tối đa " + MAX_PAY_AT_COUNTER_BOOKINGS + " lịch). Vui lòng đến khám hoặc vào "
+                 + "Hồ sơ để huỷ bớt lịch cũ trước khi đặt thêm, hoặc chọn một hình thức "
+                 + "thanh toán trước.";
+        }
+        return null;
+    }
+
     @Override
     public String whyCannotReschedule(Booking booking) {
         String cancelBlock = whyCannotCancel(booking);
