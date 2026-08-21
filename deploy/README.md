@@ -216,6 +216,64 @@ curl -X POST https://<domain>/api/payment/webhook \
 
 ---
 
+## 7b. NÂNG CẤP một máy chủ ĐANG CHẠY (khác hẳn bước 1-7)
+
+Bước 1-7 dựng máy mới. Việc thường làm hơn là đẩy commit mới lên máy đã chạy, và nó có một cái bẫy
+mà bước 1-7 không hề nhắc tới.
+
+**Kiểm TRƯỚC KHI đóng gói — commit này có thêm/sửa `@Entity` nào không:**
+
+```bash
+git diff --stat <commit_dang_chay>..<commit_moi> -- '*/model/*.java'
+```
+
+Có dòng nào hiện ra thì **phải viết `db/manual/00N_*.sql` và chạy nó TRƯỚC khi khởi động jar mới**.
+Production chạy `DDL_AUTO=validate` (bước 4 đã bảo lật sang như vậy), mà `validate` **không tạo bảng** —
+nó chỉ đối chiếu. Thiếu bảng là Hibernate ném `SchemaManagementException: missing table [x]`, ứng dụng
+không lên, và `Restart=always` biến thành crash-loop trả **502** cho mọi khách. Đã xảy ra thật ngày
+2026-08-21. Cách lấy DDL đúng (đừng gõ tay — `validate` so cả kiểu cột): `SHOW CREATE TABLE` trên
+database dev, vì bảng ở đó do chính Hibernate sinh ra. Chi tiết ở
+[.claude/rules/environment-setup.md](../.claude/rules/environment-setup.md).
+
+**Thứ tự đúng, hạ thời gian chết xuống còn đúng lần khởi động lại:**
+
+```bash
+# 1. Đóng gói từ commit SẠCH, không phải từ thư mục làm việc còn dở
+git worktree add --detach /tmp/build <commit_moi> && cd /tmp/build
+./mvnw clean package                       # 5/5 test phải xanh
+unzip -p target/booking-healthy-*.jar META-INF/MANIFEST.MF | grep Main-Class
+
+# 2. Tải lên chỗ tạm TRƯỚC (chưa dừng gì cả), rồi đối chiếu checksum
+scp target/booking-healthy-*.jar ubuntu@<IP>:/tmp/app-new.jar
+sha256sum target/booking-healthy-*.jar     # phải khớp sha256sum /tmp/app-new.jar
+
+# 3. Sao lưu DB + tệp, rồi chạy migration khi app CŨ vẫn đang phục vụ
+sudo /usr/local/bin/nnlhospital-backup
+sudo mysql bookinghealthy < /tmp/00N_....sql
+
+# 4. Mới tới lúc đổi jar
+sudo cp -a /opt/nnlhospital/app.jar /opt/nnlhospital/app.jar.bak-$(date +%Y%m%d-%H%M%S)
+sudo systemctl stop nnlhospital
+sudo cp /tmp/app-new.jar /opt/nnlhospital/app.jar
+sudo chown nnlhospital:nnlhospital /opt/nnlhospital/app.jar && sudo chmod 750 /opt/nnlhospital/app.jar
+sudo systemctl start nnlhospital
+
+# 5. Kiểm chứng
+curl -s localhost:8090/actuator/health                     # {"status":"UP"}
+sudo journalctl -u nnlhospital -n 50 --no-pager | grep -E 'Started|SchemaGuard|ERROR'
+```
+
+> **Đóng gói bằng `git worktree` chứ không build thẳng trong thư mục làm việc.** Hai lý do, cả hai đều
+> có thật: thư mục làm việc thường còn thay đổi chưa commit (khoá bí mật dev, tài liệu) sẽ bị nướng vào
+> jar; và nếu `spring-boot:run` đang chạy thì `mvn package` ghi đè `target/classes` ngay dưới chân nó —
+> xem [build-and-run.md](../.claude/rules/build-and-run.md).
+
+**Quay lui:** `sudo systemctl stop nnlhospital && sudo cp /opt/nnlhospital/app.jar.bak-<stamp>
+/opt/nnlhospital/app.jar && sudo systemctl start nnlhospital`. Lưu ý bản quay lui **không** gỡ bảng
+mới — không cần gỡ, vì `validate` bỏ qua bảng thừa không được entity nào ánh xạ.
+
+---
+
 ## 8. Việc còn nợ (chưa làm trong đợt này)
 
 - **CSRF vẫn đang tắt toàn cục** (`SecurityConfig`). `SameSite=Lax` đã chặn phần lớn đường khai thác thực tế, nhưng đây phải là việc **đầu tiên** sau khi deploy xong.

@@ -728,9 +728,15 @@
             return { text: 'Dạ em chưa tra được danh sách bác sĩ lúc này ạ. Anh/chị thử lại giúp em nhé?',
                      offered: [] };
         }
+        // Nói ra PHẠM VI, y như thẻ chat. Nghe một dãy tên mà không biết đang so trong khoa nào
+        // thì khách mặc định hiểu đó là bác sĩ của khoa vừa được tư vấn — trong khi có thể là bảng
+        // xếp hạng của cả bệnh viện. Trên loa còn nguy hơn trên thẻ: nghe thì không lướt ngược lên
+        // đọc lại được.
+        var scope = data.departmentName ? 'trong khoa ' + data.departmentName : 'trong toàn bệnh viện';
+
         var all = data.doctors || [];
         if (!all.length) {
-            return { text: 'Dạ em chưa tìm được bác sĩ nào khớp tiêu chí đó ạ. '
+            return { text: 'Dạ ' + scope + ' em chưa tìm được bác sĩ nào khớp tiêu chí đó ạ. '
                          + 'Anh/chị cho em biết thêm chuyên khoa hoặc yêu cầu khác nhé?',
                      offered: [] };
         }
@@ -739,8 +745,8 @@
         var ratedCount = all.filter(function (d) { return d.reviewCount > 0; }).length;
 
         var intro = (byRating && ratedCount === 0)
-            ? 'Dạ chưa bác sĩ nào có lượt đánh giá thật của người bệnh, nên em xếp theo số năm kinh nghiệm. '
-            : 'Dạ em xếp ' + (CRITERION_VOICE[data.sortBy] || CRITERION_VOICE.experience) + '. ';
+            ? 'Dạ ' + scope + ' chưa bác sĩ nào có lượt đánh giá thật của người bệnh, nên em xếp theo số năm kinh nghiệm. '
+            : 'Dạ ' + scope + ', em xếp ' + (CRITERION_VOICE[data.sortBy] || CRITERION_VOICE.experience) + '. ';
 
         // MỖI BÁC SĨ ĐÚNG MỘT DỮ KIỆN, và dữ kiện đó chính là tiêu chí đang xếp. Đọc kèm cả
         // kinh nghiệm lẫn giá lẫn số sao là vừa dài (vỡ ngân sách một hơi đọc) vừa khiến khách

@@ -449,7 +449,7 @@
 
                 const DOCTOR_SUPERLATIVE = new RegExp(
                     '(đánh giá|danh gia|nhiều sao|nhieu sao|uy tín|uy tin|nổi tiếng|noi tieng'
-                    + '|chuyên môn|chuyen mon|kinh nghiệm|kinh nghiem|tay nghề|tay nghe|giỏi|gioi)'
+                    + '|chuyên môn|chuyen mon|kinh nghiệm|kinh nghiem|tay nghề|tay nghe|giỏi|gioi|tốt|tot)'
                     + '[^.!?]{0,24}(nhất|nhat)'
                     + '|rẻ nhất|re nhat|giá thấp nhất|gia thap nhat');
 
@@ -1159,8 +1159,10 @@
                     }
                     const doctors = Array.isArray(data.doctors) ? data.doctors : [];
                     if (doctors.length === 0) {
+                        const emptyScope = data.departmentName
+                            ? ' trong khoa ' + escapeHtml(data.departmentName) : '';
                         return lookupCard(`<div style="font-size:13px;color:#334155;">
-                            Em chưa tìm được bác sĩ nào khớp tiêu chí đó ạ. Anh/chị xem
+                            Em chưa tìm được bác sĩ nào khớp tiêu chí đó${emptyScope} ạ. Anh/chị xem
                             <a href="/doctors">toàn bộ danh sách bác sĩ</a> giúp em nhé.
                         </div>`);
                     }
@@ -1174,8 +1176,15 @@
                     const byRating = (data.sortBy === 'rating');
                     const ratedCount = doctors.filter(function(d) { return d.reviewCount > 0; }).length;
 
+                    // MỌI so sánh nhất phải nói ra PHẠM VI của nó (luật đã ghi ở ai-assistant.md).
+                    // Thiếu câu này thì một bảng xếp hạng toàn viện trông y hệt bảng xếp hạng của đúng
+                    // khoa khách đang nói tới — khách không có cách nào nhận ra mình bị trả lời lệch.
+                    const scopeText = data.departmentName
+                        ? ' trong khoa ' + escapeHtml(data.departmentName)
+                        : ' trong toàn bệnh viện';
+
                     let inner = `<div class="fw-bold mb-2" style="color:#075985;">
-                        <i class="bi bi-person-badge"></i> Em gợi ý anh/chị${criteria.length ? ' ' + criteria.join(', ') : ''} ạ
+                        <i class="bi bi-person-badge"></i> Em gợi ý anh/chị${criteria.length ? ' ' + criteria.join(', ') : ''}${scopeText} ạ
                     </div>`;
                     if (byRating && ratedCount === 0) {
                         inner += `<div style="font-size:12px;color:#b45309;margin-bottom:6px;">
@@ -1210,6 +1219,28 @@
                             <a href="${d.appointmentUrl || buildAppointmentUrl(d.id, d.date, '')}" class="btn btn-sm btn-primary">Chọn</a>
                         </div>`;
                     });
+
+                    // Khoa KHÁC đã được bung thẻ trong cùng cuộc trò chuyện (khách kể nhiều bệnh một
+                    // lúc). Trả lời theo khoa đầu tiên nhưng phải cho khách đổi bằng một cú bấm, thay
+                    // vì tốn thêm một lượt hỏi lại. Danh sách rỗng thì KHÔNG in gì: "khoa này là khoa
+                    // duy nhất" là một lời khẳng định mới mà không ai kiểm chứng.
+                    const others = Array.isArray(data.otherDepartments) ? data.otherDepartments : [];
+                    if (others.length > 0) {
+                        inner += `<div style="font-size:12px;color:#64748b;margin-top:8px;">
+                            Lượt trước em có nhắc tới khoa khác nữa ạ:
+                        </div><div class="quick-replies-container">`;
+                        others.forEach(function(dep) {
+                            // data-* + listener uỷ quyền, KHÔNG onclick nội tuyến: tên khoa tiếng Việt
+                            // có dấu nháy sẽ làm vỡ chuỗi JS (bẫy đã ghi ở coding-conventions.md).
+                            inner += `<button type="button" class="quick-reply-btn ai-dept-switch"
+                                data-dept-id="${escapeHtml(dep.id)}"
+                                data-dept-name="${escapeHtml(dep.name)}"
+                                data-sort-by="${escapeHtml(data.sortBy || '')}"
+                                data-gender="${escapeHtml(data.gender || '')}"
+                                >Xem bác sĩ khoa ${escapeHtml(dep.name)}</button>`;
+                        });
+                        inner += `</div>`;
+                    }
                     return lookupCard(inner);
                 }
 
@@ -1318,6 +1349,25 @@
                  * ngay sau khi khách vừa mất công so sánh để chọn người.
                  */
                 let lastChosenDoctor = null;
+
+                /**
+                 * Các khoa vừa được BUNG THẺ BÁC SĨ ở lượt trước, dạng [{id, name}].
+                 *
+                 * Câu hỏi nối tiếp ("bác sĩ nào tốt nhất?") gần như không bao giờ nhắc lại tên khoa,
+                 * mà prompt mục 5D lại bắt model đặt booking_intent = false nên nó bỏ trống luôn
+                 * booking_target.department_id. Thiếu biến này thì resolveDoctorFilter không còn khoa
+                 * nào để lọc và trả về bác sĩ TOÀN BỆNH VIỆN — đúng lúc khách đang hỏi về chính khoa
+                 * vừa được tư vấn, mà thẻ kết quả lại không nói ra phạm vi nên không ai nhận ra.
+                 *
+                 * Ghi ở ĐÚNG MỘT NƠI: vòng lặp dựng dải thẻ bác sĩ. Đó là khoảnh khắc khách thật sự
+                 * được cho xem bác sĩ của một khoa — cùng lập luận đã dùng cho lastChosenDoctor.
+                 *
+                 * CỐ Ý KHÔNG xoá nó khi khách nói "thôi không đặt nữa": lastChosenDoctor bị xoá ở đó
+                 * vì nó ghim một CON NGƯỜI, còn khoa là ký ức CHỦ ĐỀ, cùng loại với patient_summary
+                 * mà prompt cố ý giữ qua mọi lần đổi chủ đề. Nó tự đúng nhờ luật ghi đè: khách kể
+                 * triệu chứng khoa khác là dải thẻ mới bung ra và ngữ cảnh được thay.
+                 */
+                let lastDepartmentContext = [];
 
                 /**
                  * Hỏi server xem còn cách nào cho khung giờ khách vừa xin: bác sĩ cùng khoa
@@ -1985,12 +2035,29 @@
                     // học vị. Thẻ trả về nói rõ đã xếp theo tiêu chí nào.
                     let sortBy = filter.sort_by || '';
                     if (/rẻ nhất|re nhat|giá thấp|gia thap/.test(raw)) sortBy = 'price';
-                    else if (/đánh giá|danh gia|nhiều sao|nhieu sao|mấy sao|may sao|uy tín|uy tin|nổi tiếng|noi tieng/.test(raw)) sortBy = 'rating';
+                    else if (/đánh giá|danh gia|nhiều sao|nhieu sao|mấy sao|may sao|uy tín|uy tin|nổi tiếng|noi tieng|tốt nhất|tot nhat/.test(raw)) sortBy = 'rating';
                     else if (/kinh nghiệm|kinh nghiem|giỏi nhất|gioi nhat|chuyên môn|chuyen mon|tay nghề|tay nghe/.test(raw)) sortBy = 'experience';
+                    // Nói THẲNG cái mặc định mà máy chủ vốn đã âm thầm dùng (nhánh else của
+                    // filterDoctors xếp theo experienceYears). Để rỗng thì thẻ chat in ra một câu
+                    // KHÔNG có tiêu chí nào, trong khi loa lại đọc "em xếp theo số năm kinh nghiệm"
+                    // qua nhánh `||` của CRITERION_VOICE — hai mặt của cùng một câu trả lời nói khác nhau.
+                    if (!sortBy) sortBy = 'experience';
 
                     try {
                         const url = new URL('/api/chat/doctors/filter', window.location.origin);
-                        const deptId = bookingTarget.department_id || deptIds[0] || null;
+                        // Thứ tự: lượt này nói rõ > khách đã CHỌN > vừa được HIỆN ra > mới chỉ HỎI THĂM.
+                        // Đúng thang bậc mà file này đã dùng cho bác sĩ: một QUYẾT ĐỊNH của khách đứng
+                        // trên thứ hệ thống vừa hiện ra, và cả hai đứng trên thứ khách mới chỉ hỏi thăm.
+                        //
+                        // Trước đây chỉ có hai toán hạng đầu, mà cả hai đều đọc từ JSON của RIÊNG lượt
+                        // này — nên một câu hỏi nối tiếp trống trơn làm rơi hết khoa và câu trả lời
+                        // lặng lẽ trở thành bảng xếp hạng toàn bệnh viện.
+                        const deptId = bookingTarget.department_id
+                            || deptIds[0]
+                            || (lastChosenDoctor && lastChosenDoctor.departmentId)
+                            || (lastDepartmentContext[0] && lastDepartmentContext[0].id)
+                            || (lastAvailabilityDoctor && lastAvailabilityDoctor.departmentId)
+                            || null;
                         if (deptId) url.searchParams.set('departmentId', deptId);
                         if (gender) url.searchParams.set('gender', gender);
                         if (sortBy) url.searchParams.set('sortBy', sortBy);
@@ -2000,8 +2067,12 @@
                         const res = await fetch(url.toString());
                         if (!res.ok) return { kind: 'doctor_filter', error: 'NETWORK' };
                         const doctors = await res.json();
+                        // Phạm vi phải đi kèm ở CẢ HAI nhánh: "không có bác sĩ nào trong khoa này"
+                        // và "không có bác sĩ nào trong cả bệnh viện" là hai câu trả lời khác hẳn nhau.
+                        const scope = describeFilterScope(deptId, doctors);
                         if (!Array.isArray(doctors) || doctors.length === 0) {
-                            return { kind: 'doctor_filter', doctors: [], gender: gender, sortBy: sortBy };
+                            return Object.assign({ kind: 'doctor_filter', doctors: [],
+                                                   gender: gender, sortBy: sortBy }, scope);
                         }
                         // Gắn sẵn link đặt lịch vào TỪNG dòng, để nút "Chọn" trên thẻ chat và câu
                         // "em mở trang đặt lịch với bác sĩ X nhé" của chế độ gọi dùng CHUNG một URL.
@@ -2009,11 +2080,100 @@
                         doctors.forEach(function(d) {
                             d.appointmentUrl = buildAppointmentUrl(d.id, d.date, '');
                         });
-                        return { kind: 'doctor_filter', doctors: doctors, gender: gender, sortBy: sortBy };
+                        return Object.assign({ kind: 'doctor_filter', doctors: doctors,
+                                               gender: gender, sortBy: sortBy }, scope);
                     } catch (err) {
                         console.error(err);
                         return { kind: 'doctor_filter', error: 'NETWORK' };
                     }
+                }
+
+                /**
+                 * Tên khoa của lượt tra cứu, và các khoa còn lại để khách đổi bằng một cú bấm.
+                 *
+                 * CHỈ đọc departmentName từ danh sách trả về khi THẬT SỰ có gửi departmentId đi. Không
+                 * thì đó chỉ là khoa của người đứng đầu bảng xếp hạng toàn viện — một cái nhãn SAI dán
+                 * lên một câu trả lời đúng, còn tệ hơn là không dán nhãn nào.
+                 *
+                 * otherDepartments BẮT BUỘC lọc chính khoa đang trả lời ra, cùng lý do đã ghi cho
+                 * pickOtherDoctors: không lọc thì thẻ mời khách "đổi" sang đúng khoa nó vừa trả lời.
+                 */
+                function describeFilterScope(deptId, doctors) {
+                    const rows = Array.isArray(doctors) ? doctors : [];
+                    // Bỏ luôn khoa không đọc được tên: một cái nút ghi "Xem bác sĩ khoa " thì
+                    // khách không biết mình sắp bấm sang đâu.
+                    const others = lastDepartmentContext.filter(function(d) {
+                        return String(d.id) !== String(deptId) && d.name;
+                    });
+                    let name = '';
+                    if (deptId) {
+                        name = (rows[0] && rows[0].departmentName) || '';
+                        if (!name) {
+                            // Khoa không còn bác sĩ nào khớp tiêu chí: không có dòng nào để đọc tên,
+                            // nên lấy lại từ chính ngữ cảnh đã ghi.
+                            const hit = lastDepartmentContext.filter(function(d) {
+                                return String(d.id) === String(deptId);
+                            })[0];
+                            name = hit ? hit.name : '';
+                        }
+                    }
+                    return { departmentId: deptId || null, departmentName: name, otherDepartments: others };
+                }
+
+                /**
+                 * Khách bấm "Xem bác sĩ khoa X" trên thẻ gợi ý.
+                 *
+                 * Trả lời TẠI CHỖ, không gọi model: danh sách này do hệ thống tra ra, model chưa từng
+                 * nhìn thấy nó — hỏi lại model chỉ tốn thêm một lượt tính tiền và mời nó hỏi ngược lại
+                 * khách. Cùng nguyên tắc với resolveAlternativeChoice.
+                 *
+                 * Giữ NGUYÊN sortBy/gender của thẻ cũ: khách bấm để đổi KHOA, không phải để đổi câu hỏi.
+                 */
+                async function showDoctorFilterForDepartment(deptId, deptName, sortBy, gender) {
+                    // Khoa vừa bấm lên đầu ngữ cảnh, để câu hỏi kế tiếp bám theo nó.
+                    const rest = lastDepartmentContext.filter(function(d) {
+                        return String(d.id) !== String(deptId);
+                    });
+                    lastDepartmentContext = [{ id: deptId, name: deptName }].concat(rest);
+
+                    try {
+                        const url = new URL('/api/chat/doctors/filter', window.location.origin);
+                        url.searchParams.set('departmentId', deptId);
+                        if (gender) url.searchParams.set('gender', gender);
+                        if (sortBy) url.searchParams.set('sortBy', sortBy);
+
+                        const res = await fetch(url.toString());
+                        if (!res.ok) {
+                            appendMessage('bot', buildDoctorFilterHtml({ error: 'NETWORK' }));
+                            return;
+                        }
+                        const doctors = await res.json();
+                        const rows = Array.isArray(doctors) ? doctors : [];
+                        rows.forEach(function(d) {
+                            d.appointmentUrl = buildAppointmentUrl(d.id, d.date, '');
+                        });
+                        appendMessage('bot', buildDoctorFilterHtml(Object.assign(
+                            { kind: 'doctor_filter', doctors: rows, gender: gender, sortBy: sortBy },
+                            describeFilterScope(deptId, rows))));
+                    } catch (err) {
+                        console.error(err);
+                        appendMessage('bot', buildDoctorFilterHtml({ error: 'NETWORK' }));
+                    }
+                }
+
+                // MỘT listener uỷ quyền, gắn trên khung tin nhắn. Nút được dựng bằng chuỗi HTML, và
+                // đoạn chat còn được khôi phục lại từ sessionStorage sau khi tải trang — gắn sự kiện
+                // thẳng vào từng nút thì nút "sống lại" sẽ không có listener nào, đúng lý do nút loa
+                // của meditrust-voice.js cũng phải uỷ quyền.
+                if (messagesContainer) {
+                    messagesContainer.addEventListener('click', function(ev) {
+                        const btn = ev.target.closest ? ev.target.closest('.ai-dept-switch') : null;
+                        if (!btn) return;
+                        ev.preventDefault();
+                        showDoctorFilterForDepartment(
+                            btn.dataset.deptId, btn.dataset.deptName,
+                            btn.dataset.sortBy, btn.dataset.gender);
+                    });
                 }
 
         // ==========================================
@@ -2784,6 +2944,11 @@ maximizeBtn.addEventListener('click', (e) => {
                                                 // nhau thì khách đọc 3 thẻ ở đây rồi thẻ xác nhận bên dưới lại chốt
                                                 // một bác sĩ thứ tư không hề có trên màn hình.
                                                 const cardWishes = parseWishes(text, aiData.booking_target);
+                                                // Chỉ khoa THẬT SỰ bung được thẻ mới được ghi làm ngữ cảnh
+                                                // cho câu hỏi nối tiếp ("bác sĩ nào tốt nhất?"). Khoa kín
+                                                // lịch trả về mảng rỗng — ghi nó vào là trả lời câu sau
+                                                // bằng một khoa khách chưa từng nhìn thấy bác sĩ nào.
+                                                const shownDepartments = [];
                                                 for (let i = 0; i < deptIds.length; i++) {
                                                     const deptId = deptIds[i];
                                                     try {
@@ -2791,6 +2956,10 @@ maximizeBtn.addEventListener('click', (e) => {
                                                         if (docRes.ok) {
                                                             const doctors = await docRes.json();
                                                             if (doctors && doctors.length > 0) {
+                                                                shownDepartments.push({
+                                                                    id: deptId,
+                                                                    name: (doctors[0] && doctors[0].departmentName) || ''
+                                                                });
                                                                 allActionHtml += `
                                                                     <p class="mb-2 mt-3" style="font-size: 13px; font-weight: bold; color: #198754;">
                                                                         <i class="bi bi-hospital"></i> Bác sĩ chuyên khoa đang sẵn sàng:
@@ -2834,6 +3003,11 @@ maximizeBtn.addEventListener('click', (e) => {
                                                             }
                                                         }
                                                     } catch (err) { console.error(err); }
+                                                }
+                                                // Ghi ĐÚNG MỘT NƠI, và chỉ khi có thứ để ghi: một lượt
+                                                // không bung được thẻ nào không được phép xoá ngữ cảnh cũ.
+                                                if (shownDepartments.length > 0) {
+                                                    lastDepartmentContext = shownDepartments;
                                                 }
                                                 allActionHtml += `</div>`;
                                                 typingMsg.innerHTML += allActionHtml;

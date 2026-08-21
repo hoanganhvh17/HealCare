@@ -342,7 +342,39 @@ Bốn thứ phải sống sót:
 - **`GET /api/chat/doctor-profile?doctorId=`** — real `Doctor.price`, degree, experience, and `ReviewService` rating. **`getAverageRating` returns `0.0`, not `null`, for a doctor with no reviews**, so "chưa có đánh giá" is decided by `reviewCount == 0` — the same trap that once painted every new doctor with a red "điểm đánh giá đang thấp".
 - **`GET /api/chat/doctors/filter?departmentId=&gender=&sortBy=&date=`** — gender comes from **`User.gender`**; never add a `gender` field to `Doctor`, which is built positionally by `@AllArgsConstructor` in `DataInitializer`. `NOT_A_DOCTOR_NAME` still refuses "nữ" / "nào cũng được" as *names*, but those phrases now route here instead of dead-ending.
 
-  `sortBy` is one of `rating` / `experience` / `price`, default experience, and **`rating` and `experience` are two different criteria that must never be merged**: rating is what other patients scored, experience is years + degree. "đánh giá / sao / uy tín" → `rating`; "chuyên môn / tay nghề / kinh nghiệm / giỏi nhất" → `experience`. The card prints which one was used, so the patient can see what "tốt nhất" was measured by.
+  `sortBy` is one of `rating` / `experience` / `price`, and **`rating` and `experience` are two different criteria that must never be merged**: rating is what other patients scored, experience is years + degree. "đánh giá / sao / uy tín / **tốt nhất**" → `rating`; "chuyên môn / tay nghề / kinh nghiệm / giỏi nhất" → `experience`. The card prints which one was used, so the patient can see what "tốt nhất" was measured by.
+
+  **The browser resolves an empty `sortBy` to `experience` itself rather than letting the server default do it.** `filterDoctors`' `else` branch has always sorted by `experienceYears`, but silently: the chat card printed *no* criterion at all while `describeDoctorFilter`'s `CRITERION_VOICE[...] || CRITERION_VOICE.experience` read "em xếp theo số năm kinh nghiệm" out loud — the card and the speaker describing the same list differently. Naming the default at the one place that builds the request keeps all three in step.
+
+  **"tốt nhất" is deliberately `rating`, not `experience`, even though "giỏi nhất" is `experience`.** `rating` is the self-correcting one: unrated doctors rank last rather than being dropped, every row prints its review count, and a department where nobody has been rated prints "nên em xếp giúp anh/chị theo số năm kinh nghiệm" and degrades to experience on its own. `experience` would answer with a number the patient never asked about and say nothing about it.
+
+### The filter must inherit the department under discussion
+
+`resolveDoctorFilter` picks the department at **one line**, and every operand after the first two is memory:
+
+```js
+const deptId = bookingTarget.department_id      // model, lượt này
+    || deptIds[0]                               // recommended_departments, lượt này
+    || (lastChosenDoctor && lastChosenDoctor.departmentId)
+    || (lastDepartmentContext[0] && lastDepartmentContext[0].id)
+    || (lastAvailabilityDoctor && lastAvailabilityDoctor.departmentId)
+    || null;
+```
+
+It used to be only the first two, and **both read the current turn's model JSON** — so a bare follow-up ("bác sĩ nào tốt nhất?", meaning *in the department we are discussing*) dropped the department entirely, the `departmentId` param was omitted, and `PatientChatLookupApiController` fell through to `doctorService.findAll()`. The patient was handed the hospital's top doctors right after describing a symptom. Two prompt rules pushed the model into that hole: 5D orders `booking_intent = false` on a lookup turn, so the model zeroes `booking_target` with it; and `recommended_departments` is only forced to be re-emitted "KHI KHÁCH YÊU CẦU ĐẶT LỊCH", which a question is not.
+
+- **`lastDepartmentContext` is written in exactly one place** — the doctor-carousel loop in `sendMessage`, holding `[{id, name}]` for the departments that actually rendered doctors. That is the moment the patient was *shown* a department. A department whose card came back empty is not recorded: answering the next question with a department the patient never saw a doctor for is the same silence in a new costume.
+- **The order is a hierarchy, not an accident**: what the patient just said, then a doctor they **chose** (`lastChosenDoctor` — a decision), then what was **shown** to them, then one they merely **asked about** (`lastAvailabilityDoctor`). It mirrors the ranking this file already applies to doctors.
+- **It is deliberately NOT cleared by `parseCancelIntent`**, unlike `lastChosenDoctor`. That one pins a *person*; a department is topic memory, the same kind `patient_summary` is required to survive a change of subject. Overwriting handles it: new symptoms render a new carousel.
+- **The prompt change is reinforcement, not the fix.** 5D now tells the model to infer the department from context and states that filling `booking_target.department_id` does **not** mean `booking_intent = true`. It works (verified with the live model: a follow-up now carries `department_id`), but the browser memory is what makes a model that forgets harmless. Same doctrine as `looksLikeAvailabilityQuestion` outranking `lookup.type`. **No schema change** — no new key, no new enum value, still 10 keys, so `/skills/ai-schema-change` does not apply.
+
+### The filter card must name its scope
+
+Every `doctor_filter` answer states where it ranked: *"Em gợi ý anh/chị điểm đánh giá thật cao nhất **trong khoa Răng hàm mặt** ạ"*, or **"trong toàn bệnh viện"** when nothing scoped it (a cold-start question — behaviour unchanged, it just declares itself now). This is the "every superlative must name its scope" rule applied to the one card that had escaped it: a hospital-wide list and a correctly-scoped list were pixel-identical, which is why the defect survived. The empty-result card says it too — "nobody in this department" and "nobody in the hospital" are different answers. `describeDoctorFilter` carries the same sentence into the voice line, where it matters more: speech cannot be re-scanned.
+
+`departmentName` comes from the response rows (`buildProfile` already returns it) and is read **only when a `departmentId` was actually sent** — otherwise it is just the top-ranked doctor's department, a wrong label on a right answer.
+
+**Other departments from the same conversation get a "Xem bác sĩ khoa X" button, answered locally.** When the patient described two illnesses, the card answers on the first department and offers the rest; `describeFilterScope` **must filter the answering department out** (same rule as `pickOtherDoctors`), and an empty list prints nothing rather than implying this is the only department. The button re-queries `/api/chat/doctors/filter` and re-renders through `buildDoctorFilterHtml` **without calling the model** — the list is something the system looked up and the model never saw, exactly like `resolveAlternativeChoice`. It keeps the previous card's `sortBy`/`gender`: the patient is changing the department, not the question. Data travels in `data-*` attributes read by **one delegated listener** on the messages container — Vietnamese department names contain apostrophes, and the transcript is restored from `sessionStorage`, so per-button handlers would be dead after a reload.
 
 ### `sortBy=rating` must only trust reviews that exist
 **The first sort key is "has any review at all", not the score.** The public `/doctors` page deliberately advertises **5.0 for a doctor nobody has rated** (`doc.rating || 5.0` in `user/doctors.html` — `0.0` is falsy in JS, and `DoctorDTO(Doctor)` also defaults to `5.0`). Sorting purely by score therefore puts every brand-new doctor **above** someone who genuinely earned 4.8 over 50 visits, and the assistant ends up recommending a number nobody ever gave. That marketing default stays on the public page; the chat must not repeat it.

@@ -41,12 +41,25 @@ There is still no migration tool. Three things Hibernate `ddl-auto=update` canno
 
 - `001_prod_hardening.sql` — the `bookings.slot_uk` generated column + `uk_bookings_slot`, `uk_posts_source_url`, and the `shedlock` table.
 - `002_spring_session.sql` — `SPRING_SESSION` + `SPRING_SESSION_ATTRIBUTES`.
+- `003_external_medical_records.sql` — `external_medical_records` + `ai_image_usage`. Not something Hibernate *cannot* express — it maps both entities fine — but something `validate` **refuses to create**; see the trap below.
 
 `config/SchemaGuard` (an `ApplicationRunner`) checks each object against `information_schema` at boot. By default it only logs loudly — same principle as the lazily-loaded PDF fonts below: a missing artifact must degrade rather than kill startup. Set **`SCHEMA_STRICT=true` in production** so a forgotten migration becomes a boot failure instead of a silent double-booking.
 
 **A generated column is the safe direction of the orphan-column trap** documented above. An orphan *plain* `NOT NULL` column breaks every INSERT because Hibernate stops naming it; an orphan *generated* column is harmless because MySQL computes it and Hibernate's explicit column list never touches it. The corollary: **never add a `slotUk` field to `Booking`** — Hibernate would map it, start naming it in INSERTs, and MySQL rejects any write to a generated column.
 
 `DDL_AUTO` stays `update` for the first boot on an empty database (with no migration tool, `validate` would create nothing); flip it to `validate` afterwards. `validate` ignores extra unmapped columns, so `slot_uk`, `shedlock` and the session tables are all fine.
+
+**Gotcha — once production is on `validate`, ADDING AN ENTITY is a deploy that cannot boot.** This is the mirror image of every other trap on this page: they all fail *silently*, this one fails *loudly and totally*, and it does so **after** the new jar is already in place. `validate` only compares — it creates nothing — so a commit introducing a new `@Entity` dies at startup with `SchemaManagementException: missing table [x]`, Hibernate cancels the context, and systemd's `Restart=always` turns it into a crash-loop serving **502** to every visitor. Happened for real on 2026-08-21 deploying `e6e4ba1` (two new entities: `ExternalMedicalRecord`, `AiImageUsage`).
+
+Three things make it easy to walk into:
+
+- **Dev never sees it.** Dev runs `ddl-auto=update`, so the tables appear the moment you write the entity; the defect exists only on the machine you cannot test on.
+- **`deploy/.env` in the repo is NOT what the server runs.** The committed sample still said `DDL_AUTO=update` / `SEED_ENABLED=true`, while `/etc/nnlhospital/.env` had been flipped to `validate` / `false` at the end of the first deploy — exactly as step 4 of the runbook instructs. **Read the server's file, never the repo's, when reasoning about production.**
+- **`SchemaGuard` does not catch it.** It checks the four objects listed above against `information_schema`; a brand-new entity is not among them, so it reports "Lược đồ đầy đủ" right up until Hibernate refuses to start.
+
+**The fix is to generate the DDL from Hibernate rather than hand-write it.** `validate` compares column names and types, so a hand-typed guess re-fails the same way. The dev database already holds exactly what Hibernate wants, so `SHOW CREATE TABLE <new_table>` on dev **is** the migration — drop `AUTO_INCREMENT=` and `COLLATE=` (let the table inherit the database default so it matches every other production table) and commit it as the next `db/manual/*.sql`. Do **not** "fix" it by flipping the server back to `update`: that re-opens the whole page of `update` traps for one table, and the flag then silently stays wrong until the next surprise.
+
+**So: any commit that adds or changes an `@Entity` must ship its `db/manual/*.sql` in the same change, and that SQL must be applied BEFORE the new jar is started.** Check with `git diff --stat <old>..<new> -- '*/model/*.java'` before every deploy.
 
 ### Hạn mức đọc ảnh bằng AI
 `ChatImageService.MAX_IMAGE_ANALYSES_PER_DAY = 10` là **hằng số Java**, không phải khoá cấu hình —
