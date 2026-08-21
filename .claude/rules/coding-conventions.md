@@ -74,11 +74,51 @@ Ba điều bắt buộc, mỗi điều vá một cách hỏng khác nhau:
   ở đó là HTTP 500 cho **mọi** URL admin; `postHandle` chạy sau khi handler đã xong nên tệ nhất là mất
   cái huy hiệu chứ không mất trang.
 
+**Đừng nhuộm màu cho `a` trần trong một tệp phủ.** `.admin-theme a { color: ... }` có độ ưu tiên
+(0,1,1) nên thắng `.btn-primary` của Bootstrap (0,1,0) — chữ trong nút bị đổi thành đúng màu nền của
+chính nút đó, tức nút đặc một khối không đọc được chữ gì. Nhưng `.btn-primary:hover` là (0,2,0) nên
+nó thắng ngược, và chữ **chỉ hiện ra lúc rê chuột**: hễ đi kiểm tra là thấy đúng, buông chuột ra là
+hỏng lại. Viết `a:not(.btn)` để trả toàn bộ hệ màu của nút về cho Bootstrap. Cùng họ với bẫy
+`.ai-chat-input-area button` đã ghi ở trên: cái hỏng không báo lỗi, nó chỉ trông sai.
+
+**`height: 100%` trên thẻ card ĂN MẤT `margin-bottom` của chính nó.** Khi thẻ cao đúng bằng cột,
+chiều cao của HÀNG được tính theo border-box của cột, còn margin của thẻ tràn ra **ngoài** hàng và đè
+lên hàng kế tiếp — khoảng cách nhìn thấy được tụt về đúng **0px** (đo thật trên dashboard admin: thẻ
+cao 147,5px, cột cao 148px, gap giữa hai hàng = 0). Chỉ lộ ra ở những thẻ có `height:100%` để cao
+bằng nhau, nên nửa trang thì thưa đúng còn nửa kia dính chặt. Cách sửa: để `margin-bottom: 0` cho
+thẻ và chuyển khoảng cách lên **cột** (`mb-4`), đừng cố bù bằng `calc()`.
+
 **Một huy hiệu chỉ đáng tồn tại khi con số của nó có thể về 0 bằng thao tác của chính người nhìn thấy nó.**
 Sidebar admin chỉ có hai: bài nháp chờ duyệt và ứng viên chờ phản hồi. Cố ý **không** badge số lịch hẹn
 `PENDING`: từ khi có `PAY_AT_COUNTER`, `PENDING + UNPAID` là trạng thái nghỉ *bình thường* do **lễ tân**
 xử lý, badge đó sẽ sáng vĩnh viễn và nhắc admin về việc của người khác. Số 0 thì không render — một chấm
 xám ghi "0" chỉ kéo mắt tới chỗ không có gì để xem.
+
+**`@Transactional` trên method được gọi từ CÙNG bean là một dòng chữ không làm gì cả.** Lời gọi nội
+bộ không đi qua proxy của Spring, nên annotation ấy vô hiệu — và tệ hơn là không có, vì người đọc sau
+sẽ tin rằng đã có transaction. `ChatImageServiceImpl.countOneAnalysis` ghi rõ điều này tại chỗ: nó
+dựa vào transaction riêng của `repository.save`, đúng thứ cần ở đó (một lần ghi ngắn, commit xong
+TRƯỚC khi bắt đầu chờ OpenRouter).
+
+**Hạn mức gọi AI: chặn ở server, KHÔNG ẩn nút.** Đây là chỗ cố ý lệch nửa bước khỏi luật "không cho
+bấm, thay vì cho bấm rồi báo lỗi" ở dưới. Nút đính kèm nằm trong fragment chat có mặt trên 22 trang
+bệnh nhân, và số lượt còn lại đổi ngay trong phiên — muốn vô hiệu hoá nút từ lúc render thì phải bơm
+biến vào model của cả 22 trang rồi vẫn sai ngay sau tấm ảnh đầu tiên. Nên
+`ChatImageService.whyCannotAnalyzeImage` vẫn là nguồn sự thật duy nhất và vẫn trả câu tiếng Việt,
+chỉ khác là câu đó in vào khung chat thay vì làm mờ một cái nút. **Mọi đường gọi model tính tiền đều
+phải trừ hạn mức**, kể cả nhánh PDF vốn không đi qua model thị giác — thiếu một lời gọi
+`countOneAnalysis` là phép kiểm soi mãi một con số không bao giờ tăng.
+
+**Câu được gửi ĐI như lời của khách thì xưng "tôi", không xưng "em".** Luật "AI xưng em, gọi khách là
+anh/chị" (mục 0 của prompt) là luật cho **lời của AI**. Ba chỗ sinh ra câu đứng tên KHÁCH — mảng
+`suggested_prompts` do model sinh, nút "Phân tích & tư vấn khoa" ở `/user/profile`, và câu tự gửi sau
+khi đính kèm hồ sơ trong khung chat — đều phải để bệnh nhân xưng **"tôi"** và gọi trợ lý là **"bạn"**.
+Viết sai thì khách tự gọi mình là "em" và đoạn chat đọc như trợ lý đang tự nói chuyện với chính nó.
+
+**Một luật CSS mới trong khung chat phải kèm cả tên thẻ nếu luật cũ có.** `.ai-chat-input-area button`
+là (0,1,1); một selector chỉ có class như `.ai-chat-attach-btn` là (0,1,0) nên **thua** và nút mới vẫn
+ra tròn xanh y hệt nút Gửi. Phải viết `.ai-chat-input-area button.ai-chat-attach-btn`. Cùng họ với bẫy
+`d-flex` / `!important` đã ghi ở trên: cái hỏng không báo lỗi, nó chỉ trông sai.
 
 ## Không cho bấm, thay vì cho bấm rồi báo lỗi
 

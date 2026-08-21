@@ -48,6 +48,19 @@ There is still no migration tool. Three things Hibernate `ddl-auto=update` canno
 
 `DDL_AUTO` stays `update` for the first boot on an empty database (with no migration tool, `validate` would create nothing); flip it to `validate` afterwards. `validate` ignores extra unmapped columns, so `slot_uk`, `shedlock` and the session tables are all fine.
 
+### Hạn mức đọc ảnh bằng AI
+`ChatImageService.MAX_IMAGE_ANALYSES_PER_DAY = 10` là **hằng số Java**, không phải khoá cấu hình —
+cùng khuôn `BookingService.MAX_PAY_AT_COUNTER_BOOKINGS`. Bộ đếm nằm ở bảng `ai_image_usage`, một dòng
+cho mỗi (người dùng, ngày), UNIQUE trên cặp đó. Phải là bảng chứ không phải map trong bộ nhớ như
+`AiController.softLockCache`: hạn mức chi phí mà reset mỗi lần khởi động lại thì chỉ cần restart là
+lách được, và nó cũng sai khi chạy nhiều instance. Công tắc `medical-doc.ai-enabled` ở dưới tắt cả
+đường đọc ảnh này.
+
+### AI đọc hồ sơ bệnh án ngoại viện (`medical-doc.ai-enabled`)
+Công tắc duy nhất, khuôn giống `news.fetch.enabled`. Đặt `false` để phát triển mà không đốt lượt gọi
+AI: tệp vẫn lưu bình thường, hồ sơ nằm ở `aiStatus = PENDING` và có một dòng log nói rõ vì sao. Xem
+[medical-records.md](medical-records.md).
+
 ### Thu thập tin tức (`news.fetch.*`)
 Four keys drive `MedicalNewsTask`: `enabled` (kill switch), `cron` (default `0 0 6,18 * * ?`), `max-per-run` (2 — each article costs one AI call), `max-age-days` (3). The **list of newspapers is not here** — it is `config/NewsSourceCatalog.SOURCES`, kept in Java for the same reason as `DoctorSeedData`. Set `news.fetch.enabled=false` to develop without the task firing. See [supporting-subsystems.md](supporting-subsystems.md).
 
@@ -89,6 +102,7 @@ Reading answers aloud also needs a Vietnamese voice installed on the OS (Windows
 
 - `app.upload-dir` (`UPLOAD_DIR`, default `uploads`) — served publicly at `/uploads/**`.
 - `app.private-dir` (`PRIVATE_DIR`, default `private`) — **not served by any handler**. Candidate CVs live here.
+  Two subdirectories now: `private/cv` (CV ứng viên) và **`private/medical-docs`** (hồ sơ bệnh án ngoại viện bệnh nhân tự tải lên). Cả hai chỉ đọc được qua một endpoint có kiểm quyền — `/admin/candidates/{id}/cv` và `/user/medical-document/file/{id}`. `FileStorageServiceImpl.resolvePrivate(subdir, name)` là chỗ duy nhất biến tên tệp trong DB thành `Path` đã kiểm path traversal; đừng viết bản sao thứ hai của phép kiểm `startsWith(privateRoot)`.
 
 Both are resolved to an **absolute** path at startup (logged as `[Upload]` lines on boot). The old `file:uploads/` was relative to the process working directory — the comment claiming it sat "beside the .jar" was simply wrong, and a container or systemd unit with a different CWD lost every image. Multipart limit is 10MB; **nginx must be raised to match** (`client_max_body_size`, default 1MB) or large uploads are rejected before reaching the app.
 

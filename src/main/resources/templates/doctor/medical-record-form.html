@@ -93,6 +93,45 @@
           </div>
         </div>
 
+        <!--/* HỒ SƠ TỪ NƠI KHÁC — đặt TRÊN timeline nội viện và tách hẳn ra bằng viền khác màu.
+               Đây là giấy tờ BỆNH NHÂN TỰ TẢI LÊN và máy đọc tự động, không phải bệnh án do đồng
+               nghiệp ký; trộn hai thứ vào một danh sách là mời bác sĩ tin một dòng chữ chưa ai
+               kiểm chứng. Nhãn cảnh báo bên dưới là bắt buộc. */-->
+        <div class="card mb-3 border-warning" th:if="${externalRecords != null and !externalRecords.isEmpty()}">
+          <div class="card-header bg-light py-2 fw-bold text-warning-emphasis">
+            <i class="bi bi-folder-symlink me-1"></i> Hồ sơ từ nơi khác (bệnh nhân tự tải lên)
+          </div>
+          <div class="card-body p-3 small" style="max-height: 320px; overflow-y: auto;">
+            <div th:each="doc : ${externalRecords}" class="mb-3 pb-2 border-bottom">
+              <div class="fw-bold text-dark">
+                <a th:href="@{'/user/medical-document/file/' + ${doc.id}}" target="_blank" rel="noopener"
+                   th:text="${doc.title}">Khám tại BV khác</a>
+              </div>
+              <div class="text-muted" style="font-size: 11px;"
+                   th:text="${doc.createdAt != null ? #temporals.format(doc.createdAt, 'dd/MM/yyyy') : ''}">01/01/2026</div>
+              <div th:if="${doc.patientNote}" class="fst-italic text-secondary"
+                   th:text="'Bệnh nhân ghi chú: ' + ${doc.patientNote}"></div>
+              <div th:if="${doc.aiStatus == 'DONE'}" class="mt-1" style="white-space: pre-line;"
+                   th:text="${doc.aiSummary}">Tóm tắt</div>
+              <!--/* PENDING khác hẳn FAILED/UNREADABLE: một cái là "chưa chạy", một cái là "chạy rồi
+                     nhưng không đọc được". Gộp làm một là báo với bác sĩ rằng tệp hỏng trong khi nó hoàn
+                     toàn bình thường — và bác sĩ sẽ thôi bấm vào xem bản gốc. */-->
+              <div th:if="${doc.aiStatus == 'PENDING' or doc.aiStatus == null}" class="mt-1 text-muted">
+                Chưa phân tích — bấm vào tên hồ sơ để xem bản gốc.
+              </div>
+              <div th:if="${doc.aiStatus == 'FAILED' or doc.aiStatus == 'UNREADABLE'}" class="mt-1 text-muted"
+                   th:text="${doc.aiSummary != null ? doc.aiSummary : 'Hệ thống chưa đọc được tệp này.'}">
+                Chưa đọc được.
+              </div>
+            </div>
+            <div class="alert alert-warning py-2 px-2 mb-0" style="font-size: 11px;">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Phần tóm tắt do AI đọc tự động từ ảnh/PDF bệnh nhân tải lên, <strong>chưa được kiểm chứng</strong>.
+              Bấm vào tên hồ sơ để mở bản gốc và đối chiếu trước khi dùng.
+            </div>
+          </div>
+        </div>
+
         <!-- TIMELINE LỊCH SỬ KHÁM BỆNH -->
         <div class="card">
           <div class="card-header bg-light py-2 fw-bold text-secondary">

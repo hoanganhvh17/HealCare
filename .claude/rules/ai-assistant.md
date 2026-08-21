@@ -210,6 +210,131 @@ Before this, the branch only said "em mở trang đặt lịch để anh/chị c
 
 `speakNumber` renders `3.7` as "3 phẩy 7"; it **rejects null before `Number()`**, since `Number(null)` is `0` and would read an unrated doctor aloud as "0 sao" — the exact claim this whole feature exists to prevent.
 
+### Hồ sơ bệnh án cũ bệnh nhân tự tải lên (`my_documents`)
+
+Bệnh nhân chuyển từ viện khác sang tải ảnh/PDF hồ sơ cũ lên; AI đọc **một lần lúc tải lên** và bản
+tóm tắt được lưu vào `ExternalMedicalRecord.aiSummary` (xem [medical-records.md](medical-records.md)).
+Hai đường tiêu thụ, và cả hai đều **không phát sinh thêm lượt gọi AI nào**:
+
+- **Ngữ cảnh nền.** `AiService.chatWithMemory` tiêm khối `=== ⚠️ HỒ SƠ BỆNH ÁN TỪ NƠI KHÁC ===` ngay
+  trong khối `if (currentUser != null)` sẵn có, đọc
+  `findTop3ByUserIdAndAiStatusOrderByCreatedAtDesc(userId, "DONE")`. Giới hạn **3** vì prompt hệ thống
+  đã dài, nhồi thêm sẽ làm loãng đúng phần triệu chứng khách vừa kể. Cả khối bọc `try/catch`: thiếu
+  tiền sử thì trợ lý vẫn tư vấn được, để exception thoát ra là hỏng **cả** lượt chat vì dữ liệu phụ trợ.
+- **Thẻ tra cứu.** `lookup.type = my_documents` → `resolveMyDocuments()` → `GET /api/chat/my-documents`
+  → `buildMyDocumentsHtml`. Cùng bốn điều cấm như mọi nhánh lookup (không `pendingAlternatives`, không
+  `/hold-slot`, không `startRedirectCountdown`, không `lastHandoffDate`) — giữ được nhờ không bao giờ
+  gọi `finishBookingHandoff`.
+
+Prompt: **thêm một GIÁ TRỊ vào enum `lookup.type`, không thêm key — số key vẫn là 10**, nên
+`/skills/ai-schema-change` không kích hoạt (tiền lệ: `sort_by=rating`). Kèm một gạch đầu dòng ở **5B**
+buộc model coi đây là **tiền sử tham khảo có thể đọc sai**, không được trình bày như chẩn đoán của
+chính nó, và vẫn phải giữ cảnh báo y khoa ở mục 3.
+
+**`escapeHtml` sinh ra ở đây và chỉ nhánh này bắt buộc dùng.** Các thẻ tra cứu khác nội suy thẳng vì
+dữ liệu là tên bác sĩ / tên khoa lấy từ DB của chính mình; nội dung hồ sơ ngoại viện là chữ model đọc
+ra từ **một tệp người lạ tải lên**, tức dữ liệu không tin được đi thẳng vào `innerHTML` của một trang
+đã đăng nhập.
+
+**`looksLikeMyDocumentsQuestion` phải liệt kê CẢ HAI dạng có dấu và không dấu**, y như
+`looksLikeMyBookingQuestion`: `normalizeText` chỉ hạ chữ thường và gộp khoảng trắng, nó **không bỏ
+dấu**, nên một danh sách chỉ có dạng không dấu trượt sạch khách gõ đủ dấu — tức phần lớn khách. Và
+**không** đưa cả câu qua `stripDiacritics`: làm vậy biến "sáng" thành giới từ "sang". Hàm đòi dấu hiệu
+**sở hữu** trước khi nhận danh từ trần, vì "hồ sơ" cũng là "hồ sơ năng lực", "hồ sơ bác sĩ".
+
+Voice: `describeMyDocuments` trong `meditrust-voice-call.js`, đọc **tối đa một** hồ sơ và cắt bản tóm
+tắt cho lọt `SPEECH_BUDGET`; xuống dòng đổi thành dấu phẩy vì `toSpeechText` biến mỗi `\n` thành một
+dấu chấm, mà giọng Việt nghỉ ở dấu chấm lâu hơn hẳn.
+
+`AiService.analyzeDocumentImage` gửi ảnh cho model thị giác. Nó **không đi qua `AiMessage`**: trường
+`content` của lớp đó là `String` thuần và chính nó được tuần tự hoá vào `AiChatSession.chatHistoryJson`
+— đổi sang `Object` để nhét mảng multipart vào là làm hỏng **mọi phiên chat đang lưu trong DB**. Payload
+dựng tay bằng `Map`, và cả hai model trong `FALLBACK_MODELS` đều đọc được ảnh. `postOnce(...)` được tách
+ra khỏi `callModels` để phục vụ cả hai loại request — **toàn bộ luật ghi log phải ở đúng đó**, kể cả
+nhánh `getError()` (OpenRouter trả HTTP 200 kèm `error` khi hết credit).
+
+### Khách gửi ẢNH TRIỆU CHỨNG để hỏi chuyên khoa
+
+Khách chụp chỗ đang bị đau (mắt sưng, nốt ban, vết thương) gửi vào khung chat. **Cùng một nút kẹp
+giấy, cùng một endpoint** với hồ sơ giấy tờ — máy chủ tự phân loại chứ không bắt khách chọn.
+
+**MỘT lượt gọi thị giác vừa phân loại vừa phân tích.** `ChatImageServiceImpl.buildPrompt()` bắt model
+trả khoá `kind` ∈ `DOCUMENT | SYMPTOM | OTHER` kèm đúng phần payload tương ứng. Tách làm hai lượt
+(phân loại rồi mới phân tích) là nhân đôi chi phí và độ trễ cho mọi tấm ảnh, trong khi model nhìn một
+lần là biết cả hai. `AiService.analyzeImage` (tên cũ `analyzeDocumentImage`) không biết gì về loại
+nội dung — đừng nhét luật của loại nào vào đó.
+
+**Thứ tự PHÂN TÍCH TRƯỚC, LƯU SAU là ràng buộc, không phải tối ưu.** Đó là thứ duy nhất làm cho
+"ảnh triệu chứng không bao giờ được lưu" thành sự thật: bytes đi thẳng từ `MultipartFile` tới model
+(`DocumentTextExtractor.toImageDataUrl(byte[])`), và chỉ nhánh `DOCUMENT` mới ghi ra đĩa. Ghi-rồi-xoá
+yếu hơn hẳn — mọi nhánh lỗi ở giữa đều để lại một tệp mồ côi trong thư mục riêng tư.
+
+- **`DOCUMENT`** → mới ghi tệp + lưu `ExternalMedicalRecord`, dùng luôn kết quả đã có qua
+  `applyAnalysis`. **KHÔNG gọi AI lần hai** — trả tiền hai lần cho đúng một tấm ảnh.
+- **`SYMPTOM`** → không chạm đĩa, không dòng DB nào. Trả thẻ tư vấn về khung chat.
+- **`OTHER`** → không lưu gì, in câu giải thích.
+
+**`applyAnalysis` phải từ chối đặt `AI_DONE` cho thứ không phải giấy tờ.** `DONE` chính là tấm vé để
+khối tiêm ngữ cảnh đọc hồ sơ lên như tiền sử bệnh và để nó hiện trên màn hình bác sĩ — đó đúng là lỗi
+mà tính năng này sinh ra để sửa (trước đây ảnh mắt sưng bị lưu thành "hồ sơ bệnh án").
+
+**`AiService.appendAssistantNote(sessionId, note)` là thứ thay cho khối tiêm ngữ cảnh.** Ảnh triệu
+chứng không được lưu ở đâu cả, nên nếu không ghi một dòng vào `chatHistoryJson` thì ngay lượt sau
+khách hỏi *"nó có nguy hiểm không?"* model đã không còn biết vừa nhìn thấy gì. Cửa sổ phát lại là 6
+tin nhắn cuối nên ghi chú tự rụng sau vài lượt — đúng ý: đây là ngữ cảnh nhất thời của một tấm ảnh đã
+bị xoá, không phải tiền sử bệnh.
+
+**Luật an toàn trong prompt nhánh SYMPTOM**, mỗi dòng vá một cách nói dối khác nhau: chỉ MÔ TẢ thứ
+nhìn thấy, **không đặt tên bệnh**; **cấm trấn an** ("không sao đâu", "chỉ nhẹ thôi") vì ảnh không đủ
+để kết luận điều đó; và **khi phân vân thì LUÔN chọn mức nặng hơn**. `urgency` trả về giá trị lạ được
+hạ về `SOON` chứ **không** phải `ROUTINE` — model gõ sai chính tả mà bị tụt xuống mức nhẹ nhất là sai
+đúng hướng nguy hiểm.
+
+**`department_ids` đối chiếu từng id với `DepartmentRepository`** trước khi trả về. Đường chat vốn
+**không kiểm gì cả** — model bịa id nào cũng lọt và khách bấm vào một khoa không tồn tại.
+
+### Nhánh cấp cứu của khung chat gõ chữ
+
+`buildEmergencyCardHtml` dùng chung cho **cả hai** đường: khách gõ chữ mô tả triệu chứng nguy hiểm, và
+ảnh triệu chứng cho ra `urgency = EMERGENCY`.
+
+Trước đây nhánh `is_emergency` chỉ prepend một dòng chữ đỏ rồi **chạy tiếp**: vẫn dựng thẻ bác sĩ có
+link đặt lịch, vẫn vào `resolveBookingHandoff`, vẫn bật đếm ngược **tự nhảy sang `/appointment` sau 5
+giây**. Người đang cần gọi 115 mà trang tự chuyển sang form đặt lịch là hành vi phải biến mất. Nay nó
+in thẻ đỏ có `tel:115`, gọi `cancelRedirect()` rồi **`return`** — chế độ gọi (`enterEmergency`) đã làm
+đúng từ đầu, đây là kéo khung chat gõ chữ về ngang với nó.
+
+**Không hardcode id khoa Cấp cứu vào JS.** Cả dự án không có chỗ nào special-case 21/22 — chúng chỉ là
+chữ trong prompt và id đến từ thứ tự seed. Vả lại không ai "đặt lịch" cấp cứu; thứ cần là số điện
+thoại và lời chỉ đường.
+
+### Đính kèm hồ sơ ngay trong khung chat — hướng thứ hai
+
+Khách gửi thẳng ảnh/PDF vào khung chat (nút kẹp giấy cạnh ô nhập) thay vì phải vào trang hồ sơ.
+**Cùng một service, cùng chỗ lưu riêng tư, cùng bộ luật quyền xem** — chỉ khác chỗ bắt đầu, nên hồ sơ
+gửi ở đây vẫn hiện trong `/user/profile#medical-records` và bác sĩ vẫn nhìn thấy.
+
+`POST /user/medical-document/chat-upload` trả JSON. **Cố ý KHÔNG đặt dưới `/api/chat/**`**: tiền tố
+`/user/medical-document/**` đã là `authenticated()`, còn `/api/chat/**` là `permitAll` nên mỗi endpoint
+đặt vào đó lại phải nhớ thêm một dòng ở khối 0 — quên một lần là mở đường **ghi** dữ liệu cho người lạ.
+
+Bốn thứ phải sống sót:
+
+- **`isSending` dùng CHUNG với `sendMessage`.** Đang đọc hồ sơ mà khách gửi tiếp một câu là hai lượt
+  cùng ghi vào một `sessionId` — đúng lỗi mà cờ đó sinh ra để chặn.
+- **Phiên hết hạn KHÔNG phải lỗi mạng.** Spring Security chặn trước controller và trả 302 sang
+  `/login`; `fetch` đi theo redirect rồi trả trang đăng nhập với **status 200**, nên chỉ xét `res.ok`
+  là rơi vào nhánh catch và báo "không kết nối được" — khách sẽ đi kiểm tra wifi. Nhận diện bằng
+  `res.redirected || res.url.indexOf('/login') >= 0`, đúng cách `/checkout-qr` đã phải làm.
+- **`fileInput.value = ''` sau mỗi lượt**, nếu không khách chọn LẠI đúng tệp vừa rồi sẽ không kích
+  hoạt `change` và nút trông như hỏng.
+- **`skipNextDocumentsCard` — cờ sống đúng MỘT lượt.** Câu tự gửi sau khi tải lên **bắt buộc** phải
+  nhắc tới hồ sơ ("Bạn xem hồ sơ tôi vừa gửi…"): đo bằng model thật, bỏ vế đó đi và hỏi trống "Tôi nên
+  khám chuyên khoa nào?" thì model coi là mô tả mông lung và rơi về **khoa 22 (Y học gia đình)** thay
+  vì đọc khối tiền sử đã tiêm. Nhưng chính vế đó lại khớp `looksLikeMyDocumentsQuestion`, nên thẻ danh
+  sách hồ sơ in lại ngay dưới thẻ vừa in cách đó hai bóng chat. `sendMessage` đọc cờ rồi **xoá ngay**;
+  giữ lâu hơn là nuốt mất thẻ của một câu hỏi thật ở lượt sau.
+
 ### The other three lookups
 `PatientChatLookupApiController` (`controller/api`) serves them, split off because `AiController` already carries the prompt, the soft-lock cache and all the slot logic — same precedent as `DoctorAiController` / `DoctorExamAiController`.
 
@@ -249,6 +374,17 @@ Handing off no longer navigates after 900ms. `startRedirectCountdown()` shows a 
 `isSending` blocks a second turn while one is in flight (two POSTs on the same `sessionId` overwrote each other's history) and Enter is ignored while `e.isComposing`, since Vietnamese IMEs use it to commit a syllable.
 
 All `sessionStorage` access goes through `safeStorage`. Reading it throws `SecurityError` in private mode or with third-party storage blocked, and the first read sits in `DOMContentLoaded` — the exception killed the rest of the script, so the send button was never wired and the widget looked alive but did nothing. `setChatHtml()` also trims the stored transcript, since it grew unbounded and `QuotaExceededError` was thrown inside `appendMessage`, outside `sendMessage`'s try.
+
+`suggested_prompts` là **NGOẠI LỆ của mục 0, và là ngoại lệ duy nhất**: đó là **lời của BỆNH NHÂN**,
+khách bấm vào là câu đó được gửi ĐI như chính họ vừa gõ và hiện trong bóng chat màu xanh của họ. Ở đó
+bệnh nhân xưng **"tôi"** và gọi trợ lý là **"bạn"**. Áp luật "AI xưng em, gọi khách là anh/chị" vào đây
+thì khách tự gọi mình là "em" ("Em đang uống thuốc gì?") — đọc như trợ lý đang tự nói chuyện với chính
+nó. Luật này nay nằm ở cả mục 0 lẫn ngay tại chỗ khai schema, vì đó là chỗ model nhìn khi sinh mảng đó.
+
+**Cùng nguyên tắc cho mọi câu HARDCODE được gửi đi như lời khách**, không chỉ `suggested_prompts`: nút
+"Phân tích & tư vấn khoa" ở `/user/profile` và câu tự gửi sau khi đính kèm hồ sơ trong khung chat đều
+phải xưng "tôi". Chúng cũng phải **khớp `looksLikeMyDocumentsQuestion`** — đổi câu chữ mà quên kiểm là
+nhánh tra cứu chết lặng lẽ.
 
 ## Xưng hô
 The prompt's section 0 forces the assistant to call itself **"em"** and the patient **"anh/chị"** — never "bạn", "tôi", or "mình" — in both `ai_reply` and `speech_reply`. Every hardcoded Vietnamese string in the voice modules follows the same convention; keep new strings consistent.

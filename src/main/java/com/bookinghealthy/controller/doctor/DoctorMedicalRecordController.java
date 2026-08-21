@@ -31,6 +31,9 @@ public class DoctorMedicalRecordController {
     private MedicalRecordService medicalRecordService;
 
     @Autowired
+    private com.bookinghealthy.service.ExternalMedicalRecordService externalMedicalRecordService;
+
+    @Autowired
     private BookingRepository bookingRepository;
 
     @Autowired
@@ -152,6 +155,12 @@ public class DoctorMedicalRecordController {
         // Lấy lịch sử các lần khám trước (Loại trừ lần khám hiện tại)
         List<MedicalRecord> historyRecords = medicalRecordService.getPatientMedicalHistory(patientUserId);
         model.addAttribute("historyRecords", historyRecords);
+
+        // Hồ sơ bệnh nhân mang từ viện khác sang. Bác sĩ cần thấy TRƯỚC khi khám, cạnh timeline
+        // nội viện — nhưng đây là giấy tờ bệnh nhân tự tải lên và máy đọc tự động, nên template
+        // phải nói rõ điều đó chứ không trộn lẫn với bệnh án do đồng nghiệp ký.
+        model.addAttribute("externalRecords",
+                externalMedicalRecordService.findForUser(patientUserId));
 
         return "doctor/medical-record-form";
     }
@@ -384,6 +393,7 @@ public class DoctorMedicalRecordController {
 
         model.addAttribute("patient", patient);
         model.addAttribute("listRecords", listRecords);
+        model.addAttribute("externalRecords", externalMedicalRecordService.findForUser(userId));
 
         // Trả về file HTML mới
         return "doctor/patient-records";

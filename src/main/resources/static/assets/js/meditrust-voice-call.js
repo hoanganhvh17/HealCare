@@ -504,7 +504,7 @@
             return;
         }
 
-        // Ba nhánh tra cứu còn lại. Cùng luật với nhánh lịch làm việc ở trên: awaitingConfirm = null
+        // Bốn nhánh tra cứu còn lại. Cùng luật với nhánh lịch làm việc ở trên: awaitingConfirm = null
         // và kết bằng câu hỏi MỞ. Thiếu chúng thì thẻ chat có nội dung mà chế độ gọi im lặng —
         // đúng lúc khách rảnh tay, không nhìn màn hình.
         var lookup = payload.lookup;
@@ -528,6 +528,11 @@
         if (lookup && lookup.kind === 'my_bookings') {
             awaitingConfirm = null;
             say(spoken + ' ' + describeMyBookings(lookup), function () { startListening(); });
+            return;
+        }
+        if (lookup && lookup.kind === 'my_documents') {
+            awaitingConfirm = null;
+            say(spoken + ' ' + describeMyDocuments(lookup), function () { startListening(); });
             return;
         }
 
@@ -819,6 +824,60 @@
         var extra = upcoming.length > 2 ? ' Anh/chị còn ' + (upcoming.length - 2) + ' lịch nữa.' : '';
         return 'Dạ anh/chị có ' + upcoming.length + ' lịch hẹn sắp tới: '
             + lines.join('. ') + '.' + extra + ' Anh/chị cần em giúp gì thêm ạ?';
+    }
+
+    /**
+     * Hồ sơ bệnh án cũ khách đã tải lên. Cùng luật với ba nhánh tra cứu kia: kết bằng câu hỏi MỞ,
+     * và người gọi đã đặt awaitingConfirm = null — không có lịch hẹn nào để một tiếng "vâng" chốt.
+     *
+     * Đọc TỐI ĐA MỘT hồ sơ và cắt bản tóm tắt cho lọt SPEECH_BUDGET. Vượt ngân sách là
+     * splitIntoChunks xé thành hai utterance và trình duyệt chèn một quãng nghỉ thật ngay giữa
+     * câu — đúng lỗi "trợ lý đứng hình" đã sửa ở meditrust-voice.js.
+     */
+    function describeMyDocuments(data) {
+        if (data.needLogin) {
+            return 'Dạ anh/chị đăng nhập giúp em thì em mới xem được hồ sơ đã tải lên ạ. '
+                + 'Anh/chị muốn em mở trang đăng nhập không ạ?';
+        }
+        if (data.error) {
+            return 'Dạ em chưa đọc được hồ sơ của anh/chị lúc này ạ. Anh/chị thử lại giúp em nhé?';
+        }
+
+        var docs = data.documents || [];
+        if (!docs.length) {
+            return 'Dạ anh/chị chưa tải hồ sơ bệnh án cũ nào lên ạ. Nếu anh/chị đã khám ở nơi khác, '
+                + 'anh/chị vào mục Hồ sơ y tế tải ảnh chụp giấy khám lên, em sẽ đọc giúp. '
+                + 'Giờ anh/chị muốn em hỗ trợ gì ạ?';
+        }
+
+        var done = docs.filter(function (d) { return d.aiStatus === 'DONE'; });
+        if (!done.length) {
+            // Không có bản nào đọc được: nói ĐÚNG lý do của hồ sơ mới nhất thay vì một câu chung
+            // chung — bản scan và lỗi hệ thống cần hai hành động khác nhau từ khách.
+            var first = docs[0];
+            if (first.aiStatus === 'UNREADABLE') {
+                return 'Dạ hồ sơ ' + first.title + ' là bản scan nên em chưa đọc được chữ ạ. '
+                    + 'Anh/chị chụp ảnh từng trang rồi tải lên giúp em nhé?';
+            }
+            return 'Dạ em chưa phân tích xong hồ sơ ' + first.title + ' ạ. '
+                + 'Anh/chị vào mục Hồ sơ y tế bấm Phân tích lại giúp em nhé?';
+        }
+
+        var doc = done[0];
+        var head = 'Dạ anh/chị có ' + docs.length + ' hồ sơ cũ. Hồ sơ ' + doc.title + ': ';
+        var tail = doc.departmentName
+            ? ' Theo hồ sơ này thì khoa ' + doc.departmentName + ' là phù hợp nhất ạ. '
+              + 'Anh/chị muốn em xem bác sĩ khoa đó không ạ?'
+            : ' Anh/chị muốn em tư vấn thêm gì ạ?';
+
+        // Cắt bản tóm tắt cho vừa một hơi đọc. Xuống dòng thành dấu phẩy: toSpeechText biến mỗi
+        // lần xuống dòng thành một dấu chấm, mà giọng Việt nghỉ ở dấu chấm lâu hơn hẳn.
+        var summary = String(doc.aiSummary || '').replace(/\s*\n+\s*/g, ', ').trim();
+        var room = SPEECH_BUDGET - head.length - tail.length;
+        if (room > 40 && summary.length > room) {
+            summary = summary.slice(0, room - 3).trim() + '...';
+        }
+        return head + summary + tail;
     }
 
     /**

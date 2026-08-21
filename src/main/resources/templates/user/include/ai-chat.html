@@ -55,6 +55,17 @@
     .ai-chat-input-area input { flex: 1; border: 1px solid #dee2e6; border-radius: 20px; padding: 8px 16px; outline: none; }
     .ai-chat-input-area button { background: #0d6efd; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; }
 
+    /* Nút đính kèm hồ sơ. Selector PHẢI kèm cả `button` (`.ai-chat-input-area button.ai-chat-attach-btn`):
+       luật ngay trên là `.ai-chat-input-area button` = độ ưu tiên (0,1,1), nên một selector chỉ có
+       class (0,1,0) sẽ THUA và nút vẫn ra tròn xanh y hệt nút Gửi — hai nút xanh giống nhau cạnh
+       nhau thì không ai đoán được cái nào làm gì. */
+    .ai-chat-input-area button.ai-chat-attach-btn { background: #f1f5f9; color: #475569; border: 1px solid #dee2e6; }
+    .ai-chat-input-area button.ai-chat-attach-btn:hover { background: #e2e8f0; color: #0d6efd; }
+    .ai-chat-input-area button.ai-chat-attach-btn:disabled { opacity: .5; cursor: not-allowed; }
+    /* Ô chọn tệp ẩn hẳn: `.ai-chat-input-area input` ở trên đặt flex:1 cho MỌI input, để nó hiện
+       ra là nó chiếm mất chỗ của ô nhập chữ. */
+    .ai-chat-input-area input[type="file"] { display: none; }
+
     /* LỊCH SỬ ITEM */
     .history-item { padding: 12px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s; }
     .history-item:hover { background: #f8f9fa; border-color: #0d6efd; }
@@ -153,6 +164,17 @@
       </div>
 
       <div class="ai-chat-input-area">
+        <!--/* MỘT nút cho HAI loại ảnh: giấy tờ hồ sơ bệnh án cũ, và ảnh chụp chỗ đang bị đau.
+               Máy chủ tự phân loại trong cùng một lượt gọi model, nên khách không phải chọn gì —
+               nhìn ảnh là biết, bắt khách khai báo là thêm một bước thừa.
+               Ảnh triệu chứng KHÔNG được lưu; chỉ giấy tờ mới vào hồ sơ — xem medical-records.md.
+               accept= chỉ là lớp lịch sự của trình duyệt: luật thật nằm ở allowlist đuôi tệp
+               trong FileStorageService, vì hộp thoại chọn tệp có thể bị bỏ qua. */-->
+        <button type="button" id="ai-chat-attach" class="ai-chat-attach-btn"
+                title="Gửi ảnh chỗ đang bị đau, hoặc ảnh/PDF hồ sơ bệnh án cũ">
+          <i class="bi bi-paperclip"></i>
+        </button>
+        <input type="file" id="ai-chat-file" accept=".jpg,.jpeg,.png,.webp,.pdf">
         <input type="text" id="ai-chat-input" placeholder="Nhập triệu chứng...">
         <button type="button" id="ai-chat-send"><i class="bi bi-send"></i></button>
       </div>

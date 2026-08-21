@@ -44,6 +44,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/chat/**").hasRole("ADMIN")
                         .requestMatchers("/api/chat/medical-record/**").authenticated()
                         .requestMatchers("/api/chat/my-bookings").authenticated()
+                        // Hồ sơ bệnh án ngoại viện bệnh nhân tự tải lên. Cùng lý do với dòng
+                        // trên: /api/chat/** là permitAll ở khối dưới, mà Spring lấy luật khớp
+                        // ĐẦU TIÊN — khai ở dưới đó thì dòng này hoàn toàn vô tác dụng.
+                        .requestMatchers("/api/chat/my-documents").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
@@ -88,7 +92,8 @@ public class SecurityConfig {
                                 "/user/upload-avatar",
                                 "/user/review/**",
                                 "/user/booking/**",
-                                "/user/allergy/**"
+                                "/user/allergy/**",
+                                "/user/medical-document/**"
                         ).authenticated()
                         .anyRequest().authenticated()
                 )

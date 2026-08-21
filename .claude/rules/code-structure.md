@@ -9,6 +9,8 @@ Standard Spring MVC layering under `com.bookinghealthy`:
   The doctor AI is split the same way: `DoctorAiController` (floating chat widget) and `DoctorExamAiController` (the four assists on the exam form). Both stay under `/api/doctor/chat/` so one `SecurityConfig` block-0 rule covers them — **a new doctor-facing AI endpoint belongs under that prefix**, otherwise it needs its own matcher.
 
   `controller/staff/StaffWorkScheduleController` is an **abstract superclass**, not a mapped controller: `DoctorWorkScheduleController` and `ReceptionistWorkScheduleController` extend it and only supply `basePath()` and `sidebarFragment()`. Use this shape when a screen is identical for two roles — duplicating the mappings instead would double every future fix.
+  `controller/user/UserMedicalDocumentController` (hồ sơ bệnh án ngoại viện bệnh nhân tự tải lên) is split out on the same grounds as the allergy controller below, and holds the **only** endpoint that serves those files — one endpoint for patients *and* doctors on purpose, so there is exactly one copy of the permission check.
+
   `controller/user/UserAllergyController` is split out of `ProfileController` for the same reason — that class already carries the profile, booking history and password screens.
 
   `controller/api/PatientChatLookupApiController` is split out of `AiController` on the same principle: the patient chat's **lookup** endpoints (`/api/chat/my-bookings`, `/doctor-profile`, `/doctors/filter`) answer questions with real DB rows, while `AiController` already carries the prompt plumbing, the soft-lock cache and every slot rule. It keeps the `/api/chat/` prefix so the existing matchers apply — but `/my-bookings` still needs its own block-0 rule, see [authentication-and-roles.md](authentication-and-roles.md).
@@ -25,6 +27,16 @@ Standard Spring MVC layering under `com.bookinghealthy`:
 Entities use Lombok (`@Getter`/`@Setter`/`@NoArgsConstructor`/`@AllArgsConstructor`) — note that `@AllArgsConstructor` is used positionally in `DataInitializer` (in both the main seed block and `ensureExtraDoctors`), so **adding a field to `User`, `Doctor`, `Department` or `Schedule` breaks that seeding code** and it must be updated in the same change.
 
 That trap is why per-employee HR data (ngày vào làm, điều kiện lao động, trưởng khoa) lives in a separate `StaffProfile` entity keyed on `User` rather than as new columns on `User`/`Doctor`. The newer entities (`StaffProfile`, `StaffShift`, `LeaveRequest`, `ShiftCoverRequest`, `Notification`) deliberately **omit `@AllArgsConstructor`** so they can never acquire the same problem.
+
+`ChatImageService` (+ impl) đọc MỘT tấm ảnh khách gửi vào khung chat: vừa phân loại
+(`DOCUMENT`/`SYMPTOM`/`OTHER`) vừa phân tích, trong một lượt gọi model, và **không lưu gì cả** — quyết
+định ghi đĩa hay không là việc của người gọi, và chỉ được ra sau khi biết ảnh là gì. Tách khỏi
+`ExternalMedicalRecordService` có chủ đích: lớp kia có repository và toàn bộ vòng đời của một hồ sơ
+**được lưu trữ**; ảnh triệu chứng cố ý không có gì trong số đó, gộp vào là mời người sửa sau thêm một
+`save()` cho "tiện". Kết quả đi qua `dto/ImageAnalysis`. `model/AiImageUsage` đếm hạn mức ảnh mỗi
+ngày. Xem [ai-assistant.md](ai-assistant.md).
+
+`ExternalMedicalRecord` + `ExternalMedicalRecordService` (+ impl) carry hồ sơ bệnh án bệnh nhân mang từ nơi khác tới, keyed on `User` — **not** on `MedicalRecord`, and **not** a reuse of the dead `MedicalAttachment`, whose FK to `MedicalRecord` is `nullable = false`. `DocumentTextExtractor` (+ impl) is the one place allowed to know PDFBox exists. See [medical-records.md](medical-records.md).
 
 `Notification` + `NotificationService` (interface + impl) carry in-app notifications; see [supporting-subsystems.md](supporting-subsystems.md) for why they exist alongside email and where `push` must be called.
 

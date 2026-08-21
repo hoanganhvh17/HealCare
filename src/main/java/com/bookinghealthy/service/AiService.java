@@ -24,7 +24,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AiService {
@@ -48,6 +50,7 @@ public class AiService {
     @Autowired private DepartmentRepository departmentRepository;
     @Autowired private com.bookinghealthy.repository.BookingRepository bookingRepository;
     @Autowired private com.bookinghealthy.repository.MedicalRecordRepository medicalRecordRepository;
+    @Autowired private com.bookinghealthy.repository.ExternalMedicalRecordRepository externalMedicalRecordRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -80,34 +83,110 @@ public class AiService {
      * exception nào để mà bắt — kết quả là khách thấy "Hệ thống bận" với log trống trơn.
      */
     private String callModels(List<AiMessage> messagesToSend, double temperature, String sessionId) {
+        for (String modelName : FALLBACK_MODELS) {
+            AiRequest request = new AiRequest();
+            request.setModel(modelName);
+            request.setMessages(messagesToSend);
+            request.setTemperature(temperature);
+            request.setMaxTokens(MAX_TOKENS);
+
+            String answer = postOnce(request, modelName, sessionId);
+            if (answer != null) {
+                return answer;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * MỘT lượt gọi OpenRouter. Trả về nội dung câu trả lời, hoặc null nếu lượt đó hỏng.
+     *
+     * Tách ra khỏi {@code callModels} khi xuất hiện loại request thứ hai (gửi kèm ảnh, xem
+     * {@link #analyzeImage}). Toàn bộ luật ghi log phải ở ĐÚNG ĐÂY và chỉ ở đây:
+     * OpenRouter trả <b>HTTP 200 kèm {@code error}</b> khi hết credit hoặc bị chặn tần suất, nên
+     * không có exception nào để mà bắt — thiếu nhánh {@code getError()} thì khách thấy
+     * "Hệ thống bận" còn log trống trơn.
+     *
+     * @param requestBody {@code AiRequest}, hoặc một {@code Map} dựng tay cho payload có ảnh
+     */
+    private String postOnce(Object requestBody, String modelName, String logTag) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
         headers.set("HTTP-Referer", referer);
 
+        try {
+            AiResponse response = restTemplate.postForObject(
+                    apiUrl, new HttpEntity<>(requestBody, headers), AiResponse.class);
+
+            if (response != null && response.getError() != null) {
+                System.err.println("⚠️ [AI][" + logTag + "] " + modelName + " báo lỗi: "
+                        + response.getError().getMessage() + " (code " + response.getError().getCode() + ")");
+                return null;
+            }
+            if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
+                return response.getChoices().get(0).getMessage().getContent();
+            }
+            System.err.println("⚠️ [AI][" + logTag + "] " + modelName + " trả về rỗng (không choices, không error).");
+        } catch (Exception e) {
+            System.err.println("⚠️ [AI][" + logTag + "] " + modelName + " thất bại: "
+                    + e.getClass().getSimpleName() + " - " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Gửi MỘT ảnh kèm lời nhắc cho model có thị giác. Cả hai model trong {@link #FALLBACK_MODELS}
+     * đều đọc được ảnh.
+     *
+     * <p>Hàm này KHÔNG biết ảnh là gì — nó chỉ chuyển tiếp prompt của người gọi. Hiện có hai loại
+     * đi qua đây bằng cùng một lượt gọi: giấy tờ hồ sơ bệnh án, và ảnh chụp chỗ đang bị đau mà
+     * khách gửi vào khung chat để hỏi chuyên khoa. Đừng nhét luật của loại nào vào đây.
+     *
+     * <p><b>Không đi qua {@code AiMessage}</b>: trường {@code content} của lớp đó là {@code String}
+     * thuần và chính nó được tuần tự hoá vào {@code AiChatSession.chatHistoryJson}; đổi nó sang
+     * {@code Object} để nhét mảng multipart vào là làm hỏng mọi phiên chat đang lưu trong DB.
+     * Vì vậy payload ở đây dựng tay bằng {@code Map}.
+     *
+     * <p><b>Không {@code @Transactional}</b>, cùng lý do với {@link #getStatelessResponse}: gọi mạng
+     * giữa hàm sẽ giam một connection HikariCP (pool 10) suốt thời gian chờ.
+     *
+     * @return nội dung trả lời, hoặc <b>null</b> khi mọi model thất bại — đúng hợp đồng của
+     *         {@link #getStatelessResponse}, người gọi tự quyết định câu báo lỗi
+     */
+    public String analyzeImage(String systemPrompt, String userPrompt, String imageDataUrl, String logTag) {
+        if (imageDataUrl == null || imageDataUrl.isBlank()) {
+            return null;
+        }
+
+        Map<String, Object> textPart = new LinkedHashMap<>();
+        textPart.put("type", "text");
+        textPart.put("text", userPrompt);
+
+        Map<String, Object> imageUrl = new LinkedHashMap<>();
+        imageUrl.put("url", imageDataUrl);
+        Map<String, Object> imagePart = new LinkedHashMap<>();
+        imagePart.put("type", "image_url");
+        imagePart.put("image_url", imageUrl);
+
+        Map<String, Object> systemMessage = new LinkedHashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", systemPrompt);
+
+        Map<String, Object> userMessage = new LinkedHashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", List.of(textPart, imagePart));
+
         for (String modelName : FALLBACK_MODELS) {
-            try {
-                AiRequest request = new AiRequest();
-                request.setModel(modelName);
-                request.setMessages(messagesToSend);
-                request.setTemperature(temperature);
-                request.setMaxTokens(MAX_TOKENS);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("model", modelName);
+            body.put("messages", List.of(systemMessage, userMessage));
+            body.put("temperature", 0.2);
+            body.put("max_tokens", MAX_TOKENS);
 
-                AiResponse response = restTemplate.postForObject(
-                        apiUrl, new HttpEntity<>(request, headers), AiResponse.class);
-
-                if (response != null && response.getError() != null) {
-                    System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " báo lỗi: "
-                            + response.getError().getMessage() + " (code " + response.getError().getCode() + ")");
-                    continue;
-                }
-                if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-                    return response.getChoices().get(0).getMessage().getContent();
-                }
-                System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " trả về rỗng (không choices, không error).");
-            } catch (Exception e) {
-                System.err.println("⚠️ [AI][" + sessionId + "] " + modelName + " thất bại: "
-                        + e.getClass().getSimpleName() + " - " + e.getMessage());
+            String answer = postOnce(body, modelName, logTag);
+            if (answer != null) {
+                return answer;
             }
         }
         return null;
@@ -122,6 +201,8 @@ public class AiService {
                     "- Bạn LUÔN xưng là 'em'. Gọi bệnh nhân là 'anh/chị' (hoặc 'anh', 'chị' nếu đã biết rõ giới tính).\n" +
                     "- TUYỆT ĐỐI KHÔNG gọi bệnh nhân là 'bạn', không xưng 'tôi', không xưng 'mình'.\n" +
                     "- Giữ đúng cách xưng hô này trong CẢ HAI trường 'ai_reply' và 'speech_reply'.\n" +
+                    "- NGƯỢC LẠI với 'suggested_prompts': đó là LờI CỦA BỆNH NHÂN, khách bấm vào là câu đó được gửi ĐI như chính họ vừa gõ. Ở đó bệnh nhân tự xưng 'TÔI' và gọi bạn là 'bạn'. VIẾT SAI là khách tự gọi mình là 'em', đọc như trợ lý đang tự nói chuyện với chính nó.\n" +
+                    "  + ĐÚNG: 'Tôi đau âm ỉ quanh rốn', 'Tôi đang uống thuốc gì?', 'Bạn xem giúp tôi'. — SAI: 'Em đau âm ỉ quanh rốn', 'Em đang uống thuốc gì?'.\n" +
                     "- Ví dụ đúng: 'Dạ em hiểu ạ. Anh/chị đau vùng nào ạ?' — Ví dụ SAI: 'Bạn đau vùng nào?'\n\n" +
                     "=== 1. KIẾN THỨC MẶC ĐỊNH VỀ PHÒNG KHÁM ===\n" +
                     "- Địa chỉ: 123 Đường Y Tế, Quận Trung Tâm, TP. Hà Nội.\n" +
@@ -152,9 +233,9 @@ public class AiService {
                     "  \"ai_reply\": \"(Câu trả lời và tư vấn của bạn. Dùng <br> để xuống dòng)\",\n" +
                     "  \"speech_reply\": \"(BẢN ĐỂ ĐỌC TO QUA LOA cho bệnh nhân lớn tuổi nghe: tối đa 2 câu ngắn, KHÔNG emoji, KHÔNG thẻ HTML, KHÔNG câu cảnh báo y khoa, KHÔNG markdown. Viết giờ giấc thành lời nói tự nhiên: '9 giờ sáng thứ Năm ngày 24 tháng 7' chứ không phải '09:00 24/07'. Nếu đang mời khách chốt lịch thì kết thúc bằng một câu hỏi có/không rõ ràng)\",\n" +
                     "  \"suggested_prompts\": [\n" +
-                    "       \"(Suy luận câu trả lời 1 của khách - tối đa 5 từ. VD: Đau quặn từng cơn)\",\n" +
-                    "       \"(Suy luận câu trả lời 2 của khách - tối đa 5 từ. VD: Đau âm ỉ quanh rốn)\",\n" +
-                    "       \"(Suy luận câu trả lời 3 của khách - tối đa 5 từ. VD: Kèm theo buồn nôn)\"\n" +
+                    "       \"(Lời CỦA KHÁCH, khách xưng 'Tôi' - tối đa 5 từ. VD: Tôi đau quặn từng cơn)\",\n" +
+                    "       \"(Lời CỦA KHÁCH - tối đa 5 từ. VD: Tôi đau âm ỉ quanh rốn)\",\n" +
+                    "       \"(Lời CỦA KHÁCH - tối đa 5 từ. VD: Tôi buồn nôn nữa)\"\n" +
                     "  ],\n" +
                     "  \"recommended_departments\": [(Danh sách các ID khoa bạn đề xuất dạng số nguyên. Ví dụ: [8, 3] hoặc [])],\n" +
                     "  \"is_emergency\": (true hoặc false),\n" +
@@ -167,7 +248,7 @@ public class AiService {
                     "    \"appointment_time\": \"(Khung giờ theo dạng HH:mm hoặc HH:mm - HH:mm nếu người dùng đã nói rõ, ngược lại để trống)\"\n" +
                     "  },\n" +
                     "  \"lookup\": {\n" +
-                    "    \"type\": \"(none | doctor_schedule | my_bookings | doctor_info | doctor_filter — xem mục 5D)\",\n" +
+                    "    \"type\": \"(none | doctor_schedule | my_bookings | my_documents | doctor_info | doctor_filter — xem mục 5D)\",\n" +
                     "    \"doctor_name\": \"(Tên bác sĩ khách đang HỎI VỀ, ngược lại để trống)\",\n" +
                     "    \"date\": \"(YYYY-MM-DD nếu khách nói rõ ngày, ngược lại để trống)\",\n" +
                     "    \"session\": \"(morning | afternoon | để trống)\",\n" +
@@ -200,19 +281,21 @@ public class AiService {
                     "- VẬY THÌ NÓI GÌ? Chỉ MỘT câu ngắn, không có số: khách nêu giờ/buổi -> 'Dạ vâng ạ.' hoặc 'Dạ em xem giúp anh/chị ngay ạ.' rồi DỪNG. Khách kể triệu chứng -> đồng cảm một câu rồi DỪNG. Hệ thống lo phần lịch.\n" +
                     "- Bác sĩ hoàn toàn có thể KHÔNG có ca khám vào buổi/ngày khách xin (mỗi bác sĩ một ca riêng). Đừng khẳng định là có, cũng đừng khẳng định là không — hệ thống in ca khám thật ngay bên dưới.\n" +
                     "- Khi hệ thống đã báo không đặt được và đã liệt kê hướng thay thế: lượt sau khách chọn hướng nào thì làm theo NGAY (điền `booking_target`), TUYỆT ĐỐI KHÔNG hỏi lại từ đầu.\n" +
+                    "- Nếu ngữ cảnh có khối HỒ SƠ BỆNH ÁN TỪ NƠI KHÁC: đó là giấy tờ do chính bệnh nhân tải lên, hệ thống đọc tự động bằng máy nên CÓ THỂ ĐỌC SAI. Chỉ dùng làm TIỀN SỬ THAM KHẢO để hỏi thăm và chọn chuyên khoa. TUYỆT ĐỐI KHÔNG nói lại nội dung đó như thể là chẩn đoán của chính bạn, và vẫn phải giữ câu cảnh báo y khoa ở mục 3.\n" +
                     "- Trường `lookup` CHỈ LÀ TRƯỜNG ĐỊNH TUYẾN cho hệ thống, KHÔNG phải giấy phép để bạn tự trả lời về lịch. Điền `lookup` xong thì `ai_reply`/`speech_reply` VẪN cấm nêu giờ và ngày cụ thể như luật ở trên. Bạn chỉ chép lại lời khách vào `lookup`, phần tra cứu và in kết quả là việc của hệ thống.\n\n" +
 
                     "=== 5D. KHÁCH HỎI TRA CỨU (điền `lookup`) ===\n" +
                     "- Đây là các câu HỎI, KHÔNG phải yêu cầu đặt lịch. Khi gặp thì đặt `booking_intent = false` và điền `lookup.type`:\n" +
                     "  + `doctor_schedule` — hỏi bác sĩ có làm/nghỉ/bận hôm nào, lịch làm việc tuần này (VD: 'bác sĩ Bình chiều nay bận à?', 'bác sĩ Bình tuần này làm ngày nào?'). Chép tên bác sĩ vào `lookup.doctor_name`, ngày vào `lookup.date`, buổi vào `lookup.session`; hỏi cả tuần thì `scope = week`.\n" +
                     "  + `my_bookings` — hỏi về lịch hẹn của CHÍNH KHÁCH (VD: 'lịch khám của tôi hôm nào?', 'tôi đặt với bác sĩ nào?').\n" +
+                    "  + `my_documents` — hỏi về HỒ SƠ BỆNH ÁN CŨ khách đã tự tải lên (VD: 'hồ sơ cũ em tải lên thế nào rồi?', 'phân tích giúp em bệnh án em vừa gửi', 'em khám ở viện khác rồi, giờ nên khám khoa nào?').\n" +
                     "  + `doctor_info` — hỏi giá khám, đánh giá, kinh nghiệm, bằng cấp của một bác sĩ. Chép tên vào `lookup.doctor_name`.\n" +
                     "  + `doctor_filter` — xin gợi ý bác sĩ theo tiêu chí (VD: 'khoa Tim mạch có bác sĩ nữ nào không?', 'bác sĩ nào nhiều kinh nghiệm nhất?', 'cho tôi bác sĩ được đánh giá cao nhất'). Điền `lookup.filter` và `booking_target.department_id`.\n" +
                     "    · `sort_by = rating` khi khách hỏi về ĐÁNH GIÁ / số sao / uy tín ('bác sĩ nào được đánh giá tốt nhất?'). `sort_by = experience` khi khách hỏi về CHUYÊN MÔN / tay nghề / kinh nghiệm. `sort_by = price` khi khách hỏi giá rẻ.\n" +
                     "    · Loại này vẫn được điền KỂ CẢ KHI câu có chữ 'đặt lịch' ('đặt lịch với bác sĩ đánh giá tốt nhất'): khách nêu TIÊU CHÍ chứ chưa nêu người, nên hệ thống phải liệt kê để khách chọn trước.\n" +
                     "    · Điểm đánh giá chỉ tính từ lượt chấm THẬT của bệnh nhân đã khám. TUYỆT ĐỐI KHÔNG nói bác sĩ nào đó 5 sao / được đánh giá cao — bạn không đọc được bảng đánh giá, hệ thống in số thật ngay bên dưới.\n" +
                     "  + `none` — mọi trường hợp còn lại.\n" +
-                    "- Với 4 loại trên, `ai_reply` chỉ nên là MỘT câu ngắn dẫn vào ('Dạ em xem giúp anh/chị ngay ạ.') rồi DỪNG — hệ thống in kết quả thật ngay bên dưới. TUYỆT ĐỐI không tự bịa ra lịch, giá tiền hay số sao đánh giá.\n\n" +
+                    "- Với 5 loại trên, `ai_reply` chỉ nên là MỘT câu ngắn dẫn vào ('Dạ em xem giúp anh/chị ngay ạ.') rồi DỪNG — hệ thống in kết quả thật ngay bên dưới. TUYỆT ĐỐI không tự bịa ra lịch, giá tiền hay số sao đánh giá.\n\n" +
 
                     "=== 5C. CHỐNG HỎI LẶP — HÃY LINH HOẠT ===\n" +
                     "- TUYỆT ĐỐI KHÔNG hỏi 'anh/chị có muốn chọn bác sĩ cụ thể không ạ?'. Hệ thống tự bung danh sách bác sĩ kèm khung giờ ngay dưới câu trả lời, nên hỏi câu đó là thừa và bắt khách trả lời hai lần.\n" +
@@ -468,6 +551,34 @@ public class AiService {
                                 "👉 LỆNH TỐI THƯỢNG: Nếu bệnh nhân hỏi về lần khám trước (Ví dụ: 'lần trước tôi bị sao', 'bác sĩ bảo tôi bị gì'), BẠN BẮT BUỘC PHẢI DÙNG DỮ LIỆU Ở TRÊN ĐỂ TRẢ LỜI CHI TIẾT NGAY LẬP TỨC. Tuyệt đối không được bảo là không nhớ. Luôn xưng hô là 'Em' và gọi bệnh nhân là 'Anh/Chị'.";
                     }
                 }
+
+                // === HỒ SƠ BỆNH ÁN TỪ NƠI KHÁC (bệnh nhân tự tải lên) ===
+                // Bản tóm tắt đã dựng MỘT LẦN lúc bệnh nhân tải tệp lên và lưu trong DB, nên khối
+                // này KHÔNG phát sinh thêm lượt gọi AI nào cho mỗi lượt chat. Chỉ lấy hồ sơ đã
+                // phân tích xong (DONE) và tối đa 3: prompt hệ thống đã dài, nhồi thêm sẽ làm
+                // loãng đúng phần triệu chứng khách vừa kể.
+                try {
+                    java.util.List<com.bookinghealthy.model.ExternalMedicalRecord> extDocs =
+                            externalMedicalRecordRepository.findTop3ByUserIdAndAiStatusOrderByCreatedAtDesc(
+                                    currentUser.getId(), com.bookinghealthy.model.ExternalMedicalRecord.AI_DONE);
+                    if (!extDocs.isEmpty()) {
+                        StringBuilder docBlock = new StringBuilder(
+                                "\n\n=== ⚠️ HỒ SƠ BỆNH ÁN TỪ NƠI KHÁC (BỆNH NHÂN TỰ TẢI LÊN) ===\n");
+                        for (com.bookinghealthy.model.ExternalMedicalRecord doc : extDocs) {
+                            docBlock.append("- ").append(doc.getTitle()).append(": ")
+                                    .append(doc.getAiSummary()).append("\n");
+                        }
+                        docBlock.append("👉 ĐÂY LÀ GIẤY TỜ DO BỆNH NHÂN TỰ TẢI LÊN, hệ thống đọc tự động nên CÓ THỂ SAI. ")
+                                .append("Chỉ dùng làm TIỀN SỬ THAM KHẢO để hỏi thăm và chọn chuyên khoa. ")
+                                .append("TUYỆT ĐỐI KHÔNG trình bày nội dung này như chẩn đoán của chính bạn, ")
+                                .append("và vẫn phải giữ câu cảnh báo y khoa ở mục 3.\n");
+                        dynamicSystemPrompt += docBlock.toString();
+                    }
+                } catch (Exception e) {
+                    // Thiếu khối tiền sử thì trợ lý vẫn tư vấn được theo triệu chứng khách kể;
+                    // để exception thoát ra đây là hỏng CẢ lượt chat vì một dữ liệu phụ trợ.
+                    System.err.println("⚠️ [AI][" + sessionId + "] Không nạp được hồ sơ ngoại viện: " + e.getMessage());
+                }
             }
 
             List<AiMessage> messagesToSend = new ArrayList<>();
@@ -495,6 +606,41 @@ public class AiService {
             e.printStackTrace();
         }
         return "Hệ thống bận. Thử lại sau.";
+    }
+
+    /**
+     * Chèn một ghi chú vào lịch sử hội thoại dưới vai "assistant", để lượt sau model còn nhớ.
+     *
+     * <p><b>Vì sao bắt buộc phải có:</b> ảnh triệu chứng cố ý KHÔNG được lưu ở đâu cả — không tệp
+     * trên đĩa, không dòng DB — nên không có khối tiêm ngữ cảnh nào như hồ sơ giấy tờ. Thiếu ghi
+     * chú này thì ngay lượt sau khách hỏi "nó có nguy hiểm không?" model đã không còn biết vừa
+     * nhìn thấy gì và sẽ hỏi lại từ đầu.
+     *
+     * <p>Cửa sổ phát lại là 6 tin nhắn cuối, nên ghi chú tự rụng sau vài lượt — đúng ý: đây là
+     * ngữ cảnh nhất thời của một tấm ảnh đã bị xoá, không phải tiền sử bệnh.
+     *
+     * <p>Tự nuốt lỗi vào log: hỏng chỗ này thì cùng lắm là model quên, không được phép làm hỏng
+     * lượt trả kết quả phân tích cho khách.
+     */
+    @Transactional
+    public void appendAssistantNote(String sessionId, String note) {
+        if (sessionId == null || sessionId.isBlank() || note == null || note.isBlank()) {
+            return;
+        }
+        try {
+            AiChatSession session = loadOrCreateSession(sessionId);
+            List<AiMessage> history = new ArrayList<>();
+            if (session.getChatHistoryJson() != null && !session.getChatHistoryJson().isBlank()) {
+                history = objectMapper.readValue(session.getChatHistoryJson(),
+                        new TypeReference<List<AiMessage>>() {});
+            }
+            history.add(new AiMessage("assistant", note));
+            session.setChatHistoryJson(objectMapper.writeValueAsString(history));
+            sessionRepository.save(session);
+        } catch (Exception e) {
+            System.err.println("\u26a0\ufe0f [AI][" + sessionId + "] Không ghi được ghi chú vào lịch sử: "
+                    + e.getMessage());
+        }
     }
 
     @Transactional

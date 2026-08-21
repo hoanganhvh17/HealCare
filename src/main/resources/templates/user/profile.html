@@ -774,6 +774,101 @@
                   </tbody>
                 </table>
               </div>
+
+<!--              &lt;!&ndash;/* Hồ sơ bệnh án mang từ nơi khác tới. Chú thích dev PHẢI viết dạng này:-->
+<!--                     dạng &lt;!&ndash; &ndash;&gt; thường được Thymeleaf gửi thẳng ra trình duyệt, và trong th:each-->
+<!--                     thì lặp lại một lần mỗi dòng. */&ndash;&gt;-->
+              <hr class="my-4">
+
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-normal text-dark mb-0">Hồ sơ bệnh án từ nơi khác</h6>
+                <button type="button" class="btn btn-sm btn-teal" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                  <i class="bi bi-cloud-arrow-up me-1"></i> Tải hồ sơ lên
+                </button>
+              </div>
+
+              <p class="text-muted small mb-3">
+                Đã khám ở bệnh viện khác hoặc tuyến dưới? Tải ảnh chụp hoặc tệp PDF của giấy khám lên đây.
+                Trợ lý AI sẽ đọc và gợi ý chuyên khoa phù hợp, còn bác sĩ sẽ xem được ngay khi anh/chị tới khám.
+              </p>
+
+              <div th:if="${externalRecords == null or externalRecords.isEmpty()}"
+                   class="alert alert-light border text-muted small">
+                <i class="bi bi-info-circle me-1"></i>
+                Anh/chị chưa tải hồ sơ nào lên. Nhận ảnh JPG/PNG/WEBP và tệp PDF, tối đa 10MB mỗi tệp.
+              </div>
+
+              <div class="table-responsive" th:if="${externalRecords != null and !externalRecords.isEmpty()}">
+                <table class="table align-middle">
+                  <thead class="table-light">
+                  <tr class="small text-muted">
+                    <th>Hồ sơ</th>
+                    <th>Ngày tải</th>
+                    <th>Kết quả đọc của AI</th>
+                    <th class="text-end">Thao tác</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="doc : ${externalRecords}">
+                    <td>
+                      <a th:href="@{'/user/medical-document/file/' + ${doc.id}}" target="_blank" rel="noopener"
+                         class="fw-semibold text-decoration-none" th:text="${doc.title}">Hồ sơ</a>
+                      <div class="small text-muted">
+                        <span th:text="${doc.docType == 'PDF' ? 'Tệp PDF' : 'Ảnh chụp'}">Ảnh chụp</span>
+                        <span th:if="${doc.patientNote}" th:text="' · ' + ${doc.patientNote}"></span>
+                      </div>
+                    </td>
+                    <td class="small text-muted"
+                        th:text="${doc.createdAt != null ? #temporals.format(doc.createdAt, 'dd/MM/yyyy') : ''}">01/01/2026</td>
+                    <td style="max-width: 380px;">
+                      <div th:if="${doc.aiStatus == 'DONE'}">
+                        <div class="small" style="white-space: pre-line;" th:text="${doc.aiSummary}">Tóm tắt</div>
+                        <span th:if="${doc.aiDepartmentId != null}" class="badge bg-info-subtle text-info-emphasis mt-1">
+                          Gợi ý khám chuyên khoa
+                        </span>
+                      </div>
+                      <div th:if="${doc.aiStatus == 'UNREADABLE'}" class="small text-warning-emphasis"
+                           th:text="${doc.aiSummary}">Bản scan.</div>
+                      <div th:if="${doc.aiStatus == 'FAILED'}" class="small text-danger"
+                           th:text="${doc.aiSummary}">Chưa đọc được.</div>
+                      <div th:if="${doc.aiStatus == null or doc.aiStatus == 'PENDING'}" class="small text-muted">
+                        Chưa phân tích.
+                      </div>
+                    </td>
+                    <td class="text-end text-nowrap">
+                      <!--/* Chỉ mời "Phân tích & tư vấn" khi thật sự CÓ nội dung để hỏi: bấm nút này
+                             lúc hồ sơ còn PENDING là mở khung chat để nghe một câu "chưa có gì".
+
+                             XƯNG HÔ: câu này được gửi ĐI như lời của BỆNH NHÂN và hiện trong bóng chat màu xanh
+                             của họ, nên bệnh nhân xưng "tôi" và gọi trợ lý là "bạn". Luật "AI xưng em, gọi khách là
+                             anh/chị" ở mục 0 của prompt là luật cho LờI CỦA AI — áp vào đây thì bệnh nhân tự gọi
+                             mình là "em", đọc như trợ lý đang tự nói chuyện với chính nó. */-->
+                      <button type="button" class="btn btn-sm btn-outline-primary mb-1"
+                              th:if="${doc.aiStatus == 'DONE'}"
+                              th:attr="data-ai-prompt=${'Bạn phân tích giúp tôi hồ sơ bệnh án cũ tôi đã tải lên và tư vấn xem tôi nên khám chuyên khoa nào'}"
+                              data-doc-analyze="true">
+                        <i class="bi bi-robot"></i> Phân tích &amp; tư vấn khoa
+                      </button>
+                      <form th:action="@{'/user/medical-document/analyze/' + ${doc.id}}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary mb-1" title="Cho AI đọc lại tệp này">
+                          <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                      </form>
+                      <form th:if="${documentBlockReasons[doc.id] == null}"
+                            th:action="@{'/user/medical-document/delete/' + ${doc.id}}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger mb-1"
+                                onclick="return confirm('Xoá hồ sơ này khỏi tài khoản?')">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                      <span th:if="${documentBlockReasons[doc.id] != null}"
+                            class="small text-muted fst-italic"
+                            th:title="${documentBlockReasons[doc.id]}">Không thể xoá</span>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div class="tab-pane fade" id="security-pane">
               <p class="text-muted mt-3">Cài đặt bảo mật hai lớp và khóa tài khoản.</p>
@@ -786,6 +881,53 @@
     </div>
   </section>
 </main>
+
+<!-- Modal Tải hồ sơ bệnh án từ nơi khác -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-teal text-white border-0">
+        <h5 class="modal-title"><i class="bi bi-cloud-arrow-up me-2"></i>Tải hồ sơ bệnh án cũ</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <!--/* enctype BẮT BUỘC — thiếu nó thì Spring nhận được một chuỗi rỗng thay vì tệp, và lỗi
+             hiện ra dưới dạng "Vui lòng chọn tệp" dù khách đã chọn. Tiền lệ trên chính trang này
+             là modal đổi ảnh đại diện phía dưới. */-->
+      <form th:action="@{/user/medical-document/upload}" method="post" enctype="multipart/form-data">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Tên hồ sơ <span class="text-danger">*</span></label>
+            <input type="text" name="title" class="form-control" required maxlength="200"
+                   placeholder="VD: Khám tại BV Bạch Mai 03/2026">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Tệp hồ sơ <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control" required
+                   accept=".jpg,.jpeg,.png,.webp,.pdf">
+            <div class="form-text">
+              Ảnh chụp JPG/PNG/WEBP hoặc tệp PDF, tối đa 10MB. Nếu là bản scan nhiều trang,
+              anh/chị chụp ảnh từng trang rồi tải lên từng tệp để hệ thống đọc được chữ.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Ghi chú thêm</label>
+            <textarea name="patientNote" class="form-control" rows="2"
+                      placeholder="VD: Triệu chứng lúc đó, lý do đi khám..."></textarea>
+          </div>
+          <div class="alert alert-light border small text-muted mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            Tệp được lưu riêng tư. Chỉ anh/chị và bác sĩ có lịch hẹn với anh/chị mới mở được.
+            Nội dung sẽ được trợ lý AI đọc tự động để gợi ý chuyên khoa.
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-teal">Tải lên &amp; phân tích</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Khai báo dị ứng -->
 <div class="modal fade" id="addAllergyModal" tabindex="-1" aria-hidden="true">
@@ -941,6 +1083,31 @@
     if (trigger) {
       new bootstrap.Tab(trigger).show();
     }
+  });
+
+  // Nút "Phân tích & tư vấn khoa" ở bảng hồ sơ ngoại viện: mở khung chat AI vốn đã có sẵn trên
+  // trang này (fragment user/include/ai-chat ở cuối <body>) rồi gửi câu hỏi vào đó.
+  //
+  // MỘT listener uỷ quyền chứ không onclick từng dòng, và câu hỏi đi qua data-ai-prompt chứ không
+  // th:onclick: câu tiếng Việt đầy dấu nháy đơn, nội suy thẳng vào JS là vỡ cả script (xem 8 ô
+  // insight ở doctor/dashboard.html).
+  //
+  // Đẩy chữ vào ô nhập rồi bấm nút gửi — đúng cách window.sendQuickReply trong ai-chat.js làm.
+  // sendMessage() KHÔNG nhận tham số, nó đọc thẳng giá trị của ô nhập.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-doc-analyze]');
+    if (!btn) return;
+    e.preventDefault();
+
+    var input = document.getElementById('ai-chat-input');
+    var send = document.getElementById('ai-chat-send');
+    if (!input || !send) return;
+
+    if (window.MediTrustChat && window.MediTrustChat.openChat) {
+      window.MediTrustChat.openChat();
+    }
+    input.value = btn.dataset.aiPrompt;
+    send.click();
   });
 </script>
 

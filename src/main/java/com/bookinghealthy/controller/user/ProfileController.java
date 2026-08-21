@@ -2,6 +2,7 @@ package com.bookinghealthy.controller.user;
 
 import com.bookinghealthy.dto.UpdateProfileDTO;
 import com.bookinghealthy.model.Allergy;
+import com.bookinghealthy.model.ExternalMedicalRecord;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.User;
@@ -40,6 +41,7 @@ public class ProfileController {
     @Autowired private NotificationService notificationService;
     @Autowired private WalletService walletService;
     @Autowired private AllergyService allergyService;
+    @Autowired private com.bookinghealthy.service.ExternalMedicalRecordService externalMedicalRecordService;
     @Autowired private ReviewService reviewService;
     @Autowired private FileStorageService fileStorageService;
 
@@ -126,6 +128,19 @@ public class ProfileController {
         }
         model.addAttribute("allergies", allergies);
         model.addAttribute("allergyBlockReasons", allergyBlockReasons);
+
+        // Hồ sơ bệnh án bệnh nhân mang từ nơi khác tới — cùng khuôn với dị ứng ngay trên: template
+        // dùng map lý do để ẨN nút xoá, controller xoá thì gọi lại chính hàm đó, nên giao diện và
+        // server không bao giờ nói khác nhau.
+        List<ExternalMedicalRecord> externalRecords =
+                externalMedicalRecordService.findForUser(user.getId());
+        Map<Long, String> documentBlockReasons = new HashMap<>();
+        for (ExternalMedicalRecord record : externalRecords) {
+            documentBlockReasons.put(record.getId(),
+                    externalMedicalRecordService.whyCannotDelete(record, user));
+        }
+        model.addAttribute("externalRecords", externalRecords);
+        model.addAttribute("documentBlockReasons", documentBlockReasons);
 
         return "user/profile";
     }

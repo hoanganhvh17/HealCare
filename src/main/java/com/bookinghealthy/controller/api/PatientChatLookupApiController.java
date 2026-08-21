@@ -4,10 +4,12 @@ import com.bookinghealthy.dto.DoctorDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
+import com.bookinghealthy.model.ExternalMedicalRecord;
 import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.UserRepository;
 import com.bookinghealthy.service.BookingService;
 import com.bookinghealthy.service.DoctorService;
+import com.bookinghealthy.service.ExternalMedicalRecordService;
 import com.bookinghealthy.service.ReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +36,7 @@ public class PatientChatLookupApiController {
     @Autowired private DoctorService doctorService;
     @Autowired private ReviewService reviewService;
     @Autowired private com.bookinghealthy.service.TimeSlotService timeSlotService;
+    @Autowired private ExternalMedicalRecordService externalMedicalRecordService;
 
     @GetMapping("/my-bookings")
     public ResponseEntity<Map<String, Object>> myBookings() {
@@ -105,6 +108,33 @@ public class PatientChatLookupApiController {
         } catch (Exception e) {
             return date.atStartOfDay();
         }
+    }
+
+    /**
+     * Hồ sơ bệnh án bệnh nhân mang từ nơi khác tới và đã tự tải lên.
+     *
+     * <p><b>Phải khai {@code authenticated()} ở KHỐI 0 của SecurityConfig</b>, y hệt
+     * {@code /api/chat/my-bookings}: {@code /api/chat/**} nằm trong danh sách {@code permitAll}
+     * bên dưới và Spring lấy luật khớp ĐẦU TIÊN — thiếu dòng đó là giao hồ sơ sức khoẻ của bệnh
+     * nhân cho bất kỳ ai gọi API.
+     */
+    @GetMapping("/my-documents")
+    public ResponseEntity<Map<String, Object>> myDocuments() {
+        Optional<User> currentUser = resolveCurrentUser(
+                SecurityContextHolder.getContext().getAuthentication());
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(401).body(Map.of("error", "NOT_LOGGED_IN"));
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (ExternalMedicalRecord rec : externalMedicalRecordService.findForUser(currentUser.get().getId())) {
+            rows.add(externalMedicalRecordService.toCard(rec));
+        }
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("documents", rows);
+        body.put("total", rows.size());
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/doctor-profile")

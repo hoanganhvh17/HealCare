@@ -58,34 +58,34 @@
            Cố ý tính TOÀN THỜI GIAN, không theo kỳ: một lịch treo từ tháng 6 không được phép biến
            mất chỉ vì admin đang xem kỳ 7 ngày. Mỗi dòng chỉ tồn tại khi con số > 0 — service lọc
            sẵn, template không cần th:if cho từng loại. */-->
-    <div class="row">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">
-              Việc cần xử lý <span>| toàn thời gian</span>
-            </h5>
+<!--    <div class="row">-->
+<!--      <div class="col-12">-->
+<!--        <div class="card">-->
+<!--          <div class="card-body">-->
+<!--            <h5 class="card-title">-->
+<!--              Việc cần xử lý <span>| toàn thời gian</span>-->
+<!--            </h5>-->
 
-            <div th:if="${#lists.isEmpty(dash.alerts)}" class="alert-healthy">
-              <i class="bi bi-check-circle-fill fs-5"></i>
-              <span>Đã kiểm mọi đầu việc — hiện không có gì cần xử lý.</span>
-            </div>
+<!--            <div th:if="${#lists.isEmpty(dash.alerts)}" class="alert-healthy">-->
+<!--              <i class="bi bi-check-circle-fill fs-5"></i>-->
+<!--              <span>Đã kiểm mọi đầu việc — hiện không có gì cần xử lý.</span>-->
+<!--            </div>-->
 
-            <div th:each="a : ${dash.alerts}" class="alert-row">
-              <div class="alert-icon" th:classappend="${'alert-' + a.severity + '-soft'}">
-                <i class="bi" th:classappend="${a.icon}"></i>
-              </div>
-              <div class="flex-grow-1">
-                <div class="alert-title" th:text="${a.title}">Tiêu đề</div>
-                <div class="alert-detail" th:text="${a.detail}">Chi tiết</div>
-              </div>
-              <a class="btn btn-sm btn-outline-primary align-self-center"
-                 th:href="@{${a.href}}" th:text="${a.actionLabel}">Xem</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+<!--            <div th:each="a : ${dash.alerts}" class="alert-row">-->
+<!--              <div class="alert-icon" th:classappend="${'alert-' + a.severity + '-soft'}">-->
+<!--                <i class="bi" th:classappend="${a.icon}"></i>-->
+<!--              </div>-->
+<!--              <div class="flex-grow-1">-->
+<!--                <div class="alert-title" th:text="${a.title}">Tiêu đề</div>-->
+<!--                <div class="alert-detail" th:text="${a.detail}">Chi tiết</div>-->
+<!--              </div>-->
+<!--              <a class="btn btn-sm btn-outline-primary align-self-center"-->
+<!--                 th:href="@{${a.href}}" th:text="${a.actionLabel}">Xem</a>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
 
     <!--/* ================================ ② TIỀN ================================
            Ba thẻ đầu TRỪ RA KHỚP NHAU: Đã thu − Đã hoàn = Thực thu. "Thực thu" không có truy vấn
@@ -99,7 +99,7 @@
         </h6>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='ĐÃ THU',
                 value=${#numbers.formatDecimal(dash.money.gross, 0, 'POINT', 0, 'POINT')} + ' đ',
@@ -107,7 +107,7 @@
                 icon='bi-cash-stack', accent='accent-green', trend=null)}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='ĐÃ HOÀN TRẢ',
                 value=${#numbers.formatDecimal(dash.money.refunded, 0, 'POINT', 0, 'POINT')} + ' đ',
@@ -115,7 +115,7 @@
                 icon='bi-arrow-counterclockwise', accent='accent-red', trend=null)}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='THỰC THU',
                 value=${#numbers.formatDecimal(dash.money.net, 0, 'POINT', 0, 'POINT')} + ' đ',
@@ -123,7 +123,7 @@
                 icon='bi-wallet2', accent='accent-teal', trend=null)}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='CÒN PHẢI THU',
                 value=${#numbers.formatDecimal(dash.money.owed, 0, 'POINT', 0, 'POINT')} + ' đ',
@@ -172,7 +172,7 @@
         </h6>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='LỊCH HẸN MỚI',
                 value=${dash.ops.newBookings},
@@ -180,7 +180,7 @@
                 icon='bi-calendar-plus', accent='accent-blue', trend=${dash.ops.bookingTrend})}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='ĐÃ HOÀN THÀNH',
                 value=${dash.ops.completed},
@@ -188,7 +188,7 @@
                 icon='bi-clipboard2-check', accent='accent-green', trend=null)}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='ĐÃ HUỶ',
                 value=${dash.ops.canceled},
@@ -196,7 +196,7 @@
                 icon='bi-x-circle', accent='accent-red', trend=null)}"></div>
       </div>
 
-      <div class="col-xl-3 col-md-6">
+      <div class="col-xl-3 col-md-6 mb-4">
         <div th:replace="~{admin/include/stat-tile :: tile(
                 label='ĐIỂM CHẤT LƯỢNG',
                 value=${#numbers.formatDecimal(dash.ops.avgRating, 1, 'POINT', 1, 'COMMA')},

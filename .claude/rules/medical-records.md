@@ -45,6 +45,80 @@ Chuông dùng `NotificationService.push` chứ **không** `pushBookingEvent`, v�
 
 PDF đơn thuốc dựng qua `PdfExportService.buildPrescription`, bọc try/catch **riêng**: hàm đó ném khi thiếu font Unicode trong `resources/fonts` (xem [environment-setup.md](environment-setup.md)). Thiếu tệp đính kèm thì chấp nhận được vì toàn bộ đơn thuốc đã nằm trong thân thư — mất luôn cả thư thì không. Giữ nguyên khối try/catch đó kể cả khi font đã có: nó là thứ giữ cho một sự cố in ấn không nuốt mất lá thư.
 
+## Hồ sơ bệnh án bệnh nhân mang từ NƠI KHÁC tới
+
+`ExternalMedicalRecord` (bảng `external_medical_records`) giữ giấy tờ bệnh nhân đã khám ở bệnh viện
+khác / tuyến dưới rồi tự tải lên. Ba nơi tiêu thụ: khối tiêm ngữ cảnh của chatbot, thẻ tra cứu
+`my_documents` trong khung chat, và thẻ cho bác sĩ trên form khám + trang hồ sơ bệnh nhân.
+
+**Tuyệt đối không dùng lại `MedicalAttachment` cho việc này.** Entity đó khai
+`@JoinColumn(name = "medical_record_id", nullable = false)`, tức bắt buộc phải có một `MedicalRecord` —
+thứ chỉ tồn tại SAU khi bác sĩ của viện này khám xong. Hồ sơ cũ tồn tại TRƯỚC mọi lịch hẹn, nên nó
+khoá thẳng vào `User`. (`MedicalAttachment` vẫn là mã chết: chỗ ghi duy nhất được gọi với `null`.)
+
+**ẢNH TRIỆU CHỨNG KHÔNG PHẢI HỒ SƠ BỆNH ÁN và KHÔNG BAO GIỜ được lưu.** Khách gửi ảnh chụp mắt
+sưng / nốt ban vào khung chat thì máy chủ phân loại ra `SYMPTOM`, tư vấn chuyên khoa rồi **vứt bytes
+đi** — không tệp trên đĩa, không dòng trong `external_medical_records`. Đây là lựa chọn về quyền
+riêng tư: ảnh một phần cơ thể nhạy cảm hơn giấy tờ nhiều, và bảng này thì **bác sĩ có lịch hẹn đọc
+được**. Xem [ai-assistant.md](ai-assistant.md).
+
+Trước khi có phân loại, mọi ảnh đều đi qua prompt "đọc hồ sơ bệnh án": ảnh mắt sưng → model trả
+*"đây không phải giấy tờ y tế"* → `applyAiResult` vẫn lưu `aiStatus = DONE` → dòng đó được tiêm vào
+system prompt **mọi lượt chat** dưới tiêu đề "HỒ SƠ BỆNH ÁN TỪ NƠI KHÁC" và hiện trên form khám của
+bác sĩ. `applyAnalysis` nay từ chối đặt `DONE` cho bất cứ thứ gì không phải `DOCUMENT`.
+
+**HAI đường vào, một đường xử lý.** Bệnh nhân tải lên từ tab "Hồ sơ y tế" ở `/user/profile`, **hoặc**
+đính kèm thẳng trong khung chat AI (nút kẹp giấy). Cả hai đều gọi cùng `upload` + `analyze`, lưu cùng
+chỗ, chịu cùng `whyCannotView` — khác mỗi hình thức trả về: trang hồ sơ redirect kèm flash message,
+khung chat trả JSON (`POST /chat-upload`) vì một lần tải lại trang sẽ xoá sạch đoạn hội thoại đang dở.
+Xem [ai-assistant.md](ai-assistant.md).
+
+Luồng: `UserMedicalDocumentController` (`/user/medical-document/**`, khuôn `UserAllergyController`)
+→ `ExternalMedicalRecordService.upload` lưu tệp qua `FileStorageService.storeMedicalDocument` →
+`analyze(id)` đọc nội dung rồi gọi AI → lưu `aiSummary` + `aiDepartmentId` + `aiStatus`.
+
+**Hai đường đọc nội dung, và cái thứ hai là chỗ dễ nói dối nhất:**
+- **Ảnh** → `DocumentTextExtractor.toImageDataUrl` (thu nhỏ 1600px, JPEG, base64) →
+  `AiService.analyzeDocumentImage`. **Thu nhỏ là bắt buộc**: base64 phình ~33%, một ảnh 10MB thành
+  request ~13MB và đốt token vô ích.
+- **PDF** → `extractPdfText` (PDFBox) → `AiService.getStatelessResponse`. **PDF bản scan trả chuỗi
+  RỖNG** (không có lớp chữ), và ngưỡng là `MIN_MEANINGFUL_CHARS = 60` chứ không phải `isBlank()` —
+  bản scan hay còn vài ký tự watermark, đủ qua phép thử rỗng nhưng không đủ để tóm tắt gì. Rỗng thì
+  ghi `UNREADABLE` và mời bệnh nhân chụp ảnh từng trang; **đưa chuỗi rỗng cho model là in ra một bản
+  "tóm tắt" bịa đặt dưới tên hồ sơ bệnh án**.
+
+**Bốn trạng thái `aiStatus`, không trạng thái nào im lặng**: `PENDING` (chưa chạy, hoặc
+`medical-doc.ai-enabled=false`), `DONE`, `UNREADABLE` (PDF scan), `FAILED` (model hỏng hoặc JSON
+không đọc được). Cả bốn đều có câu tiếng Việt riêng trên màn hình bệnh nhân và màn hình bác sĩ —
+riêng `PENDING` phải nói "chưa phân tích", **không** được gộp với `FAILED`: nói với bác sĩ rằng tệp
+hỏng trong khi nó bình thường là làm bác sĩ thôi bấm vào xem bản gốc.
+
+Luật phải sống sót qua mọi lần sửa:
+
+- **`analyze()` KHÔNG `@Transactional`.** Có lời gọi mạng giữa hàm; một transaction ở đây giam một
+  connection HikariCP (pool 10) suốt thời gian chờ. Cùng lý do khiến `MedicalRecordDeliveryService`
+  được tách ra.
+- **`upload()` cũng không `@Transactional`** vì nó ghi tệp ra đĩa — thứ rollback không thu hồi được.
+  Ghi tệp trước, lưu dòng sau, và **xoá tệp nếu lưu hỏng**, nếu không mỗi lỗi để lại một tệp mồ côi.
+- **`whyCannotView(record, viewer)` là nguồn sự thật duy nhất về quyền xem**: chủ hồ sơ, hoặc bác sĩ
+  **đã có lịch hẹn** với bệnh nhân đó (`BookingRepository.existsByDoctorIdAndUserId`). Nó dò qua bảng
+  `doctors` chứ **không đọc `User.roles`** — `roles` là `@ManyToMany` LAZY, một lần chạm ngoài session
+  là `LazyInitializationException` ở đúng chỗ đang gác quyền.
+- **Chỉ MỘT endpoint tải tệp** (`GET /user/medical-document/file/{id}`), dùng chung cho bệnh nhân và
+  bác sĩ, dù đường dẫn mang tiền tố `/user`. Tách làm hai theo đối tượng nghe gọn hơn nhưng thành hai
+  bản kiểm quyền có thể lệch nhau. Trả cùng mã 404 cho "không phải của bạn" và "không tồn tại".
+- **Tệp nằm ở `app.private-dir/medical-docs`, KHÔNG phải `app.upload-dir`** — dữ liệu sức khoẻ, cùng
+  lập luận đã dùng cho CV ứng viên. `privateRoot()` không được đăng ký với `ResourceHandler` nào.
+- **`aiStatus` / `docType` là `String`, không `@Enumerated`** — bẫy cột `ENUM(...)` native của MySQL.
+- **`aiDepartmentId` phải đối chiếu `DepartmentRepository.findById` trước khi ghi.** Model bịa id là
+  chuyện đã xảy ra nhiều lần trong dự án này; id lạ thành một đường dẫn chết.
+- **Bản tóm tắt AI KHÔNG phải chẩn đoán.** Câu miễn trừ bắt buộc có ở cả ba màn hình. Thẻ của bác sĩ
+  còn phải tách hẳn khỏi timeline bệnh án nội viện (viền cảnh báo riêng) — trộn hai thứ vào một danh
+  sách là mời bác sĩ tin một dòng chữ chưa ai kiểm chứng ngang với bệnh án đồng nghiệp đã ký.
+
+Xem [ai-assistant.md](ai-assistant.md) cho nhánh chat và [supporting-subsystems.md](supporting-subsystems.md)
+cho phần lưu trữ.
+
 ## AI assists on the exam form
 `doctor/medical-record-form.html` carries four AI buttons backed by `DoctorExamAiController` — allergy/interaction check, draft `doctorNotes`, ICD-10 suggestion, and a summary of the patient's prior records. They only ever *suggest*: nothing writes to `MedicalRecord`, the doctor still presses "Lưu Bệnh Án". Full rules in [ai-assistant.md](ai-assistant.md).
 

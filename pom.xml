@@ -116,6 +116,17 @@
 			<version>1.3.30</version>
 		</dependency>
 
+		<!-- ĐỌC nội dung PDF. OpenPDF ở trên chỉ GHI (sinh phiếu thu, đơn thuốc) — nó không có
+		     PdfReader nào, nên hồ sơ bệnh án bệnh nhân tải lên cần một thư viện riêng.
+		     Version phải ghi rõ: Spring Boot parent 3.2.5 không quản pdfbox.
+		     BẪY API: bản 3 dùng org.apache.pdfbox.Loader.loadPDF(File). Mọi ví dụ trên mạng viết
+		     PDDocument.load(...) là API của bản 2 và sẽ KHÔNG biên dịch được. -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>

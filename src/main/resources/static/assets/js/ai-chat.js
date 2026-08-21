@@ -378,6 +378,68 @@
                     return /lịch|lich|hẹn|hen|đặt|dat|khám|kham/.test(raw);
                 }
 
+                /**
+                 * Khách hỏi về HỒ SƠ BỆNH ÁN CŨ họ đã tự tải lên (khám ở viện khác mang sang).
+                 *
+                 * Hai luật của tệp này, cả hai đều đã có tiền lệ ngay bên cạnh:
+                 *
+                 * 1. Dùng lối ĐỆM DẤU CÁCH chứ không `\b`. `\b` của JavaScript chỉ hiểu chữ cái
+                 *    ASCII nên không bao giờ khớp một từ tiếng Việt có dấu.
+                 * 2. Mỗi cụm phải liệt kê CẢ HAI dạng có dấu và không dấu, y như
+                 *    `looksLikeMyBookingQuestion` ngay dưới đây. `normalizeText` chỉ hạ chữ thường
+                 *    và gộp khoảng trắng — nó KHÔNG bỏ dấu — nên một danh sách chỉ có dạng không
+                 *    dấu sẽ trượt sạch những khách gõ đủ dấu, tức phần lớn khách. Và cố ý không
+                 *    đưa cả câu qua `stripDiacritics`: làm vậy biến "sáng" thành giới từ "sang"
+                 *    và "tôi" thành "toi", đúng hai cái bẫy đã ghi ở coding-conventions.md.
+                 */
+                const MY_DOCS_ABOUT_OLD = [
+                    ' hồ sơ cũ ', ' ho so cu ',
+                    ' bệnh án cũ ', ' benh an cu ',
+                    ' hồ sơ bệnh án cũ ', ' ho so benh an cu ',
+                    ' giấy khám cũ ', ' giay kham cu ',
+                    ' kết quả khám cũ ', ' ket qua kham cu ',
+                    ' hồ sơ đã tải lên ', ' ho so da tai len ',
+                    ' bệnh án đã tải lên ', ' benh an da tai len ',
+                    ' hồ sơ ngoại viện ', ' ho so ngoai vien ',
+                    ' khám ở viện khác ', ' kham o vien khac ',
+                    ' khám ở bệnh viện khác ', ' kham o benh vien khac ',
+                    ' khám ở nơi khác ', ' kham o noi khac ',
+                    ' tuyến dưới ', ' tuyen duoi '
+                ];
+
+                const MY_DOCS_POSSESSIVE = [
+                    ' của tôi ', ' cua toi ', ' của mình ', ' cua minh ', ' của em ', ' cua em ',
+                    ' tôi đã tải ', ' toi da tai ', ' em đã tải ', ' em da tai ',
+                    ' mình đã tải ', ' minh da tai ', ' tôi vừa tải ', ' toi vua tai ',
+                    ' em vừa tải ', ' em vua tai ', ' tôi vừa gửi ', ' toi vua gui ',
+                    ' em vừa gửi ', ' em vua gui ', ' tôi tải lên ', ' toi tai len ',
+                    ' em tải lên ', ' em tai len ', ' tôi đã gửi ', ' toi da gui '
+                ];
+
+                const MY_DOCS_NOUN = [
+                    ' hồ sơ ', ' ho so ', ' bệnh án ', ' benh an ',
+                    ' giấy khám ', ' giay kham ', ' kết quả khám ', ' ket qua kham ',
+                    ' phiếu khám ', ' phieu kham ', ' đơn thuốc cũ ', ' don thuoc cu ',
+                    ' tải lên ', ' tai len '
+                ];
+
+                function looksLikeMyDocumentsQuestion(text) {
+                    // Bỏ dấu câu trước khi đệm, nếu không "hồ sơ cũ?" không khớp ' hồ sơ cũ '.
+                    const raw = normalizeText(text).replace(/[.,!?;:]/g, ' ').replace(/\s+/g, ' ').trim();
+                    const padded = ' ' + raw + ' ';
+                    const has = function(list) {
+                        return list.some(function(k) { return padded.indexOf(k) >= 0; });
+                    };
+
+                    // Cụm nói thẳng về hồ sơ CŨ thì nhận ngay, không cần thêm dấu hiệu sở hữu.
+                    if (has(MY_DOCS_ABOUT_OLD)) return true;
+
+                    // Còn lại phải có dấu hiệu SỞ HỮU: "hồ sơ" trần cũng là "hồ sơ năng lực",
+                    // "hồ sơ bác sĩ" — những thứ hoàn toàn khác.
+                    if (!has(MY_DOCS_POSSESSIVE)) return false;
+                    return has(MY_DOCS_NOUN);
+                }
+
                 function looksLikeDoctorInfoQuestion(text) {
                     const raw = normalizeText(text);
                     if (looksLikeBookingRequest(text)) return false;
@@ -796,6 +858,19 @@
                     return html + `</div>`;
                 }
 
+                /**
+                 * Thoát ký tự HTML. Các thẻ tra cứu khác nội suy thẳng vì dữ liệu là tên bác sĩ và
+                 * tên khoa lấy từ DB của chính mình; thẻ hồ sơ ngoại viện thì KHÔNG — nội dung ở đó
+                 * là chữ model đọc ra từ một tệp NGƯỜI LẠ tải lên, tức dữ liệu không tin được đi
+                 * thẳng vào innerHTML của một trang đã đăng nhập.
+                 */
+                function escapeHtml(value) {
+                    if (value === null || value === undefined) return '';
+                    return String(value)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                }
+
                 function lookupCard(inner) {
                     return `<div class="mt-3 p-3" style="background:#e0f2fe;border-left:4px solid #0ea5e9;border-radius:8px;">${inner}</div>`;
                 }
@@ -841,6 +916,190 @@
                                    </div>`}
                         </div>`;
                     });
+                    return lookupCard(inner);
+                }
+
+                /**
+                 * Thẻ CẤP CỨU — dùng chung cho cả hai đường: khách gõ chữ mô tả triệu chứng nguy
+                 * hiểm, và ảnh triệu chứng cho ra urgency = EMERGENCY.
+                 *
+                 * Trước đây nhánh này chỉ prepend một dòng chữ đỏ rồi CHẠY TIẾP: vẫn dựng thẻ bác
+                 * sĩ có link đặt lịch, vẫn vào resolveBookingHandoff, vẫn bật đếm ngược tự nhảy
+                 * sang /appointment sau 5 giây. Người đang cần gọi 115 mà trang tự chuyển sang form
+                 * đặt lịch là hành vi phải biến mất. Chế độ gọi (`enterEmergency`) đã làm đúng từ
+                 * đầu — đây là kéo khung chat gõ chữ về ngang với nó.
+                 *
+                 * KHÔNG hardcode id khoa Cấp cứu vào đây: cả dự án không có chỗ nào special-case
+                 * 21/22, chúng chỉ là chữ trong prompt và id đến từ thứ tự seed. Vả lại không ai
+                 * "đặt lịch" cấp cứu — thứ cần là số điện thoại và lời chỉ đường.
+                 */
+                function buildEmergencyCardHtml(bodyHtml) {
+                    return `<div class="p-3" style="background:#fef2f2;border-left:4px solid #dc2626;border-radius:8px;">
+                        <div class="fw-bold mb-2" style="color:#b91c1c;">
+                            <i class="bi bi-exclamation-triangle-fill"></i> CẢNH BÁO KHẨN CẤP
+                        </div>
+                        <div style="font-size:14px;color:#334155;">${bodyHtml}</div>
+                        <div class="mt-3 d-flex flex-wrap gap-2">
+                            <a href="tel:115" class="btn btn-sm btn-danger fw-bold">
+                                <i class="bi bi-telephone-fill"></i> Gọi 115 ngay
+                            </a>
+                            <a href="/departments" class="btn btn-sm btn-outline-danger">Khoa Cấp cứu</a>
+                        </div>
+                        <div style="font-size:12px;color:#7f1d1d;margin-top:8px;">
+                            Anh/chị tới cơ sở y tế gần nhất ngay ạ. Em tạm dừng việc đặt lịch khám ở đây,
+                            vì trường hợp này không nên chờ tới lịch hẹn.
+                        </div>
+                    </div>`;
+                }
+
+                /**
+                 * Thẻ kết quả đọc ẢNH TRIỆU CHỨNG.
+                 *
+                 * `escapeHtml` là bắt buộc ở mọi trường: đây là chữ model đọc ra từ một tấm ảnh
+                 * người lạ vừa tải lên, đi thẳng vào innerHTML của một trang đã đăng nhập.
+                 */
+                function buildSymptomResultHtml(sym) {
+                    const findings = Array.isArray(sym.findings) ? sym.findings : [];
+                    const departments = Array.isArray(sym.departments) ? sym.departments : [];
+
+                    let inner = `<div style="font-size:13px;color:#334155;">
+                        Em xem ảnh anh/chị gửi thì thấy${sym.bodyPart ? ' ở <strong>' + escapeHtml(sym.bodyPart) + '</strong>' : ''}:
+                    </div>`;
+
+                    if (findings.length > 0) {
+                        inner += '<ul class="mb-2 mt-1" style="font-size:13px;color:#334155;padding-left:18px;">';
+                        findings.forEach(function(f) { inner += `<li>${escapeHtml(f)}</li>`; });
+                        inner += '</ul>';
+                    }
+
+                    if (sym.advice) {
+                        inner += `<div style="font-size:13px;color:#334155;margin-bottom:6px;">
+                            <strong>Trong lúc chờ đi khám:</strong> ${escapeHtml(sym.advice)}
+                        </div>`;
+                    }
+
+                    if (departments.length > 0) {
+                        inner += '<div class="mt-2 d-flex flex-wrap gap-2">';
+                        departments.forEach(function(d) {
+                            inner += `<a href="/department-details/${d.id}" class="btn btn-sm btn-outline-primary">
+                                Xem bác sĩ khoa ${escapeHtml(d.name)}
+                            </a>`;
+                        });
+                        inner += '</div>';
+                    }
+
+                    // Hai câu này KHÔNG được bỏ: một câu nói rõ đây không phải chẩn đoán, một câu
+                    // nói rõ ảnh đã bị xoá — khách gửi ảnh cơ thể mình có quyền biết nó đi đâu.
+                    inner += `<div style="font-size:12px;color:#64748b;margin-top:8px;">
+                        ⚠️ Đây chỉ là mô tả những gì nhìn thấy trên ảnh, KHÔNG phải chẩn đoán.
+                        Anh/chị cần bác sĩ khám trực tiếp mới kết luận được ạ.
+                        <br>Ảnh của anh/chị đã được xoá ngay sau khi em xem, hệ thống không lưu lại.
+                    </div>`;
+                    return lookupCard(inner);
+                }
+
+                function buildMyDocumentsHtml(data) {
+                    if (data.needLogin) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Anh/chị <a href="/login">đăng nhập</a> giúp em để em xem hồ sơ đã tải lên ạ.
+                        </div>`);
+                    }
+                    if (data.error) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Em chưa đọc được hồ sơ của anh/chị lúc này ạ. Anh/chị thử lại, hoặc mở
+                            <a href="/user/profile#medical-records">tab Hồ sơ y tế</a> nhé.
+                        </div>`);
+                    }
+
+                    const docs = Array.isArray(data.documents) ? data.documents : [];
+                    if (docs.length === 0) {
+                        return lookupCard(`<div style="font-size:13px;color:#334155;">
+                            Anh/chị chưa tải hồ sơ bệnh án cũ nào lên ạ. Nếu đã khám ở nơi khác,
+                            anh/chị tải ảnh chụp hoặc tệp PDF lên ở
+                            <a href="/user/profile#medical-records">tab Hồ sơ y tế</a> để em đọc và
+                            tư vấn đúng chuyên khoa hơn nhé.
+                        </div>`);
+                    }
+
+                    let inner = `<div class="fw-bold mb-2" style="color:#075985;">
+                        <i class="bi bi-folder2-open"></i> Anh/chị đang có ${docs.length} hồ sơ bệnh án cũ ạ
+                    </div>`;
+
+                    docs.forEach(function(d) {
+                        // Bốn trạng thái, không trạng thái nào im lặng — xem ExternalMedicalRecord.
+                        let body;
+                        if (d.aiStatus === 'DONE') {
+                            body = `<div style="color:#334155;white-space:pre-line;">${escapeHtml(d.aiSummary)}</div>`;
+                            if (d.departmentId) {
+                                // Trỏ tới TRANG KHOA chứ không phải /appointment: form đặt lịch chỉ
+                                // nhận doctorId + appointmentDate, một tham số departmentId gắn vào
+                                // đó sẽ bị bỏ qua lặng lẽ và khách mở ra thấy form trống trơn.
+                                body += `<div class="mt-2">
+                                    <a href="/department-details/${d.departmentId}" class="btn btn-sm btn-outline-primary">
+                                        Xem bác sĩ khoa ${escapeHtml(d.departmentName || 'được gợi ý')}
+                                    </a>
+                                </div>`;
+                            }
+                        } else if (d.aiStatus === 'UNREADABLE' || d.aiStatus === 'FAILED') {
+                            body = `<div style="color:#92400e;">${escapeHtml(d.aiSummary || 'Em chưa đọc được tệp này ạ.')}</div>`;
+                        } else {
+                            body = `<div style="color:#64748b;">Hồ sơ này chưa được phân tích ạ.</div>`;
+                        }
+
+                        inner += `<div class="mb-2 p-2" style="background:#fff;border-radius:6px;font-size:13px;">
+                            <div><strong>${escapeHtml(d.title || 'Hồ sơ')}</strong>
+                                 <span style="color:#64748b;">${d.createdAt ? '· ' + escapeHtml(d.createdAt) : ''}</span></div>
+                            ${body}
+                            <div class="mt-1"><a href="${escapeHtml(d.fileUrl)}" target="_blank" rel="noopener">Xem tệp gốc</a></div>
+                        </div>`;
+                    });
+
+                    // Câu miễn trừ BẮT BUỘC: đây là chữ máy đọc từ giấy tờ, không phải chẩn đoán.
+                    inner += `<div style="font-size:12px;color:#64748b;margin-top:6px;">
+                        Đây là phần em đọc tự động từ giấy tờ anh/chị tải lên nên có thể sai sót.
+                        Bác sĩ sẽ đối chiếu bản gốc khi khám ạ.
+                    </div>`;
+                    return lookupCard(inner);
+                }
+
+                /**
+                 * Thẻ kết quả sau khi khách đính kèm hồ sơ ngay trong khung chat.
+                 *
+                 * Dùng lại đúng bốn nhánh trạng thái của `buildMyDocumentsHtml` — DONE / UNREADABLE
+                 * / FAILED / PENDING đều phải có câu riêng, không nhánh nào im lặng.
+                 */
+                function buildUploadResultHtml(doc) {
+                    let inner = `<div class="fw-bold mb-2" style="color:#075985;">
+                        <i class="bi bi-paperclip"></i> Em đã nhận hồ sơ của anh/chị ạ
+                    </div>
+                    <div style="font-size:13px;"><strong>${escapeHtml(doc.title || 'Hồ sơ')}</strong></div>`;
+
+                    if (doc.aiStatus === 'DONE') {
+                        inner += `<div style="font-size:13px;color:#334155;white-space:pre-line;margin-top:4px;">${escapeHtml(doc.aiSummary)}</div>`;
+                        if (doc.departmentId) {
+                            inner += `<div class="mt-2">
+                                <a href="/department-details/${doc.departmentId}" class="btn btn-sm btn-outline-primary">
+                                    Xem bác sĩ khoa ${escapeHtml(doc.departmentName || 'được gợi ý')}
+                                </a>
+                            </div>`;
+                        }
+                    } else if (doc.aiStatus === 'UNREADABLE' || doc.aiStatus === 'FAILED') {
+                        inner += `<div style="font-size:13px;color:#92400e;margin-top:4px;">${escapeHtml(doc.aiSummary || 'Em chưa đọc được tệp này ạ.')}</div>`;
+                    } else {
+                        inner += `<div style="font-size:13px;color:#64748b;margin-top:4px;">
+                            Em đã lưu hồ sơ nhưng chưa đọc được nội dung ạ. Anh/chị mở
+                            <a href="/user/profile#medical-records">tab Hồ sơ y tế</a> bấm "Phân tích lại" giúp em nhé.
+                        </div>`;
+                    }
+
+                    inner += `<div class="mt-1" style="font-size:12px;">
+                        <a href="${escapeHtml(doc.fileUrl)}" target="_blank" rel="noopener">Xem tệp gốc</a>
+                        · <a href="/user/profile#medical-records">Quản lý hồ sơ đã tải</a>
+                    </div>
+                    <div style="font-size:12px;color:#64748b;margin-top:6px;">
+                        Đây là phần em đọc tự động từ giấy tờ nên có thể sai sót. Bác sĩ sẽ đối chiếu
+                        bản gốc khi anh/chị tới khám ạ.
+                    </div>`;
                     return lookupCard(inner);
                 }
 
@@ -1602,12 +1861,19 @@
                  * KHÔNG nhánh nào ở đây được đặt chỗ, đếm ngược hay ghi lastHandoffDate: khách mới
                  * chỉ HỎI. Muốn đặt thì có LINK để tự bấm.
                  */
-                async function resolveLookup(aiData, userText) {
+                async function resolveLookup(aiData, userText, suppressDocumentsCard) {
                     const lookup = (aiData && aiData.lookup) || {};
                     const type = lookup.type;
 
                     if (type === 'my_bookings' || looksLikeMyBookingQuestion(userText)) {
                         return await resolveMyBookings();
+                    }
+                    if (type === 'my_documents' || looksLikeMyDocumentsQuestion(userText)) {
+                        // Thẻ hồ sơ vừa in cách đây hai bóng chat — xem skipNextDocumentsCard.
+                        // Trả null chứ không rơi tiếp xuống nhánh lịch làm việc: lượt này nói về
+                        // hồ sơ, không phải về lịch của bác sĩ nào.
+                        if (suppressDocumentsCard) return null;
+                        return await resolveMyDocuments();
                     }
                     if (type === 'doctor_filter' || looksLikeDoctorFilterQuestion(userText)) {
                         return await resolveDoctorFilter(aiData, userText);
@@ -1634,6 +1900,23 @@
                     } catch (err) {
                         console.error(err);
                         return { kind: 'my_bookings', error: 'NETWORK' };
+                    }
+                }
+
+                async function resolveMyDocuments() {
+                    // Chưa đăng nhập thì KHÔNG gọi API (nó trả 401): mời đăng nhập ngay tại chỗ.
+                    if (window.MEDITRUST_IS_LOGGED_IN !== true) {
+                        return { kind: 'my_documents', needLogin: true };
+                    }
+                    try {
+                        const res = await fetch('/api/chat/my-documents');
+                        if (res.status === 401) return { kind: 'my_documents', needLogin: true };
+                        if (!res.ok) return { kind: 'my_documents', error: 'NETWORK' };
+                        const data = await res.json();
+                        return Object.assign({ kind: 'my_documents' }, data);
+                    } catch (err) {
+                        console.error(err);
+                        return { kind: 'my_documents', error: 'NETWORK' };
                     }
                 }
 
@@ -2351,6 +2634,20 @@ maximizeBtn.addEventListener('click', (e) => {
         // tin nhắn), hai lần ghi lastHandoffDate/pendingAlternatives, và hai bộ đếm chuyển trang.
         let isSending = false;
 
+        /**
+         * Vừa in thẻ kết quả tải hồ sơ xong thì lượt NGAY SAU đó không in lại danh sách hồ sơ.
+         *
+         * Câu tự gửi sau khi tải lên BẮT BUỘC phải nhắc tới hồ sơ ("Bạn xem hồ sơ tôi vừa gửi...")
+         * — đo bằng model thật: bỏ vế đó đi, hỏi trống "Tôi nên khám chuyên khoa nào?", thì model
+         * coi là mô tả mông lung và rơi về khoa 22 (Y học gia đình) thay vì đọc khối tiền sử đã
+         * tiêm. Nhưng chính vế đó lại khớp `looksLikeMyDocumentsQuestion`, nên thẻ danh sách hồ sơ
+         * in ra ngay dưới thẻ vừa in cách đó hai bóng chat. Cờ này cắt đúng một lần lặp đó.
+         *
+         * Chỉ sống ĐÚNG MỘT lượt: `sendMessage` đọc rồi xoá ngay, nếu không một câu hỏi thật về hồ
+         * sơ ở lượt sau sẽ bị nuốt mất thẻ.
+         */
+        let skipNextDocumentsCard = false;
+
         async function sendMessage() {
             if (isSending) return;
             const text = chatInput.value.trim();
@@ -2361,6 +2658,10 @@ maximizeBtn.addEventListener('click', (e) => {
 
             isSending = true;
             if (sendBtn) sendBtn.disabled = true;
+
+            // Đọc và xoá NGAY: cờ chỉ có hiệu lực cho đúng lượt này.
+            const suppressDocumentsCard = skipNextDocumentsCard;
+            skipNextDocumentsCard = false;
 
             appendMessage('user', text);
             chatInput.value = '';
@@ -2460,7 +2761,15 @@ maximizeBtn.addEventListener('click', (e) => {
                                             typingMsg.innerHTML = aiData.ai_reply
                                                 || 'Dạ em chưa nghe rõ ý anh/chị, anh/chị nói lại giúp em với ạ.';
                                             if (aiData.is_emergency) {
-                                                typingMsg.innerHTML = `<div style="color: red; font-weight: bold; margin-bottom: 8px;"><i class="bi bi-exclamation-triangle-fill"></i> 🚨 CẢNH BÁO KHẨN CẤP:</div>` + typingMsg.innerHTML;
+                                                // DỪNG HẲN tại đây: không thẻ bác sĩ, không chốt
+                                                // lịch, không đếm ngược chuyển trang. Xem
+                                                // buildEmergencyCardHtml để biết vì sao.
+                                                typingMsg.innerHTML = buildEmergencyCardHtml(typingMsg.innerHTML);
+                                                cancelRedirect('');
+                                                pendingAlternatives = null;
+                                                safeStorage.setChatHtml(messagesContainer.innerHTML);
+                                                notifyReply({ aiData: aiData, userText: text, bookingHandoff: null });
+                                                return;
                                             }
 
                                             // 3. Xử lý đa ý định (Vòng lặp quét mảng recommended_departments)
@@ -2640,12 +2949,14 @@ maximizeBtn.addEventListener('click', (e) => {
                                             // /hold-slot, chạy startRedirectCountdown. Cả ba chỉ nằm trong
                                             // finishBookingHandoff, nên chỉ cần KHÔNG gọi hàm đó là đủ. Cũng KHÔNG
                                             // ghi lastHandoffDate: khách mới chỉ HỎI về một ngày, chưa chọn nó.
-                                            const lookupResult = await resolveLookup(aiData, text);
+                                            const lookupResult = await resolveLookup(aiData, text, suppressDocumentsCard);
                                             const availability = (lookupResult && lookupResult.kind === 'availability')
                                                 ? lookupResult : null;
 
                                             if (lookupResult && lookupResult.kind === 'my_bookings') {
                                                 typingMsg.innerHTML += buildMyBookingsHtml(lookupResult);
+                                            } else if (lookupResult && lookupResult.kind === 'my_documents') {
+                                                typingMsg.innerHTML += buildMyDocumentsHtml(lookupResult);
                                             } else if (lookupResult && lookupResult.kind === 'doctor_info') {
                                                 typingMsg.innerHTML += buildDoctorProfileHtml(lookupResult);
                                             } else if (lookupResult && lookupResult.kind === 'doctor_filter') {
@@ -2686,7 +2997,7 @@ maximizeBtn.addEventListener('click', (e) => {
 
                                             // Lưu lại khung HTML (Đã chạy ngầm memory JSON)
                                             safeStorage.setChatHtml(messagesContainer.innerHTML);
-                                            // `lookup` mang CẢ BỐN nhánh tra cứu sang lớp gọi thoại.
+                                            // `lookup` mang CẢ NĂM nhánh tra cứu sang lớp gọi thoại.
                                             // Trước đây payload chỉ có `availability`, nên ba nhánh còn lại
                                             // (lịch hẹn của khách, hồ sơ bác sĩ, danh sách gợi ý bác sĩ) in
                                             // ra thẻ chat nhưng KHÔNG BAO GIỜ được đọc lên trong chế độ gọi —
@@ -2724,6 +3035,143 @@ maximizeBtn.addEventListener('click', (e) => {
                 isSending = false;
                 if (sendBtn) sendBtn.disabled = false;
             }
+        }
+
+        // ================= ĐÍNH KÈM HỒ SƠ NGAY TRONG KHUNG CHAT =================
+        // Hướng thứ hai bên cạnh trang "Hồ sơ y tế": khách gửi thẳng ảnh/PDF vào khung chat rồi
+        // hỏi luôn. Cùng một service, cùng chỗ lưu riêng tư, cùng bộ luật quyền xem — chỉ khác
+        // chỗ bắt đầu, nên hồ sơ gửi ở đây vẫn hiện trong trang hồ sơ và vẫn được bác sĩ nhìn thấy.
+        const attachBtn = document.getElementById('ai-chat-attach');
+        const fileInput = document.getElementById('ai-chat-file');
+
+        // 10MB — khớp spring.servlet.multipart.max-file-size. Chặn ở đây chỉ để khách khỏi ngồi
+        // chờ một lượt tải chắc chắn hỏng; máy chủ vẫn là chỗ quyết định.
+        const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+        async function uploadImageOrDocumentFromChat(file) {
+            if (!file) return;
+
+            // Chưa đăng nhập thì KHÔNG gọi API (nó trả 401 và hồ sơ cũng chẳng biết gắn cho ai).
+            if (window.MEDITRUST_IS_LOGGED_IN !== true) {
+                appendMessage('bot', lookupCard(`<div style="font-size:13px;color:#334155;">
+                    Hồ sơ bệnh án là dữ liệu riêng của anh/chị nên em cần anh/chị
+                    <a href="/login">đăng nhập</a> trước khi gửi lên ạ.
+                </div>`));
+                return;
+            }
+            if (file.size > MAX_UPLOAD_BYTES) {
+                appendMessage('bot', lookupCard(`<div style="font-size:13px;color:#334155;">
+                    Tệp này nặng quá 10MB nên em chưa nhận được ạ. Anh/chị chụp lại ở kích thước nhỏ hơn giúp em nhé.
+                </div>`));
+                return;
+            }
+
+            // Dùng CHUNG cờ isSending với sendMessage: đang đọc hồ sơ mà khách gửi tiếp một câu là
+            // hai lượt cùng ghi vào một sessionId, đúng lỗi mà cờ này sinh ra để chặn.
+            if (isSending) return;
+            isSending = true;
+            if (sendBtn) sendBtn.disabled = true;
+            if (attachBtn) attachBtn.disabled = true;
+            cancelRedirect('Em đã dừng việc tự mở trang đặt lịch ạ.');
+
+            appendMessage('user', '<i class="bi bi-paperclip"></i> ' + escapeHtml(file.name));
+            const waiting = appendMessage('bot', 'Dạ em đang đọc hồ sơ của anh/chị, chờ em một chút ạ...');
+
+            let doc = null;
+            let symptom = null;
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                // sessionId để máy chủ ghi được ghi chú vào lịch sử hội thoại — ảnh triệu chứng
+                // không lưu ở đâu cả, nên đó là thứ duy nhất giúp model nhớ ở lượt sau.
+                if (sessionId) form.append('sessionId', sessionId);
+                const res = await fetch('/user/medical-document/chat-upload', { method: 'POST', body: form });
+
+                // PHIÊN HẾT HẠN, không phải lỗi mạng. Spring Security chặn TRƯỚC khi request tới
+                // controller và trả 302 sang /login; fetch đi theo redirect đó rồi trả về trang
+                // đăng nhập với status 200, nên chỉ xét `res.ok` là rơi vào nhánh catch và báo
+                // "không kết nối được" — sai hẳn nguyên nhân, khách sẽ đi kiểm tra wifi.
+                // Cùng cái bẫy mà trang /checkout-qr đã phải xử lý.
+                if (res.redirected || (res.url && res.url.indexOf('/login') >= 0)) {
+                    waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#334155;">
+                        Phiên đăng nhập của anh/chị đã hết hạn ạ. Anh/chị
+                        <a href="/login">đăng nhập lại</a> rồi gửi hồ sơ giúp em nhé.
+                    </div>`);
+                } else if (res.status === 401) {
+                    waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#334155;">
+                        Phiên đăng nhập của anh/chị đã hết hạn ạ. Anh/chị
+                        <a href="/login">đăng nhập lại</a> rồi gửi hồ sơ giúp em nhé.
+                    </div>`);
+                } else if (res.status === 400) {
+                    // Câu từ chối của FileStorageService (sai định dạng, tệp rỗng) in nguyên văn —
+                    // nó đã nói rõ nhận những đuôi nào.
+                    const data = await res.json().catch(function() { return {}; });
+                    waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#92400e;">
+                        ${escapeHtml(data.message || 'Em chưa nhận được tệp này ạ.')}
+                    </div>`);
+                } else if (!res.ok) {
+                    waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#334155;">
+                        Em chưa tải được hồ sơ lên lúc này ạ. Anh/chị thử lại giúp em nhé.
+                    </div>`);
+                } else {
+                    const data = await res.json();
+                    if (data.kind === 'SYMPTOM') {
+                        symptom = data.symptom || {};
+                        // Ảnh cho thấy dấu hiệu cấp cứu thì đi vào ĐÚNG thẻ đỏ của luồng gõ chữ,
+                        // không dựng thẻ đỏ thứ hai trông khác đi.
+                        waiting.innerHTML = symptom.isEmergency
+                            ? buildEmergencyCardHtml(buildSymptomResultHtml(symptom))
+                            : buildSymptomResultHtml(symptom);
+                    } else if (data.kind === 'OTHER') {
+                        waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#334155;">
+                            ${escapeHtml(data.message || 'Ảnh này em chưa đọc được ạ.')}
+                        </div>`);
+                    } else {
+                        doc = data.document;
+                        waiting.innerHTML = buildUploadResultHtml(doc);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                waiting.innerHTML = lookupCard(`<div style="font-size:13px;color:#334155;">
+                    Em không kết nối được với hệ thống ạ. Anh/chị kiểm tra mạng rồi gửi lại giúp em nhé.
+                </div>`);
+            } finally {
+                safeStorage.setChatHtml(messagesContainer.innerHTML);
+                isSending = false;
+                if (sendBtn) sendBtn.disabled = false;
+                if (attachBtn) attachBtn.disabled = false;
+                // Xoá giá trị để khách chọn LẠI ĐÚNG tệp vừa rồi vẫn kích hoạt được `change`.
+                if (fileInput) fileInput.value = '';
+            }
+
+            // Đọc xong thì hỏi luôn — đó là lý do khách gửi hồ sơ vào đây thay vì vào trang hồ sơ.
+            // Chỉ hỏi khi thật sự có nội dung: hồ sơ không đọc được mà vẫn hỏi "tư vấn khoa nào"
+            // là bắt trợ lý trả lời về một thứ nó không có.
+            if (doc && doc.aiStatus === 'DONE' && chatInput) {
+                skipNextDocumentsCard = true;
+                chatInput.value = 'Bạn xem hồ sơ tôi vừa gửi và tư vấn giúp tôi nên khám chuyên khoa nào';
+                sendMessage();
+                return;
+            }
+
+            // Ảnh triệu chứng: hỏi tiếp để trợ lý tư vấn sâu hơn. Câu này xưng "tôi" vì nó được
+            // gửi ĐI như lời của khách và hiện trong bóng chat màu xanh của họ.
+            //
+            // KHÔNG tự hỏi tiếp khi đang cấp cứu: thẻ đỏ đã nói việc cần làm là gọi 115, thêm một
+            // lượt tư vấn chuyên khoa bên dưới là kéo sự chú ý ra khỏi đúng thứ đang gấp.
+            if (symptom && !symptom.isEmergency && chatInput) {
+                skipNextDocumentsCard = true;
+                chatInput.value = 'Tôi vừa gửi ảnh chỗ đang bị đau, bạn tư vấn thêm giúp tôi với';
+                sendMessage();
+            }
+        }
+
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', function() { fileInput.click(); });
+            fileInput.addEventListener('change', function() {
+                uploadImageOrDocumentFromChat(fileInput.files && fileInput.files[0]);
+            });
         }
 
         sendBtn.addEventListener('click', sendMessage);

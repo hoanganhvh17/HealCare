@@ -123,10 +123,18 @@ body.admin-theme h6 {
 
 /* ------------------------------------------------------------------ thẻ số liệu */
 
+/* height:100% để 4 thẻ cùng hàng cao bằng nhau.
+ *
+ * NHƯNG margin-bottom PHẢI là 0 ở đây. Khi thẻ cao đúng bằng cột, chiều cao của HÀNG được tính
+ * theo border-box của cột, còn margin-bottom của thẻ tràn ra NGOÀI hàng và đè lên hàng kế tiếp —
+ * khoảng cách nhìn thấy được tụt về đúng 0px (đo thật: thẻ cao 147,5px, cột cao 148px, gap = 0).
+ * Khoảng cách chuyển lên chính cái CỘT bằng `mb-4` trong template; xem dashboard.html.
+ */
 .admin-theme .stat-tile {
     position: relative;
     overflow: hidden;
     height: 100%;
+    margin-bottom: 0;
 }
 
 .admin-theme .stat-tile .card-body {
@@ -449,7 +457,12 @@ body.admin-theme h6 {
     color: #fff;
 }
 
-.admin-theme a { color: var(--at-primary); }
+/* KHÔNG được nhuộm mọi thẻ <a>: `.admin-theme a` có độ ưu tiên (0,1,1), thắng `.btn-primary`
+ * của Bootstrap (0,1,0) nên chữ trong nút bị đổi thành teal — trùng đúng màu nền teal của chính
+ * nút đó, tức nút trống trơn không đọc được. Mà `.btn-primary:hover` lại là (0,2,0) nên nó thắng
+ * ngược, và chữ chỉ hiện ra lúc rê chuột — kiểu hỏng khó lần nhất vì hễ đi kiểm tra là thấy đúng.
+ * `:not(.btn)` trả toàn bộ hệ màu của nút về cho Bootstrap. */
+.admin-theme a:not(.btn) { color: var(--at-primary); }
 
 /* -------------------------------------------------------------- danh sách hoạt động */
 

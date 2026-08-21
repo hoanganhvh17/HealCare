@@ -26,6 +26,16 @@ public class FileStorageServiceImpl implements FileStorageService {
     private static final List<String> IMAGE_EXT = List.of("jpg", "jpeg", "png", "webp", "gif");
     private static final List<String> CV_EXT = List.of("pdf", "doc", "docx");
 
+    /**
+     * Hồ sơ bệnh án ngoại viện. Cố ý KHÔNG nhận doc/docx như CV: hai đường đọc nội dung duy nhất
+     * là thị giác máy (ảnh) và PDFBox (pdf), nên một tệp .docx tải lên được sẽ nằm đó vĩnh viễn ở
+     * trạng thái "không phân tích được" mà bệnh nhân không hiểu vì sao.
+     */
+    private static final List<String> MEDICAL_DOC_EXT = List.of("jpg", "jpeg", "png", "webp", "pdf");
+
+    /** Thư mục con dưới {@code privateRoot} — tách khỏi "cv" để hai loại dữ liệu không lẫn nhau. */
+    private static final String MEDICAL_DOC_DIR = "medical-docs";
+
     private final Path uploadRoot;
     private final Path privateRoot;
 
@@ -59,11 +69,46 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Path resolveCv(String storedFileName) {
+        return resolvePrivate("cv", storedFileName);
+    }
+
+    @Override
+    public String storeMedicalDocument(MultipartFile file) {
+        return store(file, resolveDir(privateRoot, MEDICAL_DOC_DIR), MEDICAL_DOC_EXT, true);
+    }
+
+    @Override
+    public Path resolveMedicalDocument(String storedFileName) {
+        return resolvePrivate(MEDICAL_DOC_DIR, storedFileName);
+    }
+
+    @Override
+    public boolean deleteMedicalDocument(String storedFileName) {
+        Path file = resolveMedicalDocument(storedFileName);
+        if (file == null) {
+            return false;
+        }
+        try {
+            return Files.deleteIfExists(file);
+        } catch (IOException e) {
+            // Xoá được dòng DB mà không xoá được tệp thì vẫn coi là xoá xong: hồ sơ đã biến mất
+            // khỏi mọi màn hình và không còn ai phân giải tới tệp đó nữa. Chỉ ghi log để dọn tay.
+            log.warn("[Upload] Không xoá được tệp {}: {}", file, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Biến một tên tệp do DB giữ thành đường dẫn tuyệt đối đã kiểm path traversal.
+     * Tách ra từ {@code resolveCv} khi có người dùng thứ hai — hai bản sao của phép kiểm
+     * {@code startsWith(privateRoot)} là hai chỗ để một bản lệch đi mà không ai thấy.
+     */
+    private Path resolvePrivate(String subdir, String storedFileName) {
         if (!StringUtils.hasText(storedFileName)) {
             return null;
         }
         String safe = Paths.get(storedFileName).getFileName().toString();
-        Path candidate = privateRoot.resolve("cv").resolve(safe).normalize();
+        Path candidate = privateRoot.resolve(subdir).resolve(safe).normalize();
         if (!candidate.startsWith(privateRoot) || !Files.isRegularFile(candidate)) {
             return null;
         }

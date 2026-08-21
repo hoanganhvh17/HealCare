@@ -53,6 +53,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(Long doctorId, LocalDate appointmentDate, String appointmentTime, BookingStatus status);
 
+    /**
+     * Bác sĩ này đã từng có lịch hẹn với bệnh nhân này chưa — dùng để gác quyền xem hồ sơ bệnh án
+     * ngoại viện mà bệnh nhân tự tải lên ({@code ExternalMedicalRecordService.whyCannotView}).
+     * <p>
+     * Cố ý KHÔNG lọc theo trạng thái: một lịch còn {@code PENDING} của sáng mai vẫn là lý do chính
+     * đáng để bác sĩ đọc tiền sử trước khi khám, còn lịch đã {@code CANCELED} thì bác sĩ đó vốn đã
+     * đọc được hồ sơ trong khoảng thời gian trước khi huỷ.
+     */
+    boolean existsByDoctorIdAndUserId(Long doctorId, Long userId);
+
     @EntityGraph(attributePaths = {"user", "doctor"})
     List<Booking> findByDoctorIdAndAppointmentDateAndStatus(Long doctorId, LocalDate appointmentDate, BookingStatus status);
 
