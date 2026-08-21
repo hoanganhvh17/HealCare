@@ -37,7 +37,9 @@ public class AdminDashboardSummaryDTO {
     public static class OperationalStats {
         private long newBookingsThisMonth;
         private double bookingTrend; // % tăng/giảm so với tháng trước
-        private long newPatientsThisMonth;
+        /** Tổng số bệnh nhân. KHÔNG phải "bệnh nhân mới trong tháng": User không có cột createdAt,
+         * nên con số đó không tính được — trường cũ luôn trả 0 và AI đọc số 0 đó thành sự thật. */
+        private long totalPatients;
         private double cancellationRate; // Tỷ lệ hủy lịch
         private String busiestDepartment; // Khoa đông khách nhất
     }

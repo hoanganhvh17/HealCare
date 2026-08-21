@@ -3,6 +3,31 @@
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <header th:fragment="header-nav" id="header" class="header d-flex align-items-center fixed-top bg-white shadow-sm py-2">
+    <!--/* Kiểu riêng của nút "Đăng nhập" (khách chưa đăng nhập). Để ngay cạnh markup theo
+         đúng khuôn của chuông và mobile-nav ở cuối fragment — một chỗ sửa, 22 trang cùng đổi.
+         KHÔNG viết vào assets/css/main.css: đó là tệp theme BootstrapMade, bản nâng cấp
+         theme sau sẽ nuốt mất. Cỡ chữ/đệm cho màn hẹp nằm ở assets/css/responsive.css. */-->
+    <style>
+        #header .btn-header-login {
+            border: 2px solid #00796b;
+            color: #00796b;
+            background-color: transparent;
+            transition: background-color .15s ease, color .15s ease;
+        }
+
+        #header .btn-header-login:hover,
+        #header .btn-header-login:focus {
+            background-color: #00796b;
+            color: #fff;
+        }
+
+        /* Khớp đúng 32px của <img> avatar ngay bên cạnh trong cùng thẻ <a>. */
+        #header .header-avatar-icon {
+            font-size: 2rem;
+            line-height: 1;
+        }
+    </style>
+
     <input type="hidden" id="current-user-id" th:value="${#authorization.expression('isAuthenticated()') ? #authentication.name : 'guest'}" />
 
     <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
@@ -49,7 +74,7 @@
         <div class="header-actions d-flex align-items-center gap-4">
 
             <!-- Nút Đặt lịch khám -->
-            <a class="btn fw-bold px-4 py-2 rounded-pill shadow-sm" style="background-color: #00796b; color: white;" th:href="@{/appointment}">
+            <a class="btn btn-header-book fw-bold px-4 py-2 rounded-pill shadow-sm" style="background-color: #00796b; color: white;" th:href="@{/appointment}">
                 Đặt lịch khám
             </a>
 
@@ -82,19 +107,30 @@
                     </div>
                 </div>
 
-                <!-- Chưa đăng nhập -->
-                <div sec:authorize="!isAuthenticated()">
-                    <a class="text-dark fs-5" th:href="@{/login}" style="color: #00796b !important;" title="Đăng nhập">
-                        <i class="bi bi-person-circle"></i>
-                    </a>
-                </div>
+                <!--/* Chưa đăng nhập.
+                     Trước đây chỗ này chỉ là một icon bi-person-circle trần cỡ fs-5: nó không
+                     nói lên rằng bấm vào đó để ĐĂNG NHẬP, nên với khách mới đường vào tài khoản
+                     coi như bị giấu — không có gì trên màn hình gợi ý điều đó, và icon người
+                     thường được đọc là "hồ sơ của tôi", thứ mà khách chưa đăng nhập thì không có.
+                     Thay bằng nút có CHỮ. Kiểu viền chứ không nền đặc: đứng cạnh "Đặt lịch khám"
+                     (CTA chính) mà để hai nút nền đặc thì không còn nút nào nổi lên nữa. */-->
+                <a sec:authorize="!isAuthenticated()"
+                   class="btn btn-header-login fw-semibold px-3 py-2 rounded-pill d-inline-flex align-items-center gap-2"
+                   th:href="@{/login}">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Đăng nhập</span>
+                </a>
 
                 <!-- Đã đăng nhập: Giữ nguyên logic hiển thị Dropdown & Avatar của bạn -->
                 <div sec:authorize="isAuthenticated()" class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark fs-5" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #00796b !important;">
 
-                        <!-- Hiển thị Icon nếu không có Avatar -->
-                        <i th:if="${#authentication.principal.avatar == null or #strings.isEmpty(#authentication.principal.avatar)}" class="bi bi-person-circle"></i>
+                        <!--/* Hiển thị Icon nếu không có Avatar.
+                             Cỡ riêng chứ không để thừa hưởng fs-5 (~20px) của thẻ <a>: ảnh đại diện
+                             ngay bên dưới là 32px, nên cùng một chỗ trên header sẽ to nhỏ khác nhau
+                             tuỳ người dùng có ảnh hay không — và ở mức 20px thì nó nhỏ tới mức khó bấm
+                             trúng trên điện thoại. */-->
+                        <i th:if="${#authentication.principal.avatar == null or #strings.isEmpty(#authentication.principal.avatar)}" class="bi bi-person-circle header-avatar-icon"></i>
 
                         <!-- Hiển thị Avatar (URL ngoài) -->
                         <img th:if="${#authentication.principal.avatar != null and #strings.startsWith(#authentication.principal.avatar, 'http')}"

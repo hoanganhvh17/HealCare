@@ -175,4 +175,22 @@ Rules that must survive any edit:
 - `POST /admin/manage-news/fetch-now` runs the same method on demand (POST, not GET — it writes). It creates drafts only; it publishes nothing.
 
 ## Dashboards
-`AdminDashboardService` + `DashboardApiController` aggregate booking statistics (`DailyBookingStatsDTO`, `AdminDashboardSummaryDTO`) consumed by charts on the admin dashboard.
+
+`AdminDashboardService` (+ `impl`) dựng toàn bộ số liệu của `/admin/dashboard` thành một
+`AdminDashboardDTO`; `AdminAiReportService` dựng `AdminDashboardSummaryDTO` cho khung chat AI của admin.
+Xem [code-structure.md](code-structure.md) — hai lớp này từng trùng tên nhau và chỉ một trong hai thật sự
+nuôi trang dashboard.
+
+**`DashboardApiController` và `BookingRepository.getBookingStatsForLast7Days()` đã bị xoá.** Chuỗi số liệu
+biểu đồ nay render sẵn ở server qua `th:inline`, nên endpoint đó thành mã chết — và xoá nó đóng luôn một
+lỗ hổng: `/api/dashboard/**` chưa từng có luật phân quyền riêng trong `SecurityConfig` nên rơi xuống
+`anyRequest().authenticated()`, tức **bất kỳ bệnh nhân nào đã đăng nhập** cũng đọc được thống kê lịch hẹn
+của phòng khám. Nếu sau này cần dựng lại một endpoint thống kê, phải khai nó ở **khối 0** với
+`hasRole("ADMIN")`, giống `/api/admin/chat/**`.
+
+**Chuỗi theo ngày bắt buộc phải zero-fill trước khi vẽ.** Truy vấn `GROUP BY` không trả dòng nào cho ngày
+không có lịch hẹn, nên vẽ thẳng là biểu đồ **nhảy cóc** qua ngày trống thay vì vẽ số 0 — bản cũ mắc đúng
+lỗi này và kỳ 7 ngày chỉ hiện được 1 điểm. Việc điền 0 nằm ở `AdminDashboardServiceImpl.buildDaily`.
+
+**Lưới 16 khung giờ của biểu đồ "khung giờ cao điểm" đọc lại từ `TimeSlotService.allSlots()`**, không tự
+liệt kê — số nơi khai lưới giữ nguyên 11, xem `/skills/sync-slot-grid`.

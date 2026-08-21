@@ -43,6 +43,39 @@ Three rules hold that fourth branch together, and each one is a trap that fails 
 
 **Cash collected at the desk is still never recorded as `PAID`** — there is no screen anywhere that writes it, so walk-in `CASH` bookings have always stayed `UNPAID` and the four revenue queries in `BookingRepository` (which all filter `paymentStatus = 'PAID'`) never count that money. Pay-at-counter inherits the same gap. It is a known debt, not a regression; the staff lists carry a "Thu tại quầy" badge so the person holding the cash box can at least see what is owed.
 
+### `paymentStatus` là TRẠNG THÁI SỐNG — mọi phép cộng tiền phải tính đến điều đó
+
+Giá trị thực tế được ghi ở đâu đó trong mã: `UNPAID`, `PAID`, `FAILED`, `REFUNDED`, `EXPIRED`. Cột này
+nói lịch hẹn **đang** ở đâu, **không** phải đã từng xảy ra chuyện gì — và hai lỗi tiền trên
+`/admin/dashboard` đều sinh ra từ chỗ nhầm hai thứ đó với nhau:
+
+- **"Đã thu" phải gồm cả `REFUNDED`.** Một lịch thu tiền rồi hoàn lại sẽ rời khỏi `PAID`, nên
+  `WHERE paymentStatus = 'PAID'` âm thầm làm số tiền đã thu **teo lại** theo thời gian. Đo trên DB dev:
+  thẻ in 10.300.000 trong khi thực tế đã thu 11.800.000. Công thức đúng:
+  `đã thu = ('PAID','REFUNDED')`, `đã hoàn = ('REFUNDED')`, `thực thu = đã thu − đã hoàn`, và **thực thu
+  không được có truy vấn riêng** — trừ trong Java từ đúng hai số kia là thứ duy nhất bảo đảm ba con số
+  trên màn hình luôn khớp phép trừ.
+- **`status = CANCELED AND paymentStatus = 'PAID'` là tổ hợp KHÔNG BAO GIỜ tồn tại.** Mọi đường huỷ đều
+  ghi đè `paymentStatus` trong cùng transaction: `BookingServiceImpl:255,265` → `REFUNDED`, `:268` →
+  `FAILED`, `ProfileController:205,208` → `REFUNDED`, `PaymentController:107` → `FAILED`,
+  `BookingController:140` → `FAILED`, `BookingCleanupTask:33` → `EXPIRED`. `sumTotalRefund()` cũ dùng
+  đúng vị từ đó nên trả NULL vĩnh viễn. Muốn tiền đã hoàn thì lọc `paymentStatus = 'REFUNDED'`.
+- **Mọi `SUM` phải bọc `COALESCE(..., 0)`.** `SUM` trên 0 dòng trả NULL trong SQL, và một `BigDecimal`
+  null đi thẳng ra Thymeleaf in ra đúng chữ `null đ`. Vô hình trên máy dev đã có dữ liệu, lộ ra trên
+  **database rỗng** — tức production ở lần boot đầu.
+
+**Sổ ví là bản ghi HOÀN TIỀN đầy đủ nhưng KHÔNG phải bản ghi doanh thu đầy đủ.** `refundToWallet` được
+gọi ở mọi đường hoàn tiền, còn `payWithWallet` **chỉ** chạy ở nhánh WALLET — VNPay và chuyển khoản ngân
+hàng không bao giờ ghi một dòng nào vào `wallet_transactions`. Vì vậy dashboard dùng nó làm **kiểm toán
+độc lập** đặt cạnh con số của bảng `bookings`, không trộn vào phép tính; đúng vai trò đó nó đang chỉ ra
+một khoảng lệch **300.000đ có thật** (ví 1.800.000 / 6 giao dịch, `bookings` 1.500.000 / 5 dòng).
+
+**Tiền còn phải thu là SỐ DƯ HIỆN TẠI, không phải số phát sinh trong kỳ.** Cắt nó theo bộ lọc thời gian
+là trả lời một câu hỏi khác hẳn, nên thẻ trên dashboard ghi rõ "hiện tại" để không đứng lẫn với ba thẻ
+theo kỳ bên cạnh. Nó gồm hai nửa và nửa sau mới là nửa gấp: `UNPAID` ở lịch sắp tới, và `UNPAID` ở ca
+**đã khám xong** — đúng khoản mà [supporting-subsystems.md] gọi là "tiền mặt thu tại quầy chưa bao giờ
+được ghi nhận là PAID".
+
 ### `/payment-return` verifies six things, in this order
 It used to verify **none**. The old handler bound only `vnp_ResponseCode` and `vnp_OrderInfo` and trusted them, while the route fell through to `anyRequest().authenticated()` — so **any logged-in user could hand-craft a URL and mark any booking PAID+CONFIRMED**, occupying a real slot and triggering a real confirmation email. Sandbox credentials do not soften that: the asset being stolen is the appointment.
 

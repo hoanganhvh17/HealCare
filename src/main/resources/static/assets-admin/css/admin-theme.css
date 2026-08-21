@@ -1,0 +1,495 @@
+/* =============================================================================================
+   admin-theme.css — lớp phủ giao diện cho KHU ADMIN
+
+   Nạp trong `admin/include/header :: pagehead`, GIỮA style.css và responsive-admin.css:
+       style.css  (theme NiceAdmin, vendored — TUYỆT ĐỐI KHÔNG SỬA)
+    -> admin-theme.css  (tệp này)
+    -> responsive-admin.css  (các luật responsive sẵn có vẫn phải thắng)
+
+   ---------------------------------------------------------------------------------------------
+   MỌI luật ở đây BẮT BUỘC bọc dưới `body.admin-theme`.
+
+   `pagehead` đang được 31 template dùng chung, KHÔNG chỉ 17 trang admin: còn 6 trang doctor,
+   4 trang head, 3 trang staff và `user/medical-record-detail.html` — một trang BỆNH NHÂN nhìn
+   thấy. Bỏ lớp bọc là restyle luôn cả những trang đó, trong đó có trang của bệnh nhân.
+
+   Muốn mở rộng phong cách này sang khu bác sĩ sau này: thêm `class="admin-theme"` vào <body>
+   của các template đó, không phải bỏ lớp bọc ở đây.
+   ---------------------------------------------------------------------------------------------
+
+   Bộ token lấy nguyên từ `templates/doctor/dashboard.html` (trang hiện đại nhất dự án đang có),
+   để hai khu không phát minh ra hai ngôn ngữ thiết kế khác nhau.
+   ============================================================================================= */
+
+body.admin-theme {
+    --at-bg:        #F8FAFC;
+    --at-surface:   #FFFFFF;
+    --at-ink:       #0F172A;
+    --at-ink-2:     #475569;
+    --at-muted:     #64748B;
+    --at-line:      #E2E8F0;
+    --at-line-soft: #F1F5F9;
+
+    --at-primary:   #006B63;   /* teal thương hiệu */
+    --at-blue:      #3B82F6;
+    --at-green:     #10B981;
+    --at-amber:     #F59E0B;
+    --at-red:       #EF4444;
+
+    --at-radius:    16px;
+    --at-shadow:    0 4px 12px rgba(15, 23, 42, .04);
+    --at-shadow-lg: 0 8px 24px rgba(15, 23, 42, .08);
+
+    font-family: 'Inter', 'Open Sans', system-ui, sans-serif;
+    background-color: var(--at-bg);
+    color: var(--at-ink-2);
+}
+
+body.admin-theme h1,
+body.admin-theme h2,
+body.admin-theme h3,
+body.admin-theme h4,
+body.admin-theme h5,
+body.admin-theme h6 {
+    font-family: 'Inter', 'Nunito', system-ui, sans-serif;
+    color: var(--at-ink);
+}
+
+/* ------------------------------------------------------------------ khung trang */
+
+.admin-theme .pagetitle h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    color: var(--at-ink);
+}
+
+.admin-theme .breadcrumb,
+.admin-theme .breadcrumb a {
+    color: var(--at-muted);
+}
+
+.admin-theme .header {
+    background: var(--at-surface);
+    border-bottom: 1px solid var(--at-line);
+    box-shadow: none;
+}
+
+.admin-theme .logo span {
+    color: var(--at-primary);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+}
+
+/* ------------------------------------------------------------------------ thẻ */
+
+.admin-theme .card {
+    border: none;
+    border-radius: var(--at-radius);
+    box-shadow: var(--at-shadow);
+    background: var(--at-surface);
+}
+
+.admin-theme .card-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--at-ink);
+    padding: 20px 0 14px 0;
+}
+
+.admin-theme .card-title span {
+    color: var(--at-muted);
+    font-size: .8rem;
+    font-weight: 400;
+}
+
+/* Chỉ thẻ BẤM ĐƯỢC mới nhấc lên khi rê chuột. Cho mọi thẻ cùng nhấc là hứa hẹn một hành động
+   không tồn tại — người dùng rê qua biểu đồ rồi bấm và không có gì xảy ra. */
+.admin-theme a.tile-link {
+    text-decoration: none;
+    display: block;
+    height: 100%;
+}
+
+.admin-theme a.tile-link .card {
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.admin-theme a.tile-link:hover .card {
+    transform: translateY(-3px);
+    box-shadow: var(--at-shadow-lg);
+}
+
+/* ------------------------------------------------------------------ thẻ số liệu */
+
+.admin-theme .stat-tile {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+
+.admin-theme .stat-tile .card-body {
+    position: relative;
+    z-index: 1;
+    padding: 1.25rem 1.25rem 1.1rem;
+}
+
+.admin-theme .tile-label {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--at-muted);
+    margin-bottom: .55rem;
+}
+
+.admin-theme .tile-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.8px;
+    color: var(--at-ink);
+    word-break: break-word;
+}
+
+.admin-theme .tile-note {
+    font-size: .74rem;
+    color: var(--at-muted);
+    margin-top: .4rem;
+    line-height: 1.45;
+}
+
+/* Icon mờ cỡ lớn ở góc thẻ. pointer-events:none để nó không bao giờ nuốt cú bấm. */
+.admin-theme .faded-bg-icon {
+    position: absolute;
+    right: 14px;
+    top: 16px;
+    font-size: 3.2rem;
+    line-height: 1;
+    color: var(--at-line-soft);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.admin-theme .tile-accent    { border-left: 4px solid var(--at-line); }
+.admin-theme .accent-teal    { border-left-color: var(--at-primary); }
+.admin-theme .accent-blue    { border-left-color: var(--at-blue); }
+.admin-theme .accent-green   { border-left-color: var(--at-green); }
+.admin-theme .accent-amber   { border-left-color: var(--at-amber); }
+.admin-theme .accent-red     { border-left-color: var(--at-red); }
+
+.admin-theme .trend-up   { color: var(--at-green); font-weight: 600; }
+.admin-theme .trend-down { color: var(--at-red);   font-weight: 600; }
+.admin-theme .trend-flat { color: var(--at-muted); font-weight: 600; }
+
+/* --------------------------------------------------------------- bộ lọc kỳ (pill) */
+
+.admin-theme .btn-toggle-group {
+    background-color: var(--at-line);
+    padding: 4px;
+    border-radius: 50px;
+    display: inline-flex;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+
+.admin-theme .btn-toggle-group .btn {
+    border-radius: 50px;
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--at-ink-2);
+    border: none;
+    padding: 6px 15px;
+    transition: all .2s;
+}
+
+.admin-theme .btn-toggle-group .btn.active {
+    background-color: var(--at-surface);
+    color: var(--at-ink);
+    box-shadow: 0 2px 4px rgba(15, 23, 42, .06);
+    font-weight: 600;
+}
+
+.admin-theme .btn-toggle-group .btn:hover:not(.active) {
+    background-color: #CBD5E1;
+}
+
+/* ------------------------------------------------------- khối "Việc cần xử lý" */
+
+.admin-theme .alert-row {
+    display: flex;
+    align-items: flex-start;
+    gap: .9rem;
+    padding: .85rem 0;
+    border-bottom: 1px solid var(--at-line-soft);
+}
+
+.admin-theme .alert-row:last-child { border-bottom: none; }
+
+.admin-theme .alert-icon {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+}
+
+.admin-theme .alert-danger-soft  { background: #FEF2F2; color: var(--at-red); }
+.admin-theme .alert-warning-soft { background: #FFFBEB; color: #B45309; }
+.admin-theme .alert-info-soft    { background: #EFF6FF; color: #1D4ED8; }
+
+.admin-theme .alert-row .alert-title {
+    font-weight: 600;
+    color: var(--at-ink);
+    font-size: .93rem;
+    line-height: 1.35;
+}
+
+/* Một flex item mặc định là min-width:auto, tức KHÔNG co được xuống dưới bề rộng nội dung —
+   nên trên điện thoại câu mô tả dài đẩy cả hàng tràn ra ngoài màn hình thay vì xuống dòng.
+   min-width:0 là thứ duy nhất mở khoá cho nó. */
+.admin-theme .alert-row > .flex-grow-1 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-theme .alert-row .alert-detail {
+    font-size: .78rem;
+    color: var(--at-muted);
+    margin-top: .15rem;
+    line-height: 1.45;
+}
+
+.admin-theme .alert-row .btn {
+    white-space: nowrap;
+    border-radius: 8px;
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+/* Trạng thái khoẻ — khối cảnh báo rỗng phải trông như một biên nhận, không phải một khoảng trắng. */
+.admin-theme .alert-healthy {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1rem 1.1rem;
+    background: #F0FDF4;
+    border-radius: 12px;
+    color: #047857;
+    font-size: .9rem;
+    font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ AI Insight */
+
+.admin-theme .ai-insight-box {
+    background-color: #F0FDF4;
+    border-radius: 12px;
+    padding: 11px 15px;
+    margin-top: 14px;
+    cursor: pointer;
+    transition: background-color .2s;
+}
+
+.admin-theme .ai-insight-box:hover { background-color: #DCFCE7; }
+
+.admin-theme .ai-insight-label {
+    color: #047857;
+    font-weight: 700;
+    font-size: .75rem;
+    margin-bottom: 3px;
+}
+
+.admin-theme .ai-insight-text {
+    font-size: .78rem;
+    line-height: 1.5;
+}
+
+/* --------------------------------------------------------------- dòng đối soát */
+
+.admin-theme .recon-note {
+    font-size: .78rem;
+    color: var(--at-muted);
+    background: #FFFBEB;
+    border-radius: 10px;
+    padding: .7rem .9rem;
+    line-height: 1.5;
+}
+
+.admin-theme .recon-note.is-clean {
+    background: var(--at-line-soft);
+}
+
+/* ---------------------------------------------------------------------- sidebar */
+
+.admin-theme .sidebar {
+    background: var(--at-surface);
+    border-right: 1px solid var(--at-line);
+    box-shadow: none;
+}
+
+.admin-theme .sidebar-nav .nav-heading {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .8px;
+    color: #94A3B8;
+    margin: 18px 0 6px 12px;
+}
+
+.admin-theme .sidebar-nav .nav-item { margin-bottom: 2px; }
+
+.admin-theme .sidebar-nav .nav-link {
+    font-size: .89rem;
+    font-weight: 500;
+    color: var(--at-primary);
+    background: #E6F2F1;
+    border-radius: 10px;
+    padding: 10px 13px;
+}
+
+.admin-theme .sidebar-nav .nav-link i { color: var(--at-primary); font-size: 1rem; }
+
+.admin-theme .sidebar-nav .nav-link.collapsed {
+    color: var(--at-ink-2);
+    background: transparent;
+    font-weight: 500;
+}
+
+.admin-theme .sidebar-nav .nav-link.collapsed i { color: #94A3B8; }
+
+.admin-theme .sidebar-nav .nav-link:hover {
+    color: var(--at-primary);
+    background: var(--at-line-soft);
+}
+
+.admin-theme .sidebar-nav .nav-link:hover i { color: var(--at-primary); }
+
+.admin-theme .sidebar-nav .nav-content {
+    padding: 2px 0 4px 0;
+}
+
+.admin-theme .sidebar-nav .nav-content a {
+    font-size: .84rem;
+    font-weight: 500;
+    color: var(--at-ink-2);
+    padding: 8px 0 8px 38px;
+    border-radius: 8px;
+}
+
+.admin-theme .sidebar-nav .nav-content a:hover {
+    color: var(--at-primary);
+    background: var(--at-line-soft);
+}
+
+.admin-theme .sidebar-nav .nav-content a.active {
+    color: var(--at-primary);
+    font-weight: 600;
+    background: #E6F2F1;
+}
+
+.admin-theme .sidebar-nav .nav-content a i { color: #CBD5E1; }
+.admin-theme .sidebar-nav .nav-content a.active i,
+.admin-theme .sidebar-nav .nav-content a:hover i { background-color: var(--at-primary); color: var(--at-primary); }
+
+/* Huy hiệu đếm trên mục điều hướng. Chỉ render khi số > 0 — xem sidebar.html. */
+.admin-theme .nav-badge {
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .18rem .45rem;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+/* ------------------------------------------------------------------------ bảng */
+
+.admin-theme .table > :not(caption) > * > * {
+    padding: .7rem .6rem;
+    border-bottom-color: var(--at-line-soft);
+}
+
+.admin-theme .table thead th {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--at-muted);
+    background: var(--at-line-soft);
+    border-bottom: none;
+}
+
+.admin-theme .table tbody tr:hover { background: #FAFCFF; }
+
+.admin-theme .badge { font-weight: 600; border-radius: 6px; padding: .34em .6em; }
+
+/* ------------------------------------------------------------------------- nút */
+
+.admin-theme .btn-primary {
+    background-color: var(--at-primary);
+    border-color: var(--at-primary);
+}
+
+.admin-theme .btn-primary:hover,
+.admin-theme .btn-primary:focus {
+    background-color: #005A53;
+    border-color: #005A53;
+}
+
+.admin-theme .btn-outline-primary {
+    color: var(--at-primary);
+    border-color: var(--at-primary);
+}
+
+.admin-theme .btn-outline-primary:hover {
+    background-color: var(--at-primary);
+    border-color: var(--at-primary);
+    color: #fff;
+}
+
+.admin-theme a { color: var(--at-primary); }
+
+/* -------------------------------------------------------------- danh sách hoạt động */
+
+.admin-theme .review-item {
+    padding-bottom: 13px;
+    margin-bottom: 13px;
+    border-bottom: 1px solid var(--at-line-soft);
+}
+
+.admin-theme .review-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.admin-theme .review-avatar-small {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, .1);
+}
+
+.admin-theme .apexcharts-tooltip {
+    background: #fff;
+    border-color: var(--at-line);
+    box-shadow: var(--at-shadow-lg);
+    border-radius: 8px;
+}
+
+/* --------------------------------------------------------------------- màn nhỏ */
+
+@media (max-width: 575.98px) {
+    .admin-theme .tile-value { font-size: 1.45rem; }
+    .admin-theme .alert-row .alert-title  { font-size: .88rem; }
+    .admin-theme .alert-row .alert-detail { font-size: .75rem; }
+    .admin-theme .alert-icon { width: 32px; height: 32px; flex-basis: 32px; font-size: .95rem; }
+    .admin-theme .faded-bg-icon { font-size: 2.4rem; }
+    .admin-theme .stat-tile .card-body { padding: 1rem; }
+    .admin-theme .alert-row { flex-wrap: wrap; }
+    .admin-theme .alert-row .btn { width: 100%; margin-top: .4rem; }
+}

@@ -24,6 +24,12 @@ In email templates this is invisible until it reaches a real inbox — `EmailSer
 
 **`d-flex` on the patient nav `<ul>` disables the theme's whole mobile menu.** Bootstrap emits `.d-flex{display:flex!important}`, and the MediTrust theme hides the menu below 1200px with `.navmenu ul{display:none}` (`assets/css/main.css:387`) — `!important` wins, so on **every one of the 22 patient pages** the menu stayed expanded as a `position:absolute` panel covering the page and the hamburger did nothing. Use **`d-xl-flex`**: it applies only from 1200px, exactly matching the theme's `max-width:1199px` breakpoint, so below it the theme takes over again. The same trap waits for any Bootstrap display utility put on an element the theme also wants to hide responsively.
 
+**Theme sắp xếp header mobile bằng `order`, và nó gọi tên một class dự án KHÔNG dùng.** Dưới 1200px `main.css:214-238` đặt `.header .logo{order:1}`, `.header .btn-getstarted{order:2}`, `.header .navmenu{order:3}`. Header bệnh nhân của dự án không có `.btn-getstarted` — nhóm nút bên phải là `.header-actions`, không khai `order` nên nhận mặc định **0**, tức xếp **trước cả logo**: trên điện thoại hai nút nằm bên trái còn "HealCare" bị đẩy vào giữa. `responsive.css` trả nó về khe số 2. **Bất kỳ phần tử nào thêm mới vào `.header-container` cũng phải tự khai `order` trong dải <1200px**, nếu không nó sẽ nhảy lên đầu hàng — mặc định 0 luôn đứng trước mọi `order` dương của theme.
+
+**Khách chưa đăng nhập phải thấy một nút CÓ CHỮ, không phải icon người.** `user/include/header.html` render `.btn-header-login` ("Đăng nhập", viền teal) dưới `sec:authorize="!isAuthenticated()"`. Trước đây chỗ đó là một `bi-person-circle` trần cỡ `fs-5`: icon người được đọc là "hồ sơ của tôi" — thứ mà khách chưa đăng nhập không có — nên đường vào tài khoản coi như bị giấu. Dùng **viền** chứ không nền đặc vì nó đứng cạnh "Đặt lịch khám", CTA chính của trang.
+
+**Luật thu gọn header dưới 400px phải bám class cụ thể, không bám `.btn`.** `responsive.css` nuốt chữ nút đặt lịch (`font-size:0`) rồi vẽ lại icon lịch bằng `::before`. Luật đó viết khi header chỉ có đúng một nút; bám `.btn` thì mọi nút thêm sau — kể cả "Đăng nhập" — cũng bị nuốt chữ và mọc ra icon lịch, tức giả dạng thành nút đặt lịch thứ hai. Nay nó bám `.btn-header-book`, còn `.btn-header-login` **giữ nguyên chữ** (chỉ ẩn icon + siết đệm) vì chữ chính là lý do nút đó tồn tại.
+
 **Exactly one place may bind `.mobile-nav-toggle`, and it is `assets/js/mobile-nav.js`.** The block was removed from `assets/js/main.js` because only 12/23 patient pages load that file (it calls `new PureCounter()`, `GLightbox(...)` and `scrollTop.addEventListener` unconditionally, so it cannot simply be added to the rest). `mobile-nav.js` is loaded from `user/include/header.html`, next to the bell script, so it covers all of them. Binding in both places means one tap runs `toggle()` twice — menu opens and shuts instantly — the same shape as the double-Bootstrap bug above.
 
 **Responsive fixes go in the two overlay stylesheets, never into the theme files.** `assets/css/responsive.css` (patient, loaded after `main.css` in all 23 heads) and `assets-admin/css/responsive-admin.css` (staff, loaded from the two `pagehead` fragments) — `main.css` and `assets-admin/css/style.css` are BootstrapMade theme files and a theme upgrade would swallow anything written into them. **Two exceptions, both forced by cascade order:** rules for the AI chat widgets live in the `<style>` of each `ai-chat*` fragment, and rules for the calendar grid live at the end of `work-schedule.css` — those `<style>` blocks sit in `<body>`, i.e. *after* the `<head>` links, so at equal specificity they win and an overlay file cannot reach them.
@@ -37,6 +43,42 @@ In email templates this is invisible until it reaches a real inbox — `EmailSer
 **A clickable element nested inside `<a>` needs a delegated listener with `preventDefault()`.** Two doctor-dashboard stat cards wrap their whole body in `<a>`; without it, one tap both runs the handler and navigates away, so the handler's effect is never seen.
 
 **`doctor/include/header :: header-nav` is shared by 13 templates** — every doctor, staff and head page plus `user/medical-record-detail.html`. It is the right place for anything that must appear app-wide for staff (the notification bell lives there, with its `<script>` next to its markup so no page has to opt in), but the patient page means role-specific items need `sec:authorize`. It is also **not** covered by `work-schedule.css`, so build shared header widgets from plain Bootstrap classes.
+
+**`admin/include/header :: pagehead` được 31 template dùng chung, không phải 17.** Ngoài các trang
+admin còn có 6 trang doctor, 4 trang head, 3 trang staff và `user/medical-record-detail.html` — một trang
+**bệnh nhân** nhìn thấy. Nên lớp phủ giao diện khu admin (`assets-admin/css/admin-theme.css`, nạp giữa
+`style.css` và `responsive-admin.css`) **bọc toàn bộ luật dưới `body.admin-theme`**, và class đó chỉ được
+gắn vào `<body>` của 17 tệp `admin/*.html`. Bỏ lớp bọc là restyle luôn trang của bệnh nhân. Muốn mở rộng
+phong cách sang khu bác sĩ thì thêm class vào các template đó, **không** phải gỡ lớp bọc.
+
+Đây là tệp phủ **thứ ba**, cùng luật với hai tệp kia: `main.css` và `assets-admin/css/style.css` là tệp
+theme vendored (BootstrapMade), sửa vào đó là một lần nâng cấp theme nuốt sạch.
+
+**`record` không dùng được cho DTO mà Thymeleaf phải đọc.** SpEL `ReflectivePropertyAccessor` tìm
+`getX()` / `isX()`, không tìm accessor kiểu record `x()`, nên `${dash.money.gross}` sẽ ném lỗi giải
+biểu thức chứ không im lặng trả rỗng. Dùng Lombok `@Getter` — cũng là khuôn sẵn có của mọi DTO khác
+trong dự án. Record vẫn hoàn toàn ổn cho thứ chỉ đi lại trong Java (`ReviewService.RatingStats`).
+
+**Trạng thái điều hướng của khu admin do `config/AdminNavInterceptor` bơm, không phải từng controller.**
+Ba điều bắt buộc, mỗi điều vá một cách hỏng khác nhau:
+
+- **Mọi thuộc tính nó đặt đều mang tiền tố `nav`.** `AbstractView.createMergedOutputModel` trộn FlashMap
+  vào model **trước** model của handler, nên một thuộc tính trùng tên sẽ **nuốt** flash message. Mà
+  `RedirectAttributes` là kênh báo lỗi duy nhất của ứng dụng này (không có `@ControllerAdvice` nào) —
+  đặt trùng `errorMessage`/`successMessage` là mất sạch thông báo trên mọi redirect admin, không một
+  dòng log.
+- **Dùng `postHandle` + chốt `mv == null || viewName.startsWith("redirect:")`, không dùng
+  `@ControllerAdvice`.** `AdminCandidateController.downloadCv` trả `ResponseEntity<Resource>`; một
+  phương thức `@ModelAttribute` sẽ chạy các câu `COUNT` cho **mỗi lượt tải CV** rồi vứt kết quả đi.
+- **Bọc `try/catch` quanh phần huy hiệu.** `@ModelAttribute` chạy *trước* handler nên một truy vấn hỏng
+  ở đó là HTTP 500 cho **mọi** URL admin; `postHandle` chạy sau khi handler đã xong nên tệ nhất là mất
+  cái huy hiệu chứ không mất trang.
+
+**Một huy hiệu chỉ đáng tồn tại khi con số của nó có thể về 0 bằng thao tác của chính người nhìn thấy nó.**
+Sidebar admin chỉ có hai: bài nháp chờ duyệt và ứng viên chờ phản hồi. Cố ý **không** badge số lịch hẹn
+`PENDING`: từ khi có `PAY_AT_COUNTER`, `PENDING + UNPAID` là trạng thái nghỉ *bình thường* do **lễ tân**
+xử lý, badge đó sẽ sáng vĩnh viễn và nhắc admin về việc của người khác. Số 0 thì không render — một chấm
+xám ghi "0" chỉ kéo mắt tới chỗ không có gì để xem.
 
 ## Không cho bấm, thay vì cho bấm rồi báo lỗi
 

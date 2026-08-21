@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/*
+  Thẻ số liệu dùng chung của khu admin.
+
+  Tồn tại để giết chỗ chép dán: bản dashboard cũ lặp cùng một khối markup 6 lần, và với 4 thẻ có
+  xu hướng thì mỗi thẻ còn mang BA nhánh th:if (up / down / flat) gần như giống hệt nhau —
+  khoảng 40 dòng chép tay chỉ để in một mũi tên.
+
+  Cách dùng:
+      <div th:replace="~{admin/include/stat-tile :: tile(
+              label='ĐÃ THU', value='11.800.000 đ', note='trong 30 ngày qua',
+              icon='bi-cash-stack', accent='accent-green', trend=${dash.ops.bookingTrend})}"></div>
+
+  `trend` truyền null là ô không in mũi tên nào.
+*/-->
+
+<div th:fragment="tile(label, value, note, icon, accent, trend)"
+     class="card stat-tile tile-accent" th:classappend="${accent}">
+    <div class="card-body">
+        <i class="bi faded-bg-icon" th:classappend="${icon}"></i>
+        <div class="tile-label" th:text="${label}">NHÃN</div>
+        <div class="tile-value" th:text="${value}">0</div>
+        <div class="tile-note">
+            <span th:replace="~{admin/include/stat-tile :: trend(${trend})}"></span>
+            <span th:text="${note}">ghi chú</span>
+        </div>
+    </div>
+</div>
+
+<!--/*
+  Mũi tên xu hướng. MỘT chỗ duy nhất quyết định màu và biểu tượng cho cả trang, thay cho ba nhánh
+  th:if lặp ở từng thẻ — ba nhánh đó là cách chắc chắn để hai thẻ dần dần hiển thị khác nhau.
+*/-->
+<span th:fragment="trend(t)" th:if="${t != null}" th:class="'me-1 ' + 'trend-' + ${t.direction}">
+    <i class="bi" th:classappend="${t.direction == 'up' ? 'bi-arrow-up-short'
+                                   : (t.direction == 'down' ? 'bi-arrow-down-short' : 'bi-dash')}"></i>
+    <span th:text="${t.percent} + '%'">0%</span>
+    <span>·</span>
+</span>
+
+</body>
+</html>

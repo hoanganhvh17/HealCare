@@ -30,4 +30,12 @@ That trap is why per-employee HR data (ngày vào làm, điều kiện lao độ
 
 `config/NewsSourceCatalog` follows the same data/logic split for a different feature: it holds only the allow-list of newspapers (and the outbreak keywords), while `NewsFeedServiceImpl` does the fetching and `MedicalNewsTask` turns the result into `Post` rows. See [supporting-subsystems.md](supporting-subsystems.md).
 
+`AdminDashboardService` (+ `impl`) dựng toàn bộ số liệu của `/admin/dashboard` thành **một** `AdminDashboardDTO`; `AdminController.adminHome` chỉ còn đọc `range`, gọi service và đẩy một thuộc tính ra model. Trước đó 137 dòng số học nằm thẳng trong controller — một class 600+ dòng cũng đang giữ CRUD người dùng — và đẩy 21 thuộc tính rời rạc ra view.
+
+**Đừng nhầm với `AdminAiReportService`**, lớp trước đây mang đúng cái tên `AdminDashboardService` nhưng chưa từng nuôi trang dashboard: nó chỉ nhồi số liệu vào prompt cho khung chat AI của admin (`AdminAiController`). Đã đổi tên để hai thứ không còn bị đọc thành một, và bốn giá trị hardcode của nó (`"Chưa có dữ liệu"` cho khoa đông nhất và hai bác sĩ, `0` cho bệnh nhân mới) nay tính thật — chúng nguy hiểm hơn vẻ ngoài vì `AdminAiController` in thẳng chúng vào báo cáo gửi admin **như thể là dữ liệu có thật**. Riêng "bệnh nhân mới trong tháng" là **không tính được** (`User` không có cột `createdAt`) nên trường đó đổi thành tổng số bệnh nhân thay vì giữ một số 0 giả.
+
+**`AdminDashboardDTO` dùng Lombok `@Getter`, KHÔNG dùng `record`** — dù record gọn hơn hẳn. Thymeleaf đọc thuộc tính qua SpEL `ReflectivePropertyAccessor`, thứ tìm `getX()` chứ không tìm accessor kiểu record `x()`. Mọi DTO khác của dự án cũng theo khuôn Lombok.
+
+`config/AdminNavInterceptor` bơm `activePage` + số huy hiệu cho mọi URL `/admin/**` ở một chỗ, thay cho ~29 lời gọi `model.addAttribute` rải khắp 9 controller. Xem [coding-conventions.md](coding-conventions.md) để biết vì sao nó là `HandlerInterceptor.postHandle` chứ không phải `@ControllerAdvice`, và vì sao mọi thuộc tính nó đặt đều mang tiền tố `nav`.
+
 Bulk seed data is kept out of `DataInitializer`: `config/DoctorSeedData` holds only the `SeedDoctor` table (department → 5 doctors), while the logic that turns it into `User`/`Doctor`/`Schedule` rows stays in `DataInitializer`. It is called from `run()` rather than being its own `CommandLineRunner`, because a separate runner could execute *before* `DataInitializer` and create users, which would make `count() == 0` false and skip the entire main seed (no departments, no roles).

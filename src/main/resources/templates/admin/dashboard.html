@@ -1,377 +1,531 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 
 <head>
-  <th:block th:replace="~{admin/include/header :: pagehead (title='Dashboard')}"></th:block>
-  <style>
-    /* Style cho Activity (Review List) */
-    .activity-item { position: relative; padding-bottom: 20px; border-left: 2px solid #eef0f2; padding-left: 20px; }
-    .activity-item:last-child { padding-bottom: 0; }
-    .activity-item::before { content: ""; position: absolute; left: -9px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #1977cc; }
-    .review-avatar-small { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; }
-
-    /* Custom card styles for ratings, deposits and refunds */
-    .dashboard .rating-card .card-icon {
-      color: #ffc107;
-      background: #fffdf0;
-    }
-    .dashboard .deposit-card .card-icon {
-      color: #89087e;
-      background: #f8e6f7;
-    }
-    .dashboard .refund-card .card-icon {
-      color: #e52b50;
-      background: #fdecf0;
-    }
-  </style>
+  <th:block th:replace="~{admin/include/header :: pagehead (title='Tổng quan điều hành')}"></th:block>
 </head>
 
-<body>
+<body class="admin-theme">
 
 <th:block th:replace="~{admin/include/header :: header-nav}"></th:block>
 <th:block th:replace="~{admin/include/sidebar :: sidebar}"></th:block>
 
 <main id="main" class="main">
+
+  <!--/* ===== Đầu trang: tiêu đề + tình hình hôm nay + bộ lọc kỳ ===== */-->
   <div class="pagetitle">
-    <h1>Dashboard</h1>
-    <nav>
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Home</a></li>
-        <li class="breadcrumb-item active">Dashboard</li>
-      </ol>
-    </nav>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+      <div>
+        <h1 class="mb-1">Tổng quan điều hành</h1>
+        <div class="text-muted small">
+          Hôm nay có
+          <strong th:text="${dash.today.booked}">0</strong> lịch khám ·
+          <strong th:text="${dash.today.completed}">0</strong> ca đã khám xong
+        </div>
+      </div>
+
+      <!--/* Bộ lọc là các thẻ <a> thường, không cần một dòng JS nào: bookmark được, quay lại được,
+             và không có trạng thái nào để lệch với server. Cùng khuôn với doctor/dashboard.html. */-->
+      <div class="btn-toggle-group shadow-sm" role="group" aria-label="Chọn kỳ báo cáo">
+        <a th:href="@{/admin/dashboard(range='7')}" class="btn"
+           th:classappend="${dash.range.key == '7' ? 'active' : ''}">7 ngày</a>
+        <a th:href="@{/admin/dashboard(range='30')}" class="btn"
+           th:classappend="${dash.range.key == '30' ? 'active' : ''}">30 ngày</a>
+        <a th:href="@{/admin/dashboard(range='90')}" class="btn"
+           th:classappend="${dash.range.key == '90' ? 'active' : ''}">90 ngày</a>
+        <a th:href="@{/admin/dashboard(range='all')}" class="btn"
+           th:classappend="${dash.range.key == 'all' ? 'active' : ''}">Tất cả</a>
+      </div>
+    </div>
   </div>
 
   <section class="section dashboard">
+
+    <!--/* Khe thông báo. Trang cũ không có chỗ nào để in flash message, mà RedirectAttributes là
+           kênh báo lỗi DUY NHẤT của ứng dụng (dự án không có @ControllerAdvice nào). */-->
+    <div class="alert alert-success alert-dismissible fade show" role="alert"
+         th:if="${successMessage != null}">
+      <i class="bi bi-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert"
+         th:if="${errorMessage != null}">
+      <i class="bi bi-exclamation-triangle me-1"></i> <span th:text="${errorMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!--/* ============================ ① VIỆC CẦN XỬ LÝ ============================
+           Cố ý tính TOÀN THỜI GIAN, không theo kỳ: một lịch treo từ tháng 6 không được phép biến
+           mất chỉ vì admin đang xem kỳ 7 ngày. Mỗi dòng chỉ tồn tại khi con số > 0 — service lọc
+           sẵn, template không cần th:if cho từng loại. */-->
     <div class="row">
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card revenue-card">
-          <div class="card-body">
-            <h5 class="card-title">Tổng số Bệnh nhân</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-people"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${patientCount}">0</h6>
-                <span class="text-muted small pt-2 ps-1">tài khoản</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card customers-card">
-          <div class="card-body">
-            <h5 class="card-title">Tổng số Bác sĩ</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-person-badge"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${doctorCount}">0</h6>
-                <span class="text-muted small pt-2 ps-1">nhân sự</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card sales-card">
-          <div class="card-body">
-            <h5 class="card-title">Tổng số Lịch hẹn</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-calendar-check"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${bookingCount}">0</h6>
-                <span th:if="${bookingTrend == 'up'}" class="text-success small pt-1 fw-bold">
-                  <i class="bi bi-arrow-up-short"></i> <span th:text="${bookingDiffPercent} + '% tăng'">0% tăng</span>
-                </span>
-                <span th:if="${bookingTrend == 'down'}" class="text-danger small pt-1 fw-bold">
-                  <i class="bi bi-arrow-down-short"></i> <span th:text="${bookingDiffPercent} + '% giảm'">0% giảm</span>
-                </span>
-                <span th:if="${bookingTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
-                  <span th:text="${bookingDiffPercent} + '% không đổi'">0% không đổi</span>
-                </span>
-                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card rating-card">
-          <div class="card-body">
-            <h5 class="card-title">Điểm Chất lượng</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-star-fill"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${avgRating}">0.0</h6>
-                <span th:if="${ratingTrend == 'up'}" class="text-success small pt-1 fw-bold">
-                  <i class="bi bi-arrow-up-short"></i> <span th:text="${ratingDiff} + ' tăng'">0.0 tăng</span>
-                </span>
-                <span th:if="${ratingTrend == 'down'}" class="text-danger small pt-1 fw-bold">
-                  <i class="bi bi-arrow-down-short"></i> <span th:text="${ratingDiff} + ' giảm'">0.0 giảm</span>
-                </span>
-                <span th:if="${ratingTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
-                  <span th:text="${ratingDiff} + ' không đổi'">0.0 không đổi</span>
-                </span>
-                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card deposit-card">
-          <div class="card-body">
-            <h5 class="card-title">Tổng tiền đặt cọc</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-cash-stack"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${#numbers.formatDecimal(totalDeposit, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h6>
-                <span th:if="${depositTrend == 'up'}" class="text-success small pt-1 fw-bold">
-                  <i class="bi bi-arrow-up-short"></i> <span th:text="${depositDiffPercent} + '% tăng'">0% tăng</span>
-                </span>
-                <span th:if="${depositTrend == 'down'}" class="text-danger small pt-1 fw-bold">
-                  <i class="bi bi-arrow-down-short"></i> <span th:text="${depositDiffPercent} + '% giảm'">0% giảm</span>
-                </span>
-                <span th:if="${depositTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
-                  <span th:text="${depositDiffPercent} + '% không đổi'">0% không đổi</span>
-                </span>
-                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-xxl-4 col-md-6">
-        <div class="card info-card refund-card">
-          <div class="card-body">
-            <h5 class="card-title">Tiền hoàn trả</h5>
-            <div class="d-flex align-items-center">
-              <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                <i class="bi bi-arrow-counterclockwise"></i>
-              </div>
-              <div class="ps-3">
-                <h6 th:text="${#numbers.formatDecimal(totalRefund, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h6>
-                <span th:if="${refundTrend == 'up'}" class="text-success small pt-1 fw-bold">
-                  <i class="bi bi-arrow-up-short"></i> <span th:text="${refundDiffPercent} + '% tăng'">0% tăng</span>
-                </span>
-                <span th:if="${refundTrend == 'down'}" class="text-danger small pt-1 fw-bold">
-                  <i class="bi bi-arrow-down-short"></i> <span th:text="${refundDiffPercent} + '% giảm'">0% giảm</span>
-                </span>
-                <span th:if="${refundTrend == 'flat'}" class="text-muted small pt-1 fw-bold">
-                  <span th:text="${refundDiffPercent} + '% không đổi'">0% không đổi</span>
-                </span>
-                <span class="text-muted small pt-2 ps-1">so với tháng trước</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
+      <div class="col-12">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Báo cáo <span>| 7 ngày qua</span></h5>
-            <div id="reportsChart" style="min-height: 350px;"></div>
-          </div>
-        </div>
-      </div>
+            <h5 class="card-title">
+              Việc cần xử lý <span>| toàn thời gian</span>
+            </h5>
 
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Tỷ lệ Trạng thái Lịch hẹn</h5>
-            <div id="statusPieChart" style="min-height: 350px;"></div>
+            <div th:if="${#lists.isEmpty(dash.alerts)}" class="alert-healthy">
+              <i class="bi bi-check-circle-fill fs-5"></i>
+              <span>Đã kiểm mọi đầu việc — hiện không có gì cần xử lý.</span>
+            </div>
 
-            <script th:inline="javascript">
-              document.addEventListener("DOMContentLoaded", () => {
-                  new ApexCharts(document.querySelector("#statusPieChart"), {
-                      series: [
-                          /*[[${statPending}]]*/ 10,
-                          /*[[${statConfirmed}]]*/ 20,
-                          /*[[${statCompleted}]]*/ 30,
-                          /*[[${statCancelled}]]*/ 5
-                      ],
-                      chart: { height: 350, type: 'pie', toolbar: { show: true } },
-                      labels: ['Chờ duyệt', 'Đã xác nhận', 'Đã hoàn thành', 'Đã hủy'],
-                      colors: ['#ffc107', '#0d6efd', '#198754', '#dc3545']
-                  }).render();
-              });
-            </script>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Phân bố Đánh giá (Toàn hệ thống)</h5>
-            <div id="ratingBarChart" style="min-height: 350px;"></div>
-            <script th:inline="javascript">
-              document.addEventListener("DOMContentLoaded", () => {
-                  new ApexCharts(document.querySelector("#ratingBarChart"), {
-                      series: [{
-                          name: 'Số lượng',
-                          data: [[${ratingDist}]] // [5 sao, 4 sao...]
-                      }],
-                      chart: { type: 'bar', height: 350 },
-                      plotOptions: { bar: { borderRadius: 4, horizontal: true } },
-                      dataLabels: { enabled: true },
-                      xaxis: { categories: ['5 Sao', '4 Sao', '3 Sao', '2 Sao', '1 Sao'] },
-                      colors: ['#ffc107']
-                  }).render();
-              });
-            </script>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Phản hồi mới nhất <span>| Top 5</span></h5>
-            <div class="activity">
-              <div th:each="rv : ${recentReviews}" class="activity-item d-flex">
-                <div class="activite-label me-3">
-                  <img th:if="${rv.booking.user.avatar != null}" th:src="@{'/uploads/' + ${rv.booking.user.avatar}}" class="review-avatar-small">
-                  <img th:if="${rv.booking.user.avatar == null}" th:src="@{/assets/img/default-avatar.png}" class="review-avatar-small">
-                </div>
-                <div class="activity-content">
-                  <div>
-                    <strong th:text="${rv.booking.user.fullName}">Tên BN</strong>
-                    <span class="text-muted small"> → </span>
-                    <strong class="text-primary" th:text="'Dr. ' + ${rv.booking.doctor.user.fullName}">Tên BS</strong>
-                  </div>
-                  <div class="text-warning small mb-1">
-                    <i class="bi bi-star-fill" th:each="i : ${#numbers.sequence(1, rv.rating)}"></i>
-                  </div>
-                  <p class="small text-muted mb-0 mt-1" th:text="${#strings.abbreviate(rv.comment, 80)}">Nội dung...</p>
-                  <div class="text-end text-muted" style="font-size: 11px;">
-                    <i class="bi bi-clock"></i> <span th:text="${#temporals.format(rv.createdAt, 'dd/MM HH:mm')}"></span>
-                  </div>
-                </div>
+            <div th:each="a : ${dash.alerts}" class="alert-row">
+              <div class="alert-icon" th:classappend="${'alert-' + a.severity + '-soft'}">
+                <i class="bi" th:classappend="${a.icon}"></i>
               </div>
-              <div th:if="${recentReviews.isEmpty()}" class="text-center text-muted py-3">Chưa có đánh giá nào.</div>
+              <div class="flex-grow-1">
+                <div class="alert-title" th:text="${a.title}">Tiêu đề</div>
+                <div class="alert-detail" th:text="${a.detail}">Chi tiết</div>
+              </div>
+              <a class="btn btn-sm btn-outline-primary align-self-center"
+                 th:href="@{${a.href}}" th:text="${a.actionLabel}">Xem</a>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!--/* ================================ ② TIỀN ================================
+           Ba thẻ đầu TRỪ RA KHỚP NHAU: Đã thu − Đã hoàn = Thực thu. "Thực thu" không có truy vấn
+           riêng, nó được trừ trong service từ đúng hai số kia.
+           Thẻ thứ tư là SỐ DƯ HIỆN TẠI, không theo kỳ — nhãn phải nói rõ, bằng không nó đứng lẫn
+           với ba thẻ theo kỳ bên cạnh và người đọc cộng nhầm. */-->
+    <div class="row">
+      <div class="col-12">
+        <h6 class="text-uppercase text-muted fw-bold small mb-2 mt-2">
+          Tiền <span class="fw-normal text-lowercase" th:text="'· ' + ${dash.range.label}">· 30 ngày qua</span>
+        </h6>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='ĐÃ THU',
+                value=${#numbers.formatDecimal(dash.money.gross, 0, 'POINT', 0, 'POINT')} + ' đ',
+                note=${dash.range.label} + ' · gồm cả tiền đã hoàn lại',
+                icon='bi-cash-stack', accent='accent-green', trend=null)}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='ĐÃ HOÀN TRẢ',
+                value=${#numbers.formatDecimal(dash.money.refunded, 0, 'POINT', 0, 'POINT')} + ' đ',
+                note=${dash.range.label},
+                icon='bi-arrow-counterclockwise', accent='accent-red', trend=null)}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='THỰC THU',
+                value=${#numbers.formatDecimal(dash.money.net, 0, 'POINT', 0, 'POINT')} + ' đ',
+                note='= đã thu − đã hoàn trả',
+                icon='bi-wallet2', accent='accent-teal', trend=null)}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='CÒN PHẢI THU',
+                value=${#numbers.formatDecimal(dash.money.owed, 0, 'POINT', 0, 'POINT')} + ' đ',
+                note='hiện tại · không theo kỳ',
+                icon='bi-hourglass-split', accent='accent-amber', trend=null)}"></div>
       </div>
 
       <div class="col-12">
-        <div class="card recent-sales overflow-auto">
+        <div class="card">
+          <div class="card-body pt-3">
+            <!--/* Dòng đối soát. Sổ ví là nguồn ĐỘC LẬP với bảng lịch hẹn; in cả hai cạnh nhau để
+                   khoảng lệch lộ ra thay vì nằm im. Nó không được cộng vào bốn thẻ ở trên. */-->
+            <div class="recon-note" th:classappend="${dash.money.ledgerGap ? '' : 'is-clean'}">
+              <i class="bi bi-shield-check me-1"></i>
+              <strong>Đối soát sổ ví:</strong>
+              sổ ví ghi hoàn
+              <strong th:text="${#numbers.formatDecimal(dash.money.ledgerRefund, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</strong>
+              (toàn thời gian).
+              <span th:if="${dash.money.ledgerGap}">
+                Lệch
+                <strong class="text-danger"
+                        th:text="${#numbers.formatDecimal(dash.money.ledgerDelta, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</strong>
+                so với bảng lịch hẹn — cần rà lại.
+              </span>
+              <span th:unless="${dash.money.ledgerGap}">Khớp với bảng lịch hẹn.</span>
+              <div class="mt-1">
+                Chưa thu:
+                <strong th:text="${#numbers.formatDecimal(dash.money.owedUpcoming, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</strong>
+                ở lịch sắp tới ·
+                <strong th:text="${#numbers.formatDecimal(dash.money.owedCompleted, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</strong>
+                ở ca đã khám xong. Thất thoát do bỏ dở thanh toán:
+                <strong th:text="${#numbers.formatDecimal(dash.money.lost, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</strong>.
+              </div>
+            </div>
+            <div th:replace="~{admin/include/ai-insight :: ai-insight(${dash.insights.get('money')})}"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--/* ============================== ③ VẬN HÀNH ============================== */-->
+    <div class="row">
+      <div class="col-12">
+        <h6 class="text-uppercase text-muted fw-bold small mb-2 mt-2">
+          Vận hành <span class="fw-normal text-lowercase" th:text="'· ' + ${dash.range.label}">· 30 ngày qua</span>
+        </h6>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='LỊCH HẸN MỚI',
+                value=${dash.ops.newBookings},
+                note=${dash.ops.bookingTrend != null ? 'so với kỳ trước' : 'không có kỳ trước để so'},
+                icon='bi-calendar-plus', accent='accent-blue', trend=${dash.ops.bookingTrend})}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='ĐÃ HOÀN THÀNH',
+                value=${dash.ops.completed},
+                note='ca khám đã đóng hồ sơ',
+                icon='bi-clipboard2-check', accent='accent-green', trend=null)}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='ĐÃ HUỶ',
+                value=${dash.ops.canceled},
+                note='tỷ lệ ' + ${#numbers.formatDecimal(dash.ops.cancelRate, 1, 'POINT', 1, 'COMMA')} + '% trong kỳ',
+                icon='bi-x-circle', accent='accent-red', trend=null)}"></div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div th:replace="~{admin/include/stat-tile :: tile(
+                label='ĐIỂM CHẤT LƯỢNG',
+                value=${#numbers.formatDecimal(dash.ops.avgRating, 1, 'POINT', 1, 'COMMA')},
+                note=${dash.ops.reviewCount} + ' lượt đánh giá · toàn thời gian',
+                icon='bi-star', accent='accent-amber', trend=null)}"></div>
+      </div>
+    </div>
+
+    <!--/* ========================= ④ NHU CẦU THEO THỜI GIAN ========================= */-->
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Lịch hẹn Gần đây <span>| Tất cả</span></h5>
-            <table class="table table-borderless datatable">
-              <thead>
-              <tr>
-                <th scope="col">#ID</th>
-                <th scope="col">Bệnh nhân</th>
-                <th scope="col">Bác sĩ</th>
-                <th scope="col">Giá (VNĐ)</th>
-                <th scope="col">Trạng thái</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr th:each="booking : ${listBookings}">
-                <th scope="row">
-                  <a th:href="@{/admin/manage-booking}" th:text="'#' + ${booking.id}">#ID</a>
-                </th>
-                <td th:text="${booking.user.fullName}">Tên BN</td>
-                <td th:text="${booking.doctor.user.fullName}">Tên BS</td>
-                <td th:text="${#numbers.formatDecimal(booking.bookingPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'">300.000</td>
-                <td>
-                  <span th:if="${booking.status.name() == 'PENDING'}" class="badge bg-warning">Chờ xác nhận</span>
-                  <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-success">Đã xác nhận</span>
-                  <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
-                  <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã hoàn thành</span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
+            <h5 class="card-title">
+              Lượt đặt lịch theo ngày
+              <span th:text="'| ' + ${dash.range.label} + ' · theo ngày tạo lịch hẹn'">| 30 ngày qua</span>
+            </h5>
+            <div id="dailyChart" style="min-height: 320px;"></div>
           </div>
         </div>
       </div>
 
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Trạng thái lịch hẹn <span th:text="'| ' + ${dash.range.label}">| 30 ngày qua</span></h5>
+            <div id="statusChart" style="min-height: 320px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!--/* ======================= ⑤ KHOA & KHUNG GIỜ ======================= */-->
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Lượt khám theo khoa <span>| 8 khoa dẫn đầu</span></h5>
+            <div id="deptChart" style="min-height: 300px;"></div>
+            <div th:replace="~{admin/include/ai-insight :: ai-insight(${dash.insights.get('department')})}"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Khung giờ cao điểm <span>| giờ hành chính</span></h5>
+            <div id="slotChart" style="min-height: 300px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--/* ================== ⑥ LỊCH QUÁ HẠN & PHẢN HỒI ================== */-->
+    <div class="row">
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Lịch quá hạn cũ nhất <span>| chưa đóng hồ sơ</span></h5>
+
+            <div th:if="${#lists.isEmpty(dash.overdueTop10)}" class="alert-healthy">
+              <i class="bi bi-check-circle-fill fs-5"></i>
+              <span>Không còn lịch hẹn nào quá ngày mà chưa đóng.</span>
+            </div>
+
+            <!--/* KHÔNG đặt class="datatable": main.js tự khởi tạo simple-datatables cho mọi bảng
+                   mang class đó, kèm cấu hình cột hardcode còn sót từ demo NiceAdmin. Bảng 10 dòng
+                   không cần ô tìm kiếm và phân trang. */-->
+            <div class="table-responsive" th:unless="${#lists.isEmpty(dash.overdueTop10)}">
+              <table class="table table-borderless align-middle mb-0">
+                <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Bệnh nhân</th>
+                  <th scope="col">Bác sĩ</th>
+                  <th scope="col">Ngày hẹn</th>
+                  <th scope="col" class="text-end">Giá</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="b : ${dash.overdueTop10}">
+                  <th scope="row"><a th:href="@{/admin/manage-booking}" th:text="'#' + ${b.id}">#0</a></th>
+                  <td th:text="${b.user != null ? b.user.fullName : '—'}">Bệnh nhân</td>
+                  <td th:text="${b.doctor != null and b.doctor.user != null ? b.doctor.user.fullName : '—'}">Bác sĩ</td>
+                  <td th:text="${b.appointmentDate != null ? #temporals.format(b.appointmentDate, 'dd/MM/yyyy') : '—'}">01/01</td>
+                  <td class="text-end"
+                      th:text="${#numbers.formatDecimal(b.bookingPrice, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div th:replace="~{admin/include/ai-insight :: ai-insight(${dash.insights.get('overdue')})}"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Phản hồi mới nhất <span>| 5 lượt gần đây</span></h5>
+
+            <!--/* Phân bố sao vẽ bằng thanh CSS chứ không thêm biểu đồ thứ năm: năm con số không
+                   đáng một lần khởi tạo ApexCharts, và thanh ngang đọc nhanh hơn ở khổ hẹp này.
+                   ratingDist xếp từ 5 sao xuống 1 sao — cùng thứ tự ReviewServiceImpl trả về. */-->
+            <div class="mb-3" th:if="${dash.ratingDist != null}">
+              <div class="d-flex align-items-center gap-2 mb-1" th:each="n, it : ${dash.ratingDist}">
+                <span class="small text-muted" style="width: 42px;" th:text="${5 - it.index} + ' sao'">5 sao</span>
+                <div class="progress flex-grow-1" style="height: 7px;">
+                  <div class="progress-bar bg-warning"
+                       th:style="'width:' + ${dash.ops.reviewCount > 0 ? (n * 100 / dash.ops.reviewCount) : 0} + '%'"></div>
+                </div>
+                <span class="small text-muted" style="width: 22px;" th:text="${n}">0</span>
+              </div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(dash.recentReviews)}" class="text-center text-muted py-3">
+              Chưa có đánh giá nào.
+            </div>
+
+            <div th:each="rv : ${dash.recentReviews}" class="review-item d-flex gap-2">
+              <img th:if="${rv.booking.user.avatar != null}"
+                   th:src="@{'/uploads/' + ${rv.booking.user.avatar}}" class="review-avatar-small" alt="">
+              <img th:if="${rv.booking.user.avatar == null}"
+                   th:src="@{/assets/img/default-avatar.png}" class="review-avatar-small" alt="">
+              <div class="flex-grow-1">
+                <div class="small">
+                  <strong th:text="${rv.booking.user.fullName}">Bệnh nhân</strong>
+                  <span class="text-muted">→</span>
+                  <strong class="text-primary" th:text="'BS. ' + ${rv.booking.doctor.user.fullName}">Bác sĩ</strong>
+                </div>
+                <div class="text-warning" style="font-size: .75rem;">
+                  <i class="bi bi-star-fill" th:each="i : ${#numbers.sequence(1, rv.rating)}"></i>
+                </div>
+                <p class="small text-muted mb-0" th:text="${#strings.abbreviate(rv.comment, 80)}">Nội dung</p>
+                <div class="text-muted" style="font-size: .68rem;"
+                     th:text="${#temporals.format(rv.createdAt, 'dd/MM HH:mm')}">01/01</div>
+              </div>
+            </div>
+
+            <div th:replace="~{admin/include/ai-insight :: ai-insight(${dash.insights.get('quality')})}"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--/* ==================== ⑦ LỊCH HẸN MỚI NHẤT ==================== */-->
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">
+              Lịch hẹn mới nhất <span>| 20 lượt gần đây</span>
+              <a class="float-end small" th:href="@{/admin/manage-booking}">Xem tất cả →</a>
+            </h5>
+            <div class="table-responsive">
+              <table class="table table-borderless align-middle mb-0">
+                <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Bệnh nhân</th>
+                  <th scope="col">Bác sĩ</th>
+                  <th scope="col">Ngày khám</th>
+                  <th scope="col" class="text-end">Giá</th>
+                  <th scope="col">Trạng thái</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="b : ${dash.recentBookings}">
+                  <th scope="row"><a th:href="@{/admin/manage-booking}" th:text="'#' + ${b.id}">#0</a></th>
+                  <td th:text="${b.user != null ? b.user.fullName : '—'}">Bệnh nhân</td>
+                  <td th:text="${b.doctor != null and b.doctor.user != null ? b.doctor.user.fullName : '—'}">Bác sĩ</td>
+                  <td th:text="${b.appointmentDate != null ? #temporals.format(b.appointmentDate, 'dd/MM/yyyy') : '—'}">01/01</td>
+                  <td class="text-end"
+                      th:text="${#numbers.formatDecimal(b.bookingPrice, 0, 'POINT', 0, 'POINT')} + ' đ'">0 đ</td>
+                  <td>
+                    <span th:if="${b.status.name() == 'PENDING'}" class="badge bg-warning">Chờ xác nhận</span>
+                    <span th:if="${b.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
+                    <span th:if="${b.status.name() == 'COMPLETED'}" class="badge bg-success">Đã hoàn thành</span>
+                    <span th:if="${b.status.name() == 'CANCELED'}" class="badge bg-danger">Đã huỷ</span>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(dash.recentBookings)}">
+                  <td colspan="6" class="text-center text-muted py-3">Chưa có lịch hẹn nào.</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--/* Quy mô hệ thống: các con số luỹ kế không đổi giữa hai lần tải trang, nên chúng KHÔNG
+           xứng đáng một thẻ số cỡ lớn ở đầu trang như bản cũ. Một dòng chân là đủ. */-->
+    <div class="row">
+      <div class="col-12">
+        <p class="text-center text-muted small mb-0">
+          <a th:href="@{/admin/manage-user}"><span th:text="${dash.scale.patients}">0</span> bệnh nhân</a> ·
+          <a th:href="@{/admin/manage-doctor}"><span th:text="${dash.scale.doctors}">0</span> bác sĩ</a> ·
+          <a th:href="@{/admin/departments}"><span th:text="${dash.scale.departments}">0</span> chuyên khoa</a> ·
+          <a th:href="@{/admin/manage-service}"><span th:text="${dash.scale.services}">0</span> dịch vụ</a>
+        </p>
+      </div>
+    </div>
+
   </section>
 </main>
 
 <th:block th:replace="~{admin/include/footer :: footer}"></th:block>
 
-<!-- Fragment footer đã nạp đủ apexcharts / bootstrap.bundle / echarts / simple-datatables /
-     main.js. Nạp bootstrap lần hai làm data-api gắn hai handler lên document, một cú bấm
-     chạy toggle() hai lần (mở rồi đóng) nên mọi dropdown trông như bấm không ăn. -->
+<!--/* Fragment footer đã nạp apexcharts + bootstrap.bundle + main.js + responsive-admin.js.
+       KHÔNG nạp lại bootstrap ở đây: hai bản làm data-api gắn hai handler lên document, một cú bấm
+       chạy toggle() hai lần (mở rồi đóng ngay) nên mọi dropdown — kể cả nhóm gập của sidebar —
+       trông như bấm không ăn. */-->
 
 <script th:inline="javascript">
-  document.addEventListener("DOMContentLoaded", () => {
-    const baseUrl = /*[[@{/}]]*/ '';
+/*
+ * MỘT khối script cho cả trang. Bản cũ nhét ba lệnh khởi tạo ApexCharts vào giữa thân từng card,
+ * nên chúng nằm lẫn trong markup và không grep ra được khi cần sửa.
+ *
+ * Số liệu do server render sẵn qua th:inline, KHÔNG còn fetch() nào: bản cũ gọi
+ * /api/dashboard/booking-stats-7days — một endpoint không có luật phân quyền riêng nên rơi xuống
+ * anyRequest().authenticated(), tức bệnh nhân đã đăng nhập cũng đọc được. Endpoint đó đã bị xoá.
+ */
+document.addEventListener('DOMContentLoaded', () => {
 
-    fetch(baseUrl + 'api/dashboard/booking-stats-7days')
-      .then(response => response.json())
-      .then(data => {
-        const categories = data.map(item => item.date);
-        const seriesData = data.map(item => item.count);
+    const FONT   = "'Inter', sans-serif";
+    const daily  = /*[[${dash.daily}]]*/ [];
+    const status = /*[[${dash.statusCounts}]]*/ [];
+    const depts  = /*[[${dash.byDepartment}]]*/ [];
+    const slots  = /*[[${dash.bySlot}]]*/ [];
 
-        new ApexCharts(document.querySelector("#reportsChart"), {
-          series: [{
-            name: 'Lịch hẹn mới',
-            data: seriesData,
-          }],
-          chart: {
-            height: 350,
-            type: 'area',
-            toolbar: {
-              show: false
-            },
-          },
-          markers: {
-            size: 4
-          },
-          colors: ['#4154f1'],
-          fill: {
-            type: "gradient",
-            gradient: {
-              shadeIntensity: 1,
-              opacityFrom: 0.3,
-              opacityTo: 0.4,
-              stops: [0, 90, 100]
-            }
-          },
-          dataLabels: {
-            enabled: false
-          },
-          stroke: {
-            curve: 'smooth',
-            width: 2
-          },
-          xaxis: {
-            type: 'datetime',
-            categories: categories
-          },
-          tooltip: {
-            x: {
-              format: 'dd/MM/yy'
-            },
-          }
-        }).render();
-      })
-      .catch(error => console.error('Lỗi khi tải dữ liệu biểu đồ:', error));
-  });
+    const render = (selector, options) => {
+        const el = document.querySelector(selector);
+        if (el) new ApexCharts(el, options).render();
+    };
+
+    // --- Lượt đặt theo ngày. Chuỗi đã được zero-fill ở server: truy vấn gộp không trả dòng nào cho
+    //     ngày trống, nên vẽ thẳng là đường biểu đồ nhảy cóc qua những ngày không có lịch hẹn.
+    render('#dailyChart', {
+        series: [{ name: 'Lượt đặt', data: daily.map(d => d.count) }],
+        chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: FONT },
+        colors: ['#006B63'],
+        stroke: { curve: 'smooth', width: 2 },
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .3, opacityTo: .05, stops: [0, 90, 100] } },
+        dataLabels: { enabled: false },
+        markers: { size: 0, hover: { size: 5 } },
+        xaxis: {
+            categories: daily.map(d => d.label),
+            tickAmount: Math.min(12, Math.max(1, daily.length)),
+            axisBorder: { show: false }, axisTicks: { show: false },
+            labels: { style: { colors: '#94A3B8', fontSize: '11px' } }
+        },
+        yaxis: { labels: { style: { colors: '#94A3B8', fontSize: '11px' } } },
+        grid: { borderColor: '#F1F5F9', strokeDashArray: 4 }
+    });
+
+    // --- Trạng thái: donut chứ không phải pie mặc định còn bật toolbar như bản cũ.
+    render('#statusChart', {
+        series: status.map(s => s.count),
+        labels: status.map(s => s.name),
+        chart: { type: 'donut', height: 320, fontFamily: FONT },
+        colors: ['#F59E0B', '#3B82F6', '#10B981', '#EF4444'],
+        plotOptions: { pie: { donut: { size: '65%' } } },
+        dataLabels: { enabled: false },
+        stroke: { width: 0 },
+        legend: { position: 'bottom', fontSize: '12px' }
+    });
+
+    render('#deptChart', {
+        series: [{ name: 'Lượt khám', data: depts.map(d => d.count) }],
+        chart: { type: 'bar', height: 300, toolbar: { show: false }, fontFamily: FONT },
+        colors: ['#3B82F6'],
+        plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '62%' } },
+        dataLabels: { enabled: true, style: { fontSize: '11px' } },
+        xaxis: {
+            categories: depts.map(d => d.name),
+            axisBorder: { show: false }, axisTicks: { show: false },
+            labels: { style: { colors: '#94A3B8', fontSize: '11px' } }
+        },
+        yaxis: { labels: { style: { colors: '#475569', fontSize: '11px' } } },
+        grid: { borderColor: '#F1F5F9', strokeDashArray: 4 },
+        noData: { text: 'Kỳ này chưa có lượt khám nào' }
+    });
+
+    render('#slotChart', {
+        series: [{ name: 'Lượt khám', data: slots.map(s => s.count) }],
+        chart: { type: 'bar', height: 300, toolbar: { show: false }, fontFamily: FONT },
+        colors: ['#006B63'],
+        plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
+        dataLabels: { enabled: false },
+        xaxis: {
+            // Nhãn khung giờ dài nên chỉ lấy giờ bắt đầu, bằng không trục X chồng chữ lên nhau.
+            categories: slots.map(s => String(s.name).split(' - ')[0]),
+            axisBorder: { show: false }, axisTicks: { show: false },
+            labels: { rotate: -45, style: { colors: '#94A3B8', fontSize: '10px' } }
+        },
+        yaxis: { labels: { style: { colors: '#94A3B8', fontSize: '11px' } } },
+        grid: { borderColor: '#F1F5F9', strokeDashArray: 4 },
+        noData: { text: 'Kỳ này chưa có lượt khám nào' }
+    });
+});
+
+/*
+ * Ô "AI Insight": chữ đã render sẵn ở server, phần AI thật nằm ở cú bấm.
+ *
+ * Bắt buộc dùng listener UỶ QUYỀN kèm preventDefault — cùng lý do với dashboard bác sĩ: ô insight
+ * nằm trong thẻ card có liên kết, gắn onclick từng ô là vừa mở chat vừa điều hướng đi mất.
+ */
+document.addEventListener('click', (e) => {
+    const box = e.target.closest('.ai-insight-box');
+    if (!box) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const prompt = box.dataset.aiPrompt;
+    if (!prompt) return;
+
+    const panel = document.getElementById('admin-ai-sidepanel');
+    if (panel && !panel.classList.contains('open') && typeof window.toggleMediTrustAI === 'function') {
+        window.toggleMediTrustAI();
+    }
+    // Chờ khung chat mở xong rồi mới gửi, nếu không tin nhắn bắn vào lúc widget chưa sẵn sàng.
+    setTimeout(() => {
+        if (typeof window.sendQuickReplyAdmin === 'function') window.sendQuickReplyAdmin(prompt);
+    }, 350);
+});
 </script>
 </body>
 </html>

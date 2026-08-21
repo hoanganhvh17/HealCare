@@ -1,12 +1,9 @@
 package com.bookinghealthy.controller.admin;
 
 import com.bookinghealthy.model.*;
-import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.repository.DepartmentRepository;
 import com.bookinghealthy.repository.RoleRepository;
-import com.bookinghealthy.repository.ReviewRepository;
 import com.bookinghealthy.repository.StaffProfileRepository;
-import com.bookinghealthy.service.ReviewService;
 import com.bookinghealthy.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +17,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet; // <-- THÊM IMPORT
 import java.util.List;
@@ -43,152 +38,23 @@ public class AdminController {
     @Autowired private DepartmentRepository departmentRepository;
     @Autowired private StaffProfileRepository staffProfileRepository;
 
-    @Autowired private ReviewService reviewService; // <-- Inject Review Service
-    @Autowired private ReviewRepository reviewRepository;
-
-    // === THÊM REPO NÀY ĐỂ ĐẾM ===
     @Autowired
-    private BookingRepository bookingRepository;
+    private com.bookinghealthy.service.AdminDashboardService adminDashboardService;
 
-    // === SỬA HÀM NÀY ĐỂ GỬI SỐ LIỆU ===
-    // Trong AdminController.java, hàm adminHome
-
+    /**
+     * Trang tổng quan của admin.
+     *
+     * Toàn bộ số học nằm ở {@link com.bookinghealthy.service.AdminDashboardService}. Trước đây 137
+     * dòng tính toán nằm thẳng trong hàm này — bên trong một controller vốn đã giữ CRUD người dùng —
+     * và đẩy 21 thuộc tính rời rạc ra model, trong đó hai thuộc tính tiền đi thẳng ra view mà không
+     * qua một lần kiểm null nào nên in ra đúng chữ "null đ".
+     *
+     * {@code range} nhận 7 / 30 / 90 / all; giá trị lạ rơi về mặc định chứ không ném lỗi — đây là
+     * trang đích sau khi đăng nhập, 500 ở đây là admin bị chặn khỏi trang chủ của chính mình.
+     */
     @GetMapping("/dashboard")
-    public String adminHome(Model model) {
-        long patientCount = userService.findByRoleName("ROLE_USER").size();
-        long doctorCount = userService.findByRoleName("ROLE_DOCTOR").size();
-        long bookingCount = bookingRepository.count();
-
-        // === LOGIC MỚI: THỐNG KÊ TRẠNG THÁI ===
-        // Đếm số lượng theo từng trạng thái để vẽ biểu đồ tròn
-        long countPending = bookingRepository.countByStatus(BookingStatus.PENDING); // Cần thêm hàm này vào Repo nếu chưa có
-        long countConfirmed = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
-        long countCompleted = bookingRepository.countByStatus(BookingStatus.COMPLETED);
-        long countCancelled = bookingRepository.countByStatus(BookingStatus.CANCELED);
-
-        // 3. SỐ LIỆU ĐÁNH GIÁ (MỚI)
-        // a. Đánh giá mới nhất (Toàn hệ thống)
-        List<Review> recentGlobalReviews = reviewService.getRecentGlobalReviews();
-
-        // b. Phân bố sao (5 sao, 4 sao...)
-        List<Integer> globalRatingDist = reviewService.getGlobalRatingDistribution();
-
-        // c. Điểm trung bình toàn hệ thống
-        Double globalAvgRating = reviewService.getGlobalAverageRating();
-
-        // 4. DANH SÁCH LỊCH HẸN (CŨ)
-        List<Booking> allRecentBookings = bookingRepository.findAllByOrderByCreatedAtDesc();
-
-        // === CÁC CHỈ SỐ PHÂN TÍCH TĂNG GIẢM VÀ 2 THẺ MỚI ===
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfThisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-        LocalDateTime endOfThisMonth = now;
-        LocalDateTime startOfLastMonth = startOfThisMonth.minusMonths(1);
-        LocalDateTime endOfLastMonth = now.minusMonths(1);
-
-        // A. Lịch hẹn trend
-        long currentBookings = bookingRepository.countByCreatedAtBetween(startOfThisMonth, endOfThisMonth);
-        long lastBookings = bookingRepository.countByCreatedAtBetween(startOfLastMonth, endOfLastMonth);
-        double bookingDiffPercent = 0.0;
-        String bookingTrend = "flat";
-        if (lastBookings > 0) {
-            bookingDiffPercent = ((double) (currentBookings - lastBookings) / lastBookings) * 100;
-            if (bookingDiffPercent > 0) bookingTrend = "up";
-            else if (bookingDiffPercent < 0) bookingTrend = "down";
-        } else if (currentBookings > 0) {
-            bookingDiffPercent = 100.0;
-            bookingTrend = "up";
-        }
-        String bookingDiffPercentStr = String.format("%.1f", Math.abs(bookingDiffPercent));
-
-        // B. Điểm đánh giá trend
-        Double currentRating = reviewRepository.getAverageRatingBetween(startOfThisMonth, endOfThisMonth);
-        Double lastRating = reviewRepository.getAverageRatingBetween(startOfLastMonth, endOfLastMonth);
-        if (currentRating == null) currentRating = 0.0;
-        if (lastRating == null) lastRating = 0.0;
-        double ratingDiff = currentRating - lastRating;
-        String ratingTrend = "flat";
-        String ratingDiffStr = "0.0";
-        if (ratingDiff > 0) {
-            ratingTrend = "up";
-            ratingDiffStr = String.format("+%.1f", ratingDiff);
-        } else if (ratingDiff < 0) {
-            ratingTrend = "down";
-            ratingDiffStr = String.format("%.1f", ratingDiff);
-        }
-
-        // C. Tổng tiền đặt cọc và trend
-        BigDecimal totalDeposit = bookingRepository.sumTotalDeposit();
-        BigDecimal currentDeposit = bookingRepository.sumDepositByCreatedAtBetween(startOfThisMonth, endOfThisMonth);
-        BigDecimal lastDeposit = bookingRepository.sumDepositByCreatedAtBetween(startOfLastMonth, endOfLastMonth);
-        if (currentDeposit == null) currentDeposit = BigDecimal.ZERO;
-        if (lastDeposit == null) lastDeposit = BigDecimal.ZERO;
-        
-        double depositDiffPercent = 0.0;
-        String depositTrend = "flat";
-        if (lastDeposit.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal diff = currentDeposit.subtract(lastDeposit);
-            depositDiffPercent = diff.multiply(new BigDecimal(100)).divide(lastDeposit, 1, java.math.RoundingMode.HALF_UP).doubleValue();
-            if (depositDiffPercent > 0) depositTrend = "up";
-            else if (depositDiffPercent < 0) depositTrend = "down";
-        } else if (currentDeposit.compareTo(BigDecimal.ZERO) > 0) {
-            depositDiffPercent = 100.0;
-            depositTrend = "up";
-        }
-        String depositDiffPercentStr = String.format("%.1f", Math.abs(depositDiffPercent));
-
-        // D. Tiền hoàn trả và trend
-        BigDecimal totalRefund = bookingRepository.sumTotalRefund();
-        BigDecimal currentRefund = bookingRepository.sumRefundByCreatedAtBetween(startOfThisMonth, endOfThisMonth);
-        BigDecimal lastRefund = bookingRepository.sumRefundByCreatedAtBetween(startOfLastMonth, endOfLastMonth);
-        if (currentRefund == null) currentRefund = BigDecimal.ZERO;
-        if (lastRefund == null) lastRefund = BigDecimal.ZERO;
-        
-        double refundDiffPercent = 0.0;
-        String refundTrend = "flat";
-        if (lastRefund.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal diff = currentRefund.subtract(lastRefund);
-            refundDiffPercent = diff.multiply(new BigDecimal(100)).divide(lastRefund, 1, java.math.RoundingMode.HALF_UP).doubleValue();
-            if (refundDiffPercent > 0) refundTrend = "up";
-            else if (refundDiffPercent < 0) refundTrend = "down";
-        } else if (currentRefund.compareTo(BigDecimal.ZERO) > 0) {
-            refundDiffPercent = 100.0;
-            refundTrend = "up";
-        }
-        String refundDiffPercentStr = String.format("%.1f", Math.abs(refundDiffPercent));
-
-        // Gửi số liệu ra view
-        model.addAttribute("patientCount", patientCount);
-        model.addAttribute("doctorCount", doctorCount);
-        model.addAttribute("bookingCount", bookingCount);
-
-        model.addAttribute("statPending", countPending);
-        model.addAttribute("statConfirmed", countConfirmed);
-        model.addAttribute("statCompleted", countCompleted);
-        model.addAttribute("statCancelled", countCancelled);
-
-        // Stats cho đánh giá
-        model.addAttribute("recentReviews", recentGlobalReviews);
-        model.addAttribute("ratingDist", globalRatingDist);
-        model.addAttribute("avgRating", globalAvgRating != null ? globalAvgRating : 0.0);
-
-        // Trends
-        model.addAttribute("bookingDiffPercent", bookingDiffPercentStr);
-        model.addAttribute("bookingTrend", bookingTrend);
-
-        model.addAttribute("ratingDiff", ratingDiffStr);
-        model.addAttribute("ratingTrend", ratingTrend);
-
-        model.addAttribute("totalDeposit", totalDeposit);
-        model.addAttribute("depositDiffPercent", depositDiffPercentStr);
-        model.addAttribute("depositTrend", depositTrend);
-
-        model.addAttribute("totalRefund", totalRefund);
-        model.addAttribute("refundDiffPercent", refundDiffPercentStr);
-        model.addAttribute("refundTrend", refundTrend);
-
-        model.addAttribute("listBookings", allRecentBookings);
-
+    public String adminHome(@RequestParam(name = "range", required = false) String range, Model model) {
+        model.addAttribute("dash", adminDashboardService.build(range));
         return "admin/dashboard";
     }
 

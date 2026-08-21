@@ -2,7 +2,7 @@ package com.bookinghealthy.controller.api;
 
 import com.bookinghealthy.dto.AdminDashboardSummaryDTO;
 import com.bookinghealthy.dto.ai.ChatRequest;
-import com.bookinghealthy.service.AdminDashboardService;
+import com.bookinghealthy.service.AdminAiReportService;
 import com.bookinghealthy.service.AiService;
 import com.bookinghealthy.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminAiController {
 
-    @Autowired private AdminDashboardService adminDashboardService;
+    @Autowired private AdminAiReportService adminAiReportService;
     @Autowired private AiService aiService;
     @Autowired private PostService postService;
 
@@ -44,7 +44,7 @@ public class AdminAiController {
 
     @GetMapping("/welcome")
     public ResponseEntity<Map<String, Object>> getWelcomeMessage() {
-        AdminDashboardSummaryDTO summary = adminDashboardService.getDashboardSummary();
+        AdminDashboardSummaryDTO summary = adminAiReportService.getDashboardSummary();
         long draftNewsCount = postService.countDrafts();
         
         DecimalFormat currencyFormatter = new DecimalFormat("#,###'đ'");
@@ -77,7 +77,7 @@ public class AdminAiController {
     @PostMapping("/ask")
     public ResponseEntity<?> chatWithAdminAssistant(@RequestBody ChatRequest chatRequest) {
         String userPrompt = chatRequest.getPrompt().toLowerCase();
-        AdminDashboardSummaryDTO summary = adminDashboardService.getDashboardSummary();
+        AdminDashboardSummaryDTO summary = adminAiReportService.getDashboardSummary();
         long draftNewsCount = postService.countDrafts();
 
         // --- 1. XỬ LÝ NHANH CÁC CÂU LỆNH ĐƠN GIẢN (KHÔNG GỌI AI) ---
@@ -179,7 +179,8 @@ public class AdminAiController {
         sb.append("--- HIỆU SUẤT HOẠT ĐỘNG ---\n");
         sb.append(String.format("- Lịch hẹn mới tháng này: %d (Xu hướng: %s)\n", ops.getNewBookingsThisMonth(), percentFormatter.format(ops.getBookingTrend() / 100)));
         sb.append(String.format("- Tỷ lệ hủy lịch toàn hệ thống: %s\n", percentFormatter.format(ops.getCancellationRate() / 100)));
-        sb.append(String.format("- Khoa đông khách nhất: %s\n\n", ops.getBusiestDepartment()));
+        sb.append(String.format("- Khoa đông khách nhất: %s\n", ops.getBusiestDepartment()));
+        sb.append(String.format("- Tổng số bệnh nhân: %d\n\n", ops.getTotalPatients()));
 
         sb.append("--- CHẤT LƯỢNG DỊCH VỤ & NHÂN SỰ ---\n");
         sb.append(String.format("- Bác sĩ được đánh giá cao nhất: %s\n", qhr.getTopPerformingDoctor()));

@@ -39,6 +39,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRoles_Name(@Param("roleName") String roleName);
     // === KẾT THÚC SỬA LỖI ===
 
+    /**
+     * Đếm người dùng theo vai trò mà KHÔNG nạp cả bảng.
+     *
+     * AdminController.adminHome trước đây gọi findByRoles_Name(...).size() HAI lần cho mỗi lần mở
+     * dashboard — tức nạp trọn 149 dòng users kèm JOIN FETCH roles, hai lượt, chỉ để lấy hai con số.
+     */
+    @Query("SELECT COUNT(DISTINCT u) FROM User u JOIN u.roles r WHERE r.name = :roleName")
+    long countByRoleName(@Param("roleName") String roleName);
+
     @Override
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles")
     List<User> findAll();

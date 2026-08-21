@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/*
+  Một ô "AI Insight" trên dashboard admin. Bản sinh đôi của doctor/include/ai-insight.html.
+
+  Cách dùng:
+      <div th:replace="~{admin/include/ai-insight :: ai-insight(${dash.insights['money']})}"></div>
+
+  Câu chữ trong ô do LUẬT Java sinh ra (AdminDashboardServiceImpl.buildInsights) trên chính những
+  con số đã hiển thị phía trên — KHÔNG gọi mô hình lúc render. Tám lượt gọi LLM cho mỗi lần tải
+  dashboard là chi phí không ai trả nổi, và con số với câu nhận định phải đọc cùng một biến thì mới
+  không thể mâu thuẫn nhau.
+
+  AI thật chỉ chạy khi admin BẤM vào ô: `data-ai-prompt` mang câu hỏi, listener uỷ quyền ở cuối
+  dashboard.html mở khung chat admin rồi gửi nó sang /api/admin/chat.
+
+  Câu hỏi đi qua `th:attr` chứ KHÔNG qua `th:onclick`: tiếng Việt đầy dấu nháy đơn, nhét thẳng vào
+  JS là vỡ script; còn thuộc tính thì Thymeleaf tự escape.
+*/-->
+<div th:fragment="ai-insight(i)" th:if="${i != null}"
+     class="ai-insight-box" th:attr="data-ai-prompt=${i.prompt}">
+    <div class="ai-insight-label">
+        <i class="bi bi-magic me-1"></i> AI Insight
+    </div>
+    <div th:class="'ai-insight-text ' + ${i.colorClass}" th:text="${i.advice}">
+        Nội dung phân tích sẽ hiển thị ở đây.
+    </div>
+</div>
+
+</body>
+</html>

@@ -47,13 +47,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @EntityGraph(attributePaths = {"user", "doctor", "doctor.user"})
     List<Booking> findAllByOrderByCreatedAtDesc();
 
-    @Query(value = "SELECT DATE(created_at) as date, COUNT(id) as count " +
-            "FROM bookings " +
-            "WHERE created_at >= CURDATE() - INTERVAL 7 DAY " +
-            "GROUP BY DATE(created_at) " +
-            "ORDER BY date ASC", nativeQuery = true)
-    List<Object[]> getBookingStatsForLast7Days();
-
     long countByDoctor_Department_IdAndStatus(Long departmentId, BookingStatus status);
 
     List<Booking> findByDoctorIdAndAppointmentDateAndStatusNot(Long doctorId, LocalDate appointmentDate, BookingStatus status);
@@ -137,17 +130,105 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT SUM(b.bookingPrice) FROM Booking b WHERE b.paymentStatus = 'PAID'")
-    BigDecimal sumTotalDeposit();
+    /* =========================================================================================
+     * SỐ LIỆU TIỀN CHO DASHBOARD ADMIN
+     *
+     * MỌI truy vấn tổng ở đây BẮT BUỘC bọc COALESCE(..., 0). SUM trên 0 dòng trả về NULL trong
+     * SQL, và bốn truy vấn cũ ở đúng chỗ này không bọc — nên hai thẻ tiền trên /admin/dashboard
+     * in ra đúng chữ "null đ" trên mọi cơ sở dữ liệu chưa phát sinh giao dịch, tức là trên
+     * production ngay sau khi deploy. Khuôn đúng đã có sẵn ở LeaveRequestRepository.sumApprovedDays.
+     *
+     * paymentStatus là TRẠNG THÁI SỐNG, không phải sự kiện lịch sử. Một lịch đã thu tiền rồi hoàn
+     * lại chuyển PAID -> REFUNDED, nên "đã thu" phải gồm CẢ HAI giá trị; lọc mỗi 'PAID' là số tiền
+     * đó biến mất khỏi tổng đã thu mà không để lại dấu vết nào (trên DB dev: 1.500.000đ).
+     *
+     *     đã thu (gross) = ('PAID','REFUNDED')      đã hoàn = ('REFUNDED')
+     *     thất thoát do bỏ dở = ('EXPIRED')         thực thu = gross − đã hoàn
+     *
+     * Cố ý KHÔNG có truy vấn riêng cho "thực thu": nó được trừ trong Java từ đúng hai số trên.
+     * Đó là thứ bảo đảm ba thẻ trên màn hình luôn cộng trừ khớp nhau, kể cả khi dữ liệu lệch.
+     *
+     * Truy vấn cũ sumTotalRefund() lọc status = CANCELED AND paymentStatus = 'PAID' — một tổ hợp
+     * KHÔNG BAO GIỜ tồn tại, vì mọi đường huỷ đều ghi đè paymentStatus trong cùng transaction
+     * (BookingServiceImpl -> REFUNDED/FAILED, PaymentController -> FAILED, BookingCleanupTask ->
+     * EXPIRED). Nó trả NULL vĩnh viễn. Đừng khôi phục lại vị từ đó.
+     * ========================================================================================= */
 
-    @Query("SELECT SUM(b.bookingPrice) FROM Booking b WHERE b.paymentStatus = 'PAID' AND b.createdAt BETWEEN :start AND :end")
-    BigDecimal sumDepositByCreatedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    @Query("SELECT COALESCE(SUM(b.bookingPrice), 0) FROM Booking b WHERE b.paymentStatus IN :statuses")
+    BigDecimal sumPriceByPaymentStatusIn(@Param("statuses") java.util.Collection<String> statuses);
 
-    @Query("SELECT SUM(b.bookingPrice) FROM Booking b WHERE b.status = com.bookinghealthy.model.BookingStatus.CANCELED AND b.paymentStatus = 'PAID'")
-    BigDecimal sumTotalRefund();
+    @Query("SELECT COALESCE(SUM(b.bookingPrice), 0) FROM Booking b "
+         + "WHERE b.paymentStatus IN :statuses AND b.createdAt BETWEEN :from AND :to")
+    BigDecimal sumPriceByPaymentStatusInAndCreatedAtBetween(@Param("statuses") java.util.Collection<String> statuses,
+                                                            @Param("from") LocalDateTime from,
+                                                            @Param("to") LocalDateTime to);
 
-    @Query("SELECT SUM(b.bookingPrice) FROM Booking b WHERE b.status = com.bookinghealthy.model.BookingStatus.CANCELED AND b.paymentStatus = 'PAID' AND b.createdAt BETWEEN :start AND :end")
-    BigDecimal sumRefundByCreatedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    /** Tiền còn phải thu: lịch chưa trả tiền mà vẫn còn hiệu lực (sắp tới hoặc đã khám xong). */
+    @Query("SELECT COALESCE(SUM(b.bookingPrice), 0) FROM Booking b "
+         + "WHERE b.paymentStatus = 'UNPAID' AND b.status IN :statuses")
+    BigDecimal sumUnpaidByStatusIn(@Param("statuses") java.util.Collection<BookingStatus> statuses);
+
+    long countByPaymentStatus(String paymentStatus);
+
+    long countByPaymentStatusAndStatusIn(String paymentStatus, java.util.Collection<BookingStatus> statuses);
+
+    /* ===== Nhóm gộp cho biểu đồ — mỗi cái MỘT truy vấn, không lặp theo từng khoa/từng ngày ===== */
+
+    @Query("SELECT b.status, COUNT(b) FROM Booking b "
+         + "WHERE b.createdAt BETWEEN :from AND :to GROUP BY b.status")
+    List<Object[]> countByStatusInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT b.doctor.department.name, COUNT(b) FROM Booking b "
+         + "WHERE b.createdAt BETWEEN :from AND :to AND b.doctor.department IS NOT NULL "
+         + "GROUP BY b.doctor.department.name ORDER BY COUNT(b) DESC")
+    List<Object[]> countByDepartmentInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT b.appointmentTime, COUNT(b) FROM Booking b "
+         + "WHERE b.createdAt BETWEEN :from AND :to AND b.appointmentTime IS NOT NULL "
+         + "GROUP BY b.appointmentTime")
+    List<Object[]> countBySlotInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /**
+     * Số lượt đặt theo từng NGÀY trong kỳ. Ngày không có lịch hẹn nào thì KHÔNG có dòng nào ở đây —
+     * nơi gọi BẮT BUỘC phải zero-fill trước khi vẽ, bằng không biểu đồ nhảy cóc qua ngày trống thay
+     * vì vẽ số 0 (bản cũ getBookingStatsForLast7Days mắc đúng lỗi này: 7 ngày qua chỉ ra 1 điểm).
+     */
+    @Query("SELECT FUNCTION('DATE', b.createdAt), COUNT(b) FROM Booking b "
+         + "WHERE b.createdAt BETWEEN :from AND :to "
+         + "GROUP BY FUNCTION('DATE', b.createdAt) ORDER BY FUNCTION('DATE', b.createdAt)")
+    List<Object[]> countPerDayInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /* ===== Lịch đã qua ngày hẹn nhưng chưa đóng (CONFIRMED và appointmentDate < hôm nay) ===== */
+
+    long countByStatusAndAppointmentDateBefore(BookingStatus status, LocalDate date);
+
+    @Query("SELECT COALESCE(SUM(b.bookingPrice), 0) FROM Booking b "
+         + "WHERE b.status = :status AND b.appointmentDate < :date")
+    BigDecimal sumPriceByStatusAndAppointmentDateBefore(@Param("status") BookingStatus status,
+                                                        @Param("date") LocalDate date);
+
+    @EntityGraph(attributePaths = {"user", "doctor", "doctor.user"})
+    List<Booking> findTop10ByStatusAndAppointmentDateBeforeOrderByAppointmentDateAsc(BookingStatus status, LocalDate date);
+
+    /* ===== Hôm nay ===== */
+
+    long countByAppointmentDateAndStatusIn(LocalDate date, java.util.Collection<BookingStatus> statuses);
+
+    long countByAppointmentDateAndStatus(LocalDate date, BookingStatus status);
+
+    /**
+     * Thay cho findAllByOrderByCreatedAtDesc() trên dashboard: bảng gắn nhãn "gần đây" mà đổ toàn
+     * bộ bảng bookings ra là vừa sai nhãn vừa không có giới hạn tăng trưởng.
+     */
+    @EntityGraph(attributePaths = {"user", "doctor", "doctor.user"})
+    List<Booking> findTop20ByOrderByCreatedAtDesc();
+
+    /**
+     * Đếm dòng hỏng mã ký tự. Cột appointment_type còn 5 dòng chứa dấu "?" thật (hex
+     * 443F636820763F = "D?ch v?"), di chứng của lỗi characterEncoding trong DB_URL đã sửa 19/08 —
+     * chúng tạo ra một nhóm "Dịch vụ" thứ hai trong mọi thống kê theo loại khám.
+     */
+    long countByAppointmentTypeContaining(String fragment);
 
     // Dùng cho UserService.whyCannotDelete — lịch hẹn kéo theo hồ sơ bệnh án.
     long countByUserId(Long userId);

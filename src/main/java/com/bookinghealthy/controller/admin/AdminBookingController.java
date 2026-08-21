@@ -12,8 +12,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +29,48 @@ public class AdminBookingController {
     @Autowired private EmailService emailService;
     @Autowired private NotificationService notificationService;
 
+    /**
+     * Nhãn hiển thị của từng bộ lọc. Cố ý là ALLOW-LIST tên cố định chứ không nhận
+     * {@code ?status=}/{@code ?paymentStatus=} tự do: mỗi tên ứng với đúng một câu hỏi mà dashboard
+     * đặt ra, nên không có tổ hợp vô nghĩa nào lọt vào và người dùng luôn đọc được mình đang lọc gì.
+     */
+    private static final Map<String, String> FILTER_LABELS = Map.of(
+            "overdue",  "Đã qua ngày hẹn nhưng chưa đóng",
+            "expired",  "Bỏ dở khi thanh toán",
+            "unpaid",   "Chưa thanh toán",
+            "refunded", "Đã hoàn tiền",
+            "paid",     "Đã thanh toán",
+            "today",    "Lịch khám hôm nay");
+
     // 1. HIỂN THỊ DANH SÁCH LỊCH HẸN
     @GetMapping("/manage-booking")
-    public String showBookingList(Model model) {
+    public String showBookingList(@RequestParam(name = "filter", required = false) String filter,
+                                  Model model) {
         // Lấy tất cả booking, sắp xếp mới nhất
         List<Booking> listBookings = bookingRepository.findAllByOrderByCreatedAtDesc();
+
+        // Các khối cảnh báo trên /admin/dashboard trỏ tới đây kèm ?filter=... Không có bước lọc này
+        // thì mỗi mũi tên "Xử lý →" chỉ mở nguyên danh sách chưa lọc, tức là một lời hứa suông.
+        // Lọc trong bộ nhớ chứ không thêm 6 truy vấn: danh sách đã nạp sẵn ở dòng trên, và màn hình
+        // này vốn đã render toàn bộ bảng.
+        String activeFilter = (filter != null && FILTER_LABELS.containsKey(filter)) ? filter : null;
+        if (activeFilter != null) {
+            LocalDate today = LocalDate.now();
+            listBookings = listBookings.stream().filter(b -> switch (activeFilter) {
+                case "overdue"  -> b.getStatus() == BookingStatus.CONFIRMED
+                                   && b.getAppointmentDate() != null
+                                   && b.getAppointmentDate().isBefore(today);
+                case "expired"  -> "EXPIRED".equals(b.getPaymentStatus());
+                case "unpaid"   -> "UNPAID".equals(b.getPaymentStatus())
+                                   && b.getStatus() != BookingStatus.CANCELED;
+                case "refunded" -> "REFUNDED".equals(b.getPaymentStatus());
+                case "paid"     -> "PAID".equals(b.getPaymentStatus());
+                case "today"    -> today.equals(b.getAppointmentDate());
+                default         -> true;
+            }).toList();
+        }
+        model.addAttribute("activeFilter", activeFilter);
+        model.addAttribute("activeFilterLabel", activeFilter == null ? null : FILTER_LABELS.get(activeFilter));
 
         // Lý do KHÔNG còn thao tác được, tính sẵn bằng đúng hàm mà controller cũng gọi:
         // template làm mờ nút và in lý do, nên giao diện không bao giờ mời admin bấm một

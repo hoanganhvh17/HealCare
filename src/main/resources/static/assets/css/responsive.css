@@ -53,6 +53,20 @@ img[width][height] {
    2. Header — nhóm nút bên phải chật chỗ trên màn hẹp
    ========================================================================== */
 
+/* Dưới 1200px theme tự sắp lại thứ tự header bằng `order` (main.css:214-238):
+   .logo=1, .btn-getstarted=2, .navmenu=3. Nhưng header của dự án KHÔNG dùng
+   .btn-getstarted — nhóm nút bên phải là .header-actions, không khai `order` nên nhận
+   giá trị mặc định 0, tức xếp TRƯỚC cả logo. Hậu quả trên mọi trang bệnh nhân ở khổ
+   điện thoại: hai nút nằm bên trái còn "HealCare" bị đẩy vào giữa, đọc như trang bị vỡ.
+   Lỗi này có sẵn từ trước (đã đối chiếu bằng ảnh chụp bản chưa sửa), chỉ là nó lộ rõ hơn
+   khi nhóm nút rộng thêm vì có nút "Đăng nhập". Trả .header-actions về đúng khe số 2 —
+   chỗ mà theme dành cho nút CTA. */
+@media (max-width: 1200px) {
+    #header .header-actions {
+        order: 2;
+    }
+}
+
 @media (max-width: 767.98px) {
     /* gap-4 của Bootstrap là 1.5rem cho MỖI khe; cộng với logo, nút "Đặt lịch khám",
        chuông, avatar và hamburger là chắc chắn tràn ở 360px. */
@@ -68,7 +82,7 @@ img[width][height] {
         font-size: 1.15rem;
     }
 
-    /* Nút "Đặt lịch khám": px-4 py-2 (1.5rem ngang) là quá rộng ở đây. */
+    /* Nút "Đặt lịch khám" và "Đăng nhập": px-4/px-3 py-2 là quá rộng ở đây. */
     #header .header-actions .btn {
         padding: 0.35rem 0.8rem !important;
         font-size: 0.82rem;
@@ -77,17 +91,32 @@ img[width][height] {
 
 @media (max-width: 400px) {
     /* Dưới 400px thì nút chữ phải nhường chỗ cho hamburger — đổi thành biểu tượng lịch.
-       Nội dung chữ nằm trong text node nên dùng font-size:0 để giấu, rồi vẽ lại icon. */
-    #header .header-actions .btn {
+       Nội dung chữ nằm trong text node nên dùng font-size:0 để giấu, rồi vẽ lại icon.
+
+       Bám vào .btn-header-book chứ KHÔNG phải .btn: luật này viết khi header chỉ có đúng
+       một nút, nên để nguyên là nút "Đăng nhập" cũng bị nuốt chữ rồi mọc ra icon lịch —
+       tức lại giấu đúng cái vừa được bày ra, và còn giả dạng thành nút đặt lịch thứ hai. */
+    #header .header-actions .btn-header-book {
         font-size: 0;
         padding: 0.4rem 0.6rem !important;
     }
 
-    #header .header-actions .btn::before {
+    #header .header-actions .btn-header-book::before {
         content: "\F1E4"; /* bi-calendar-plus */
         font-family: "bootstrap-icons";
         font-size: 1.05rem;
         line-height: 1;
+    }
+
+    /* Nút "Đăng nhập" GIỮ NGUYÊN CHỮ — đó là toàn bộ lý do nó tồn tại; thu gọn bằng cách
+       bỏ icon và siết đệm, đủ chỗ cho hamburger ở màn 360px. */
+    #header .header-actions .btn-header-login {
+        padding: 0.35rem 0.7rem !important;
+        font-size: 0.78rem;
+    }
+
+    #header .header-actions .btn-header-login i {
+        display: none;
     }
 }
 

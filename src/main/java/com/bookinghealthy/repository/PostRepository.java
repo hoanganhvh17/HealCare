@@ -39,5 +39,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
      */
     boolean existsBySourceUrl(String sourceUrl);
 
+    // Bài nháp CŨ NHẤT — để dòng cảnh báo trên dashboard nói được "cũ nhất N ngày" thay vì chỉ
+    // đưa ra một con số không có tuổi. Trên DB dev bài nháp cũ nhất đã 63 ngày.
+    Optional<Post> findFirstByStatusOrderByCreatedAtAsc(String status);
+
     long countByAuthorId(Long authorId);
 }

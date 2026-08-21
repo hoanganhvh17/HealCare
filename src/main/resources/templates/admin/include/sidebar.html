@@ -1,88 +1,167 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
+
+<!--/*
+  Sidebar khu admin.
+
+  TRẠNG THÁI ACTIVE đến từ `activePage`, do config/AdminNavInterceptor bơm cho mọi URL /admin/**.
+  Bản cũ hardcode: mục Dashboard không có .collapsed nên vĩnh viễn sáng, 11 mục còn lại luôn có
+  .collapsed nên vĩnh viễn tối — đi đâu cũng không đổi. Đừng hardcode lại; thêm trang mới thì thêm
+  một dòng vào PAGE_KEYS của interceptor, ngay cạnh mục thêm ở đây.
+
+  NHÓM GẬP dùng đúng .nav-content sẵn có của theme (style.css:727-758) và Bootstrap collapse
+  data-api — không phát minh CSS, không thêm JS. Vì vậy trang nào cũng phải nạp bootstrap.bundle
+  ĐÚNG MỘT LẦN: nạp hai lần thì data-api gắn hai handler, một cú bấm chạy toggle() hai lần và nhóm
+  mở rồi đóng ngay, trông như bấm không ăn.
+
+  Nhóm phải TỰ MỞ khi con của nó đang active, bằng không người dùng ở trang "Bác sĩ" mà sidebar
+  không chỉ ra mình đang ở đâu — đúng lỗi vừa sửa, chỉ khác chỗ.
+
+  Chiều cao: 7 mục + 3 heading ≈ 467px khi gập, vừa khít laptop 1366×768 (vùng khả dụng ~685px).
+  Bản cũ 12 mục phẳng = 673px, tức đã tràn sẵn trên độ phân giải phổ biến nhất.
+*/-->
 <aside id="sidebar" class="sidebar" th:fragment="sidebar">
-    <ul class="sidebar-nav" id="sidebar-nav">
+    <ul class="sidebar-nav" id="sidebar-nav"
+        th:with="catalogOpen=${#lists.contains({'departments','doctors','services'}, activePage)},
+                 contentOpen=${#lists.contains({'news','jobs','candidates'}, activePage)}">
 
         <li class="nav-item">
-            <a class="nav-link" th:href="@{/admin/dashboard}">
-                <i class="bi bi-grid"></i>
-                <span>Dashboard</span>
+            <a th:href="@{/admin/dashboard}" class="nav-link"
+               th:classappend="${activePage == 'dashboard' ? '' : 'collapsed'}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Tổng quan</span>
             </a>
         </li>
 
-        <li class="nav-heading">Management</li>
+        <li class="nav-heading">Điều hành hằng ngày</li>
 
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/departments}">
-                <i class="bi bi-building"></i>
-                <span>Quản lý Khoa</span>
+            <a th:href="@{/admin/manage-booking}" class="nav-link"
+               th:classappend="${activePage == 'bookings' ? '' : 'collapsed'}">
+                <i class="bi bi-calendar-check"></i>
+                <span>Lịch hẹn</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/manage-doctor}">
-                <i class="bi bi-person-badge"></i>
-                <span>Quản lý bác sĩ</span>
-            </a>
-        </li>
-
-        <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/manage-user}">
-                <i class="bi bi-people"></i>
-                <span>Quản lý bệnh nhân</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/medical-records}">
-                <i class="bi bi-journal-medical"></i>
+            <!--/* bi-file-medical chứ không bi-journal-medical: icon đó đang bị dùng cho cả Bệnh án
+                   lẫn Dịch vụ ở bản cũ, hai mục khác nhau mà cùng một hình. */-->
+            <a th:href="@{/admin/medical-records}" class="nav-link"
+               th:classappend="${activePage == 'records' ? '' : 'collapsed'}">
+                <i class="bi bi-file-medical"></i>
                 <span>Bệnh án điện tử</span>
             </a>
         </li>
+
+        <li class="nav-heading">Quản trị</li>
+
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/manage-booking}">
-                <i class="bi bi-calendar-check"></i>
-                <span>Lịch khám bệnh</span>
+            <a class="nav-link" data-bs-target="#nav-catalog" data-bs-toggle="collapse" href="#"
+               th:classappend="${catalogOpen ? '' : 'collapsed'}">
+                <i class="bi bi-hospital"></i>
+                <span>Danh mục khám chữa bệnh</span>
+                <i class="bi bi-chevron-down ms-auto"></i>
             </a>
+            <ul id="nav-catalog" class="nav-content collapse" data-bs-parent="#sidebar-nav"
+                th:classappend="${catalogOpen ? 'show' : ''}">
+                <li>
+                    <a th:href="@{/admin/departments}"
+                       th:classappend="${activePage == 'departments' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Chuyên khoa</span>
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/admin/manage-doctor}"
+                       th:classappend="${activePage == 'doctors' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Bác sĩ</span>
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/admin/manage-service}"
+                       th:classappend="${activePage == 'services' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Dịch vụ khám</span>
+                    </a>
+                </li>
+            </ul>
         </li>
 
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/manage-service}">
-                <i class="bi bi-journal-medical"></i>
-                <span>Quản lý dịch vụ</span>
+            <a class="nav-link" data-bs-target="#nav-content" data-bs-toggle="collapse" href="#"
+               th:classappend="${contentOpen ? '' : 'collapsed'}">
+                <i class="bi bi-megaphone"></i>
+                <span>Nội dung &amp; Tuyển dụng</span>
+                <!--/* Hai mục có huy hiệu đều nằm TRONG nhóm gập, tức người dùng không thấy chúng
+                       khi nhóm đóng — nên nhóm phải mang con số cộng dồn. Chỉ một `ms-auto` (trên
+                       huy hiệu); hai cái sẽ đẩy nhau về hai đầu. */-->
+                <span class="badge bg-secondary nav-badge ms-auto me-2"
+                      th:if="${navContentTotal != null and navContentTotal > 0}"
+                      th:text="${navContentTotal}">0</span>
+                <i class="bi bi-chevron-down" th:classappend="${navContentTotal != null and navContentTotal > 0 ? '' : 'ms-auto'}"></i>
             </a>
+            <ul id="nav-content" class="nav-content collapse" data-bs-parent="#sidebar-nav"
+                th:classappend="${contentOpen ? 'show' : ''}">
+                <li>
+                    <a th:href="@{/admin/manage-news}"
+                       th:classappend="${activePage == 'news' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Tin tức</span>
+                        <!--/* Bài nháp: đếm được về 0 bằng chính thao tác "Duyệt" của admin — điều
+                               kiện để một huy hiệu đáng tồn tại. Số 0 thì KHÔNG render: một chấm
+                               xám ghi "0" chỉ kéo mắt tới chỗ không có gì để xem. */-->
+                        <span class="badge bg-secondary nav-badge ms-auto"
+                              th:if="${navDraftPosts != null and navDraftPosts > 0}"
+                              th:text="${navDraftPosts}">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/admin/recruitment}"
+                       th:classappend="${activePage == 'jobs' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Tin tuyển dụng</span>
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/admin/candidates}"
+                       th:classappend="${activePage == 'candidates' ? 'active' : ''}">
+                        <i class="bi bi-circle"></i><span>Ứng viên</span>
+                        <span class="badge bg-warning text-dark nav-badge ms-auto"
+                              th:if="${navPendingCandidates != null and navPendingCandidates > 0}"
+                              th:text="${navPendingCandidates}">0</span>
+                    </a>
+                </li>
+            </ul>
         </li>
+
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/manage-news}">
-                <i class="bi bi-newspaper"></i> <span>Quản lý Tin tức</span>
+            <!--/* Để PHẲNG dù nằm dưới "Quản trị": đây là nơi DUY NHẤT tạo được tài khoản lễ tân,
+                   trưởng khoa hay admin khác — màn hình hệ trọng nhất, không nên giấu sau một cú
+                   bấm mở nhóm. Nhãn cũ "Quản lý bệnh nhân" cũng sai: trang này liệt kê MỌI vai trò
+                   và tiêu đề của chính nó ghi "Quản lý Người dùng". */-->
+            <a th:href="@{/admin/manage-user}" class="nav-link"
+               th:classappend="${activePage == 'users' ? '' : 'collapsed'}">
+                <i class="bi bi-people"></i>
+                <span>Tài khoản người dùng</span>
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/recruitment}">
-                <i class="bi bi-briefcase"></i> <span>Quản lý Tuyển dụng</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/admin/candidates}">
-                <i class="bi bi-person-lines-fill"></i>
-                <span>Danh sách Ứng viên</span>
-            </a>
-        </li>
+
         <li class="nav-heading">Cá nhân</li>
 
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/profile}">
+            <!--/* /user/profile chứ KHÔNG phải /profile. ProfileController khai @RequestMapping("/user")
+                   + @GetMapping("/profile"), nên không hề có endpoint /profile trần — mục này là link
+                   chết 404 từ ngày được viết. Nó im lặng vì cùng một mục đã có sẵn trong dropdown
+                   avatar ở header, cách đó hai centimet. */-->
+            <a th:href="@{/user/profile}" class="nav-link collapsed">
                 <i class="bi bi-person"></i>
                 <span>Hồ sơ cá nhân</span>
             </a>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/logout}">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Đăng xuất</span>
-            </a>
-        </li>
+        <!--/* "Đăng xuất" đã bỏ khỏi đây: dropdown avatar ở header đã có (header.html:77), đó là
+               chỗ mọi người tìm nó. Lý do thật không phải gọn gàng mà là món nợ CSRF — cả dự án
+               đang có 8 liên kết @{/logout} dạng <a>, và khi bật lại CSRF thì Spring đổi matcher
+               của /logout sang POST-only, mọi <a> sẽ IM LẶNG ngừng đăng xuất. Bớt một chỗ phải sửa
+               là bớt một chỗ có thể bỏ sót. */-->
     </ul>
 </aside>
+
 </body>
 </html>
