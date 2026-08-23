@@ -55,17 +55,21 @@
                 <td th:text="${job.quantity}">5</td>
                 <td th:text="${job.salary}">Thỏa thuận</td>
                 <td>
-                  <a th:href="@{/admin/recruitment/toggle/{id}(id=${job.id})}"
-                     class="badge text-decoration-none"
-                     th:classappend="${job.active ? 'bg-success' : 'bg-secondary'}"
-                     th:text="${job.active ? 'Đang tuyển' : 'Đã đóng'}"
-                     title="Nhấn để thay đổi trạng thái">
-                  </a>
+                  <form th:action="@{/admin/recruitment/toggle/{id}(id=${job.id})}"
+                        method="post" class="d-inline">
+                    <button type="submit" class="badge border-0"
+                            th:classappend="${job.active ? 'bg-success' : 'bg-secondary'}"
+                            th:text="${job.active ? 'Đang tuyển' : 'Đã đóng'}"
+                            title="Nhấn để thay đổi trạng thái">
+                    </button>
+                  </form>
                 </td>
                 <td th:text="${#temporals.format(job.createdAt, 'dd/MM/yyyy')}">01/01/2024</td>
                 <td>
                   <a th:href="@{/admin/recruitment/edit/{id}(id=${job.id})}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
-                  <a th:href="@{/admin/recruitment/delete/{id}(id=${job.id})}" class="btn btn-danger btn-sm" onclick="return confirm('Xóa tin tuyển dụng này?')"><i class="bi bi-trash"></i></a>
+                  <form th:action="@{/admin/recruitment/delete/{id}(id=${job.id})}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Xóa tin tuyển dụng này?')"><i class="bi bi-trash"></i></button>
+                  </form>
                 </td>
               </tr>
               </tbody>

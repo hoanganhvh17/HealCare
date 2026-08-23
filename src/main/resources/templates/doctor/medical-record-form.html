@@ -358,8 +358,14 @@
             .catch(function () { return 'Không kết nối được trợ lý AI. Bác sĩ thử lại sau nhé.'; });
         }
 
+        // Ba trợ lý AI (gợi ý ICD, đối chiếu đơn thuốc, soạn lời dặn) đều đi qua đây, nên
+        // token CSRF chỉ phải gắn một chỗ. Thêm lời gọi thứ tư thì dùng lại hàm này.
         function postJson(body) {
-          return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+          return {
+            method: 'POST',
+            headers: MediTrustCsrf.headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(body)
+          };
         }
 
         // --- C4: Tóm tắt bệnh sử ---
@@ -533,7 +539,8 @@
         body.append('severity', severity.value);
 
         btnSave.disabled = true;
-        fetch('/doctor/medical-record/allergy/add', { method: 'POST', body: body })
+        fetch('/doctor/medical-record/allergy/add',
+              { method: 'POST', headers: MediTrustCsrf.headers(), body: body })
           .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
           .then(function (r) {
             if (!r.ok) {

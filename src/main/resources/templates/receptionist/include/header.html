@@ -29,6 +29,11 @@
     <link th:href="@{/assets-admin/vendor/simple-datatables/style.css}" rel="stylesheet">
     <link th:href="@{/assets-admin/css/style.css}" rel="stylesheet">
     <link th:href="@{/assets-admin/css/responsive-admin.css}" rel="stylesheet">
+
+    <!--/* Token CSRF cho fetch. Dự án có BA fragment tên "pagehead" (admin, doctor, receptionist)
+         chứ không phải một — nên cả ba đều phải nạp tệp này, bằng không trang nào dùng fragment bị
+         bỏ sót sẽ có JS gọi POST mà không có token. Nạp trùng trên một trang là vô hại. */-->
+    <script th:src="@{/assets/js/csrf.js}"></script>
 </head>
 
 <body>
@@ -63,7 +68,14 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item d-flex align-items-center" th:href="@{/user/profile}"><i class="bi bi-person"></i> <span>Hồ sơ</span></a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item d-flex align-items-center" th:href="@{/logout}"><i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span></a></li>
+                    <!--/* Form POST chứ không phải <a>: khi bật CSRF, LogoutFilter chỉ còn khớp POST /logout
+                           nên mọi thẻ <a> sẽ IM LẶNG ngừng đăng xuất — không lỗi, không log. Khuôn lấy
+                           nguyên từ user/include/header.html, chỗ duy nhất xưa nay vẫn làm đúng. */-->
+                    <li>
+                        <form th:action="@{/logout}" method="post" class="m-0">
+                            <button type="submit" class="dropdown-item d-flex align-items-center"><i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span></button>
+                        </form>
+                    </li>
                 </ul>
             </li>
         </ul>

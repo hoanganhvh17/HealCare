@@ -66,10 +66,16 @@
         </li>
 
         <li class="nav-item">
-            <a class="nav-link collapsed" th:href="@{/logout}">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Đăng xuất</span>
-            </a>
+            <!--/* Form POST chứ không phải <a>: khi bật CSRF, LogoutFilter chỉ còn khớp POST /logout
+                   nên mọi thẻ <a> sẽ IM LẶNG ngừng đăng xuất — không lỗi, không log. Khuôn lấy
+                   nguyên từ user/include/header.html, chỗ duy nhất xưa nay vẫn làm đúng. */-->
+            <form th:action="@{/logout}" method="post" class="m-0">
+                <button type="submit" class="nav-link collapsed"
+                        style="background:none;border:0;width:100%;text-align:left;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Đăng xuất</span>
+                </button>
+            </form>
         </li>
     </ul>
 </aside>

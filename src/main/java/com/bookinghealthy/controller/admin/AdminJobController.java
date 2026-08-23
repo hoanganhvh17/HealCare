@@ -54,7 +54,7 @@ public class AdminJobController {
     }
 
     // 5. XÓA
-    @GetMapping("/delete/{id}")
+    @PostMapping("/delete/{id}")
     public String deleteJob(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             jobService.deleteById(id);
@@ -66,7 +66,7 @@ public class AdminJobController {
     }
 
     // 6. BẬT/TẮT TRẠNG THÁI (Quick Toggle)
-    @GetMapping("/toggle/{id}")
+    @PostMapping("/toggle/{id}")
     public String toggleStatus(@PathVariable("id") Long id, RedirectAttributes ra) {
         Optional<JobPosting> jobOpt = jobService.findById(id);
         if (jobOpt.isPresent()) {

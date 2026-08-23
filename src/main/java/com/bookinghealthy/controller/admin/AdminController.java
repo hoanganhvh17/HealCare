@@ -217,7 +217,7 @@ public class AdminController {
     }
 
     // 5. XỬ LÝ XÓA (ĐÃ THÊM NGHIỆP VỤ)
-    @GetMapping("/manage-user/delete/{id}")
+    @PostMapping("/manage-user/delete/{id}")
     public String deleteUser(@PathVariable("id") Long id, RedirectAttributes ra, Authentication authentication) {
 
         User userToDelete = userService.findById(id).orElse(null);

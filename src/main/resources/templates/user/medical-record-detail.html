@@ -339,7 +339,7 @@
 
       fetch('/api/chat/medical-record/' + AI_EXPLAIN_BOOKING_ID + '/explain', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: MediTrustCsrf.headers({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ prompt: question })
       })
       .then(res => {

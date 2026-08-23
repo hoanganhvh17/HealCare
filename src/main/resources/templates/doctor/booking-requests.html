@@ -148,16 +148,20 @@
               </td>
               <td class="text-center" th:with="blockReason=${actionBlockReasons[b.id]}">
                 <div th:if="${blockReason == null}" class="d-flex justify-content-center gap-2">
-                  <a th:href="@{/doctor/bookings/confirm/{id}(id=${b.id})}"
-                     class="btn btn-success btn-sm"
-                     onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
-                    <i class="bi bi-check-circle me-1"></i> Nhận
-                  </a>
-                  <a th:href="@{/doctor/bookings/cancel/{id}(id=${b.id})}"
-                     class="btn btn-outline-danger btn-sm"
-                     onclick="return confirm('Từ chối lịch hẹn này?')">
-                    <i class="bi bi-x-circle me-1"></i> Hủy
-                  </a>
+                  <form th:action="@{/doctor/bookings/confirm/{id}(id=${b.id})}" method="post" class="d-inline">
+                    <button type="submit"
+                            class="btn btn-success btn-sm"
+                            onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
+                      <i class="bi bi-check-circle me-1"></i> Nhận
+                    </button>
+                  </form>
+                  <form th:action="@{/doctor/bookings/cancel/{id}(id=${b.id})}" method="post" class="d-inline">
+                    <button type="submit"
+                            class="btn btn-outline-danger btn-sm"
+                            onclick="return confirm('Từ chối lịch hẹn này?')">
+                      <i class="bi bi-x-circle me-1"></i> Hủy
+                    </button>
+                  </form>
                 </div>
                 <!-- Yêu cầu đã trôi qua: không nhận cũng không hủy được nữa, chỉ nêu lý do. -->
                 <div th:if="${blockReason != null}">

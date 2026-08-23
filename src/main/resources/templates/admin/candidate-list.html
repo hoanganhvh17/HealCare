@@ -69,16 +69,22 @@
                 </td>
                 <td>
                   <div th:if="${c.status.name() == 'PENDING'}">
-                    <a th:href="@{/admin/candidates/approve/{id}(id=${c.id})}" class="btn btn-success btn-sm" title="Duyệt & Mời PV" onclick="return confirm('Duyệt hồ sơ này và gửi mail mời phỏng vấn?')">
-                      <i class="bi bi-check-lg"></i>
-                    </a>
-                    <a th:href="@{/admin/candidates/reject/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Từ chối" onclick="return confirm('Từ chối hồ sơ này?')">
-                      <i class="bi bi-x-lg"></i>
-                    </a>
+                    <form th:action="@{/admin/candidates/approve/{id}(id=${c.id})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-success btn-sm" title="Duyệt &amp; Mời PV" onclick="return confirm('Duyệt hồ sơ này và gửi mail mời phỏng vấn?')">
+                        <i class="bi bi-check-lg"></i>
+                      </button>
+                    </form>
+                    <form th:action="@{/admin/candidates/reject/{id}(id=${c.id})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-secondary btn-sm" title="Từ chối" onclick="return confirm('Từ chối hồ sơ này?')">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </form>
                   </div>
-                  <a th:href="@{/admin/candidates/delete/{id}(id=${c.id})}" class="btn btn-danger btn-sm mt-1" title="Xóa" onclick="return confirm('Xóa vĩnh viễn hồ sơ này?')">
-                    <i class="bi bi-trash"></i>
-                  </a>
+                  <form th:action="@{/admin/candidates/delete/{id}(id=${c.id})}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm mt-1" title="Xóa" onclick="return confirm('Xóa vĩnh viễn hồ sơ này?')">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
                 </td>
               </tr>
               </tbody>

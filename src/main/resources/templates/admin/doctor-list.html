@@ -61,10 +61,13 @@
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
                                 &nbsp;
-                                <a th:href="@{/admin/manage-doctor/delete/{id}(id=${doc.id})}" class="btn btn-danger btn-sm"
-                                   onclick="return confirm('Bạn có chắc muốn xóa Bác sĩ này?')">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                <form th:action="@{/admin/manage-doctor/delete/{id}(id=${doc.id})}"
+                                      method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Bạn có chắc muốn xóa Bác sĩ này?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         </tbody>

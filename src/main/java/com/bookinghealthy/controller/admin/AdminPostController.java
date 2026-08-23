@@ -101,7 +101,7 @@ public class AdminPostController {
         }
     }
 
-    @GetMapping("/delete/{id}")
+    @PostMapping("/delete/{id}")
     public String deletePost(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             postService.deleteById(id);
@@ -112,7 +112,7 @@ public class AdminPostController {
         return "redirect:/admin/manage-news";
     }
 
-    @GetMapping("/publish/{id}")
+    @PostMapping("/publish/{id}")
     public String publishPost(@PathVariable("id") Long id, RedirectAttributes ra) {
         Optional<Post> postOpt = postService.findById(id);
         if (postOpt.isPresent()) {

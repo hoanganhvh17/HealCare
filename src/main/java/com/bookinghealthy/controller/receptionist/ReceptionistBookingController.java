@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,7 +57,7 @@ public class ReceptionistBookingController {
         return "receptionist/booking-list";
     }
 
-    @GetMapping("/confirm/{id}")
+    @PostMapping("/confirm/{id}")
     public String confirm(@PathVariable Long id, RedirectAttributes ra) {
         try {
             Booking booking = bookingService.findById(id)
@@ -85,7 +86,7 @@ public class ReceptionistBookingController {
         return "redirect:/receptionist/bookings";
     }
 
-    @GetMapping("/cancel/{id}")
+    @PostMapping("/cancel/{id}")
     public String cancel(@PathVariable Long id,
                          @RequestParam(value = "reason", required = false) String reason,
                          RedirectAttributes ra) {

@@ -2728,7 +2728,8 @@ maximizeBtn.addEventListener('click', (e) => {
                 fetch('/api/chat/hold-slot?doctorId=' + encodeURIComponent(handoff.doctor.id)
                     + '&date=' + encodeURIComponent(handoff.appointmentDate)
                     + '&slot=' + encodeURIComponent(handoff.appointmentTime)
-                    + '&sessionId=' + encodeURIComponent(sessionId), { method: 'POST' })
+                    + '&sessionId=' + encodeURIComponent(sessionId),
+                    { method: 'POST', headers: MediTrustCsrf.headers() })
                     .catch(function(err) { console.error(err); });
             }
 
@@ -2883,7 +2884,7 @@ maximizeBtn.addEventListener('click', (e) => {
 
                 const response = await fetch('/api/chat/ask', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: MediTrustCsrf.headers({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ sessionId: sessionId, prompt: promptToSend })
                 });
 
@@ -3259,7 +3260,10 @@ maximizeBtn.addEventListener('click', (e) => {
                 // sessionId để máy chủ ghi được ghi chú vào lịch sử hội thoại — ảnh triệu chứng
                 // không lưu ở đâu cả, nên đó là thứ duy nhất giúp model nhớ ở lượt sau.
                 if (sessionId) form.append('sessionId', sessionId);
-                const res = await fetch('/user/medical-document/chat-upload', { method: 'POST', body: form });
+                // KHÔNG đặt Content-Type ở đây: trình duyệt phải tự sinh nó kèm boundary của
+                // multipart. Chỉ thêm đúng header token.
+                const res = await fetch('/user/medical-document/chat-upload',
+                    { method: 'POST', headers: MediTrustCsrf.headers(), body: form });
 
                 // PHIÊN HẾT HẠN, không phải lỗi mạng. Spring Security chặn TRƯỚC khi request tới
                 // controller và trả 302 sang /login; fetch đi theo redirect đó rồi trả về trang

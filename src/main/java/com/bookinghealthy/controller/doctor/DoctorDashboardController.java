@@ -148,7 +148,7 @@ public class DoctorDashboardController {
     }
 
     // 2. XỬ LÝ DUYỆT LỊCH (CONFIRM)
-    @GetMapping("/bookings/confirm/{id}")
+    @PostMapping("/bookings/confirm/{id}")
     public String confirmBooking(@PathVariable("id") Long id, Authentication authentication, RedirectAttributes ra) {
         try {
             Doctor currentDoctor = getLoggedInDoctor(authentication);
@@ -181,7 +181,7 @@ public class DoctorDashboardController {
 
     // 3. XỬ LÝ HỦY LỊCH (CANCEL & REFUND)
     @Transactional
-    @GetMapping("/bookings/cancel/{id}")
+    @PostMapping("/bookings/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, Authentication authentication, RedirectAttributes ra) {
         try {
             Doctor currentDoctor = getLoggedInDoctor(authentication);

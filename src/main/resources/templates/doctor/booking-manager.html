@@ -74,12 +74,16 @@
 
                     <div th:if="${booking.status.name() == 'PENDING'}" class="d-flex gap-1">
                       <th:block th:if="${blockReason == null}">
-                        <a th:href="@{/doctor/bookings/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận" onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
-                          <i class="bi bi-check-lg"></i>
-                        </a>
-                        <a th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Từ chối" onclick="return confirm('Bạn có chắc muốn hủy lịch này?')">
-                          <i class="bi bi-x-lg"></i>
-                        </a>
+                        <form th:action="@{/doctor/bookings/confirm/{id}(id=${booking.id})}" method="post" class="d-inline">
+                          <button type="submit" class="btn btn-success btn-sm" title="Xác nhận" onclick="return confirm('Bạn có chắc muốn nhận lịch này?')">
+                            <i class="bi bi-check-lg"></i>
+                          </button>
+                        </form>
+                        <form th:action="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" method="post" class="d-inline">
+                          <button type="submit" class="btn btn-danger btn-sm" title="Từ chối" onclick="return confirm('Bạn có chắc muốn hủy lịch này?')">
+                            <i class="bi bi-x-lg"></i>
+                          </button>
+                        </form>
                       </th:block>
                       <button th:if="${blockReason != null}" type="button"
                               class="btn btn-secondary btn-sm disabled" th:title="${blockReason}">
@@ -106,10 +110,12 @@
                         <span th:text="${booking.appointmentDate.isBefore(#temporals.createToday())} ? 'Đã quá ngày' : 'Chờ'">Chờ</span>
                       </button>
 
-                      <a th:if="${blockReason == null}"
-                         th:href="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" class="btn btn-outline-danger btn-sm" title="Hủy lịch đột xuất" onclick="return confirm('Hủy lịch này? Bệnh nhân sẽ được thông báo.')">
-                        <i class="bi bi-x"></i>
-                      </a>
+                      <form th:if="${blockReason == null}"
+                            th:action="@{/doctor/bookings/cancel/{id}(id=${booking.id})}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy lịch đột xuất" onclick="return confirm('Hủy lịch này? Bệnh nhân sẽ được thông báo.')">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </form>
                     </div>
 
                     <div th:if="${booking.status.name() == 'COMPLETED'}">

@@ -156,10 +156,10 @@
         </li>
 
         <!--/* "Đăng xuất" đã bỏ khỏi đây: dropdown avatar ở header đã có (header.html:77), đó là
-               chỗ mọi người tìm nó. Lý do thật không phải gọn gàng mà là món nợ CSRF — cả dự án
-               đang có 8 liên kết @{/logout} dạng <a>, và khi bật lại CSRF thì Spring đổi matcher
-               của /logout sang POST-only, mọi <a> sẽ IM LẶNG ngừng đăng xuất. Bớt một chỗ phải sửa
-               là bớt một chỗ có thể bỏ sót. */-->
+               chỗ mọi người tìm nó. Món nợ CSRF nói ở đây nay ĐÃ TRẢ — cả 6 liên kết @{/logout}
+               dạng <a> đã thành form POST, vì khi CSRF bật thì LogoutFilter chỉ còn khớp POST và
+               mọi thẻ <a> sẽ IM LẶNG ngừng đăng xuất. Giữ nguyên việc không thêm lại mục này:
+               bớt một chỗ phải sửa vẫn là bớt một chỗ có thể bỏ sót. */-->
     </ul>
 </aside>
 

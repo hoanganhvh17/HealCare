@@ -11,6 +11,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 public class SecurityConfig {
@@ -130,7 +132,25 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
                 )
-                .csrf(csrf -> csrf.disable());
+                // CSRF: BẬT. Trước đây là csrf.disable() cho toàn ứng dụng — mọi POST đổi trạng
+                // thái (ví, đặt/sửa/huỷ lịch, CRUD admin, ghi bệnh án) đều giả mạo được từ site lạ.
+                // SameSite=lax trên cookie phiên chỉ là giảm nhẹ, không phải cưỡng chế từ máy chủ.
+                //
+                // Token để ở COOKIE chứ không ở session: JS tĩnh đọc được nó ở mọi trang, không phụ
+                // thuộc trang đó nạp fragment nào (xem assets/js/csrf.js). Nó cũng không đi vào
+                // SPRING_SESSION_ATTRIBUTES nên không làm phình blob phiên.
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                        // Webhook Casso/SePay gọi server-to-server: KHÔNG phiên, KHÔNG cookie, nên
+                        // không thể có token. Nó tự xác thực bằng bí mật trong header
+                        // (VietQRController.isAuthorizedWebhook). permitAll() KHÔNG cứu được ở đây:
+                        // CsrfFilter chạy TRƯỚC tầng phân quyền. Quên dòng này là tiền chuyển khoản
+                        // của khách ngừng được ghi nhận, im lặng.
+                        .ignoringRequestMatchers("/api/payment/webhook"))
+                // Xem CsrfCookieFilter: thiếu nó thì trang không có form nào sẽ không bao giờ nhận
+                // được cookie token, và fetch POST đầu tiên trên trang đó ăn 403.
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
     }

@@ -677,7 +677,12 @@
           <a href="#" class="btn btn-outline-secondary d-none" id="wsEventCoverLink">
             <i class="bi bi-people"></i> Xin người thay ca
           </a>
+          <!--/* Không đặt được th:action vì đích đến do work-schedule.js gán lúc chạy
+                 (WS_BASE_PATH + '/shift/cancel/' + id), nên phải tự chèn tay hidden input _csrf —
+                 việc mà bộ xử lý th:action vẫn làm hộ cho 48 form còn lại. */-->
           <form method="post" class="d-none" id="wsEventCancelForm">
+            <input th:if="${_csrf != null}" type="hidden"
+                   th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn btn-outline-danger"
                     onclick="return confirm('Hủy ca này?')">
               <i class="bi bi-trash"></i> Hủy ca

@@ -83,7 +83,7 @@ public class AdminDepartmentController {
     }
 
     // 5. XỬ LÝ XÓA (DELETE)
-    @GetMapping("/delete/{id}")
+    @PostMapping("/delete/{id}")
     public String deleteDepartment(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             departmentService.deleteById(id);

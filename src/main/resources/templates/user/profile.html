@@ -544,12 +544,14 @@
                       </button>
 
                       <!-- Hủy lịch: khóa hẳn khi còn dưới 24 tiếng -->
-                      <a th:if="${cancelBlockReasons.get(booking.id) == null}"
-                         th:href="@{/user/cancel-booking/{id}(id=${booking.id})}"
-                         class="btn btn-sm btn-outline-danger"
-                         onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
-                        <i class="bi bi-x-circle"></i> Hủy lịch
-                      </a>
+                      <form th:if="${cancelBlockReasons.get(booking.id) == null}"
+                            th:action="@{/user/cancel-booking/{id}(id=${booking.id})}"
+                            method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ được hoàn vào Ví của bạn.')">
+                          <i class="bi bi-x-circle"></i> Hủy lịch
+                        </button>
+                      </form>
                       <button th:if="${cancelBlockReasons.get(booking.id) != null}"
                               type="button" class="btn btn-sm btn-outline-secondary" disabled
                               th:title="${cancelBlockReasons.get(booking.id)}">

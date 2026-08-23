@@ -102,21 +102,27 @@
                   <div th:with="blockReason=${actionBlockReasons[booking.id]}">
 
                     <div th:if="${blockReason == null and booking.status.name() == 'PENDING'}" class="d-flex gap-1">
-                      <a th:href="@{/admin/manage-booking/confirm/{id}(id=${booking.id})}" class="btn btn-success btn-sm" title="Xác nhận">
-                        <i class="bi bi-check-lg"></i>
-                      </a>
-                      <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}" class="btn btn-danger btn-sm" title="Hủy" onclick="return confirm('Hủy lịch này?')">
-                        <i class="bi bi-x-lg"></i>
-                      </a>
+                      <form th:action="@{/admin/manage-booking/confirm/{id}(id=${booking.id})}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-success btn-sm" title="Xác nhận">
+                          <i class="bi bi-check-lg"></i>
+                        </button>
+                      </form>
+                      <form th:action="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-danger btn-sm" title="Hủy" onclick="return confirm('Hủy lịch này?')">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </form>
                     </div>
 
                     <div th:if="${blockReason == null and booking.status.name() == 'CONFIRMED'}">
-                      <a th:href="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}"
-                         class="btn btn-outline-danger btn-sm"
-                         title="Hủy lịch & Hoàn tiền"
-                         onclick="return confirm('CẢNH BÁO: Hủy lịch này sẽ tự động hoàn tiền vào Ví của khách hàng (nếu đã thanh toán). Bạn chắc chắn chứ?')">
-                        <i class="bi bi-x-circle-fill"></i> Hủy &amp; Hoàn tiền
-                      </a>
+                      <form th:action="@{/admin/manage-booking/cancel/{id}(id=${booking.id})}" method="post" class="d-inline">
+                        <button type="submit"
+                                class="btn btn-outline-danger btn-sm"
+                                title="Hủy lịch &amp; Hoàn tiền"
+                                onclick="return confirm('CẢNH BÁO: Hủy lịch này sẽ tự động hoàn tiền vào Ví của khách hàng (nếu đã thanh toán). Bạn chắc chắn chứ?')">
+                          <i class="bi bi-x-circle-fill"></i> Hủy &amp; Hoàn tiền
+                        </button>
+                      </form>
                     </div>
 
                     <!-- Chỉ in lý do cho lịch đang chờ / đã xác nhận — tức những dòng đáng lẽ
@@ -129,12 +135,14 @@
                     </div>
 
                     <div th:if="${booking.status.name() == 'CANCELED' || booking.status.name() == 'PENDING'}" class="mt-1">
-                      <a th:href="@{/admin/manage-booking/delete/{id}(id=${booking.id})}"
-                         class="btn btn-dark btn-sm"
-                         title="Xóa khỏi DB"
-                         onclick="return confirm('Xóa vĩnh viễn? Dữ liệu không thể khôi phục.')">
-                        <i class="bi bi-trash"></i>
-                      </a>
+                      <form th:action="@{/admin/manage-booking/delete/{id}(id=${booking.id})}" method="post" class="d-inline">
+                        <button type="submit"
+                                class="btn btn-dark btn-sm"
+                                title="Xóa khỏi DB"
+                                onclick="return confirm('Xóa vĩnh viễn? Dữ liệu không thể khôi phục.')">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
                     </div>
                   </div>
                 </td>

@@ -134,6 +134,16 @@ Với ô `<input type="date">`, cách rẻ nhất là `th:min` / `th:max` từ m
 
 Ngoại lệ hợp lệ: **màn hình tra cứu**. Bộ lọc ngày của `/receptionist/queue` và `/receptionist/schedule-change` **không** đặt `max`, vì lễ tân vẫn cần xem lại ngày cũ — chỉ khóa các nút *thao tác*, không khóa việc *xem*.
 
+## CSRF đang BẬT — ba luật cho mọi thứ thêm mới
+
+Xem [authentication-and-roles.md](authentication-and-roles.md) để biết cơ chế. Ở đây là ba điều người viết mã phải nhớ, cả ba đều hỏng **im lặng**:
+
+- **Form mới: dùng `th:action` TRÊN THẺ `<form>`.** Đó là bộ xử lý duy nhất chèn hidden `_csrf`. Hai hình dạng KHÔNG được chèn và đã phải sửa tay: `th:formaction` trên `<button>` (nhìn cũng là `@{...}` nên rất dễ tưởng đã an toàn — `receptionist/schedule-change.html`), và form có `action` do JS gán lúc chạy (`staff/work-schedule.html`, phải tự chèn `<input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">`). **Guard `_csrf != null` là bắt buộc** ở bản chèn tay: nếu không, tắt CSRF đi một cái là template ném lỗi SpEL, tức đường quay lui bị khoá.
+
+- **`fetch` POST mới: `headers: MediTrustCsrf.headers({...})`** (`assets/js/csrf.js`). Truyền object header sẵn có vào, đừng tự ghép. Với **multipart/FormData thì gọi `headers()` không tham số và TUYỆT ĐỐI không đặt `Content-Type`** — trình duyệt phải tự sinh nó kèm boundary.
+
+- **Trang mới phải nạp được `csrf.js`.** Dự án có **BA** fragment cùng tên `pagehead` (admin / doctor / receptionist) chứ không phải một, cộng `user/include/header :: header-nav` cho khu bệnh nhân — cả bốn đều nạp tệp này. Đây đúng loại bẫy "fragment A có ở 31 trang, fragment B chỉ 12" đã cắn dự án nhiều lần: lần bật CSRF này khu lễ tân bị bỏ sót đúng vì chỉ nhìn thấy `pagehead` của admin. Nạp trùng trên một trang là vô hại.
+
 ## Tải tệp lên — chỉ một cửa
 
 **`service/FileStorageService` là nơi DUY NHẤT được ghi tệp người dùng tải lên.** Trước đây bảy chỗ lặp lại đúng bốn dòng `new File(dir).mkdirs()` + `Files.write(Paths.get(dir + millis + "_" + getOriginalFilename()))`, và cùng mang đúng ba lỗi: đường dẫn tương đối theo CWD của tiến trình; hai chỗ ghi thẳng vào cây **mã nguồn** (`src/main/resources/static/...`, không tồn tại trong jar, và ngay ở dev thì tài nguyên tĩnh cũng phục vụ từ `target/classes` nên tệp ghi ra không bao giờ là tệp đọc lại); và dùng thẳng `getOriginalFilename()` — dữ liệu do client gửi, một tên chứa `..\..\` ghi được ra ngoài thư mục upload.

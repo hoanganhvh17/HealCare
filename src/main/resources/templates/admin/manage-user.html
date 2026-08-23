@@ -75,11 +75,14 @@
                                 &nbsp;
                                 <!-- Nút Xoá chỉ hiện khi UserService.whyCannotDelete trả null.
                                      Không hiện nút rồi báo lỗi sau: xem coding-conventions.md. -->
-                                <a th:if="${deleteBlockReasons == null or !deleteBlockReasons.containsKey(user.id)}"
-                                   th:href="@{/admin/manage-user/delete/{id}(id=${user.id})}" class="btn btn-danger btn-sm"
-                                   onclick="return confirm('Bạn có chắc muốn xóa user này?')">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                <form th:if="${deleteBlockReasons == null or !deleteBlockReasons.containsKey(user.id)}"
+                                      th:action="@{/admin/manage-user/delete/{id}(id=${user.id})}"
+                                      method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Bạn có chắc muốn xóa user này?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                                 <span th:if="${deleteBlockReasons != null and deleteBlockReasons.containsKey(user.id)}"
                                       class="text-muted small fst-italic d-inline-block"
                                       style="max-width: 280px;"

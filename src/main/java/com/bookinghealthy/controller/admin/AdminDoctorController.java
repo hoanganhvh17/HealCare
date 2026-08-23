@@ -190,7 +190,7 @@ public class AdminDoctorController {
     }
 
     // 6. XỬ LÝ XÓA (DELETE)
-    @GetMapping("/delete/{id}")
+    @PostMapping("/delete/{id}")
     public String deleteDoctor(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             // (Chúng ta có thể cần xóa User liên quan,

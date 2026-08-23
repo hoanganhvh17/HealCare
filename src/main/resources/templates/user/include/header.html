@@ -180,6 +180,12 @@
 
     </div>
 
+    <!-- Token CSRF cho các lời gọi fetch đổi trạng thái (khung chat AI, chuông, tải hồ sơ).
+         Phải đứng TRƯỚC user-notifications.js và trước fragment ai-chat ở cuối trang.
+         Fragment này có ở 22/23 trang bệnh nhân; trang còn lại (change-password) không gọi
+         fetch nào. Khu nhân viên nạp riêng trong admin/include/header.html. -->
+    <script th:src="@{/assets/js/csrf.js}"></script>
+
     <!-- Script đi kèm markup chuông ở trên: nạp ngay trong fragment để cả 22 template
          bệnh nhân đều có chuông chạy mà không phải sửa từng file. Script tự thoát khi
          trang không render chuông (khách chưa đăng nhập). -->

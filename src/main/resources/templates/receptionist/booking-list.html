@@ -101,18 +101,22 @@
               <!-- actionBlockReasons[id] != null: lịch đã hủy / đã khám / đã trôi qua. Không
                    render nút nữa, in thẳng lý do thay vì để lễ tân bấm rồi mới nhận thông báo lỗi. -->
               <div class="d-flex gap-1 flex-wrap" th:with="blockReason=${actionBlockReasons[booking.id]}">
-                <a th:if="${blockReason == null and booking.status.name() == 'PENDING'}"
-                   th:href="@{/receptionist/bookings/confirm/{id}(id=${booking.id})}"
-                   class="btn btn-success btn-sm" title="Xác nhận">
-                  <i class="bi bi-check-lg"></i>
-                </a>
+                <form th:if="${blockReason == null and booking.status.name() == 'PENDING'}"
+                      th:action="@{/receptionist/bookings/confirm/{id}(id=${booking.id})}"
+                      method="post" class="d-inline">
+                  <button type="submit" class="btn btn-success btn-sm" title="Xác nhận">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </form>
 
-                <a th:if="${blockReason == null and (booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED')}"
-                   th:href="@{/receptionist/bookings/cancel/{id}(id=${booking.id})}"
-                   class="btn btn-outline-danger btn-sm" title="Hủy &amp; hoàn tiền"
-                   onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ tự động hoàn vào ví bệnh nhân.');">
-                  <i class="bi bi-x-lg"></i>
-                </a>
+                <form th:if="${blockReason == null and (booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED')}"
+                      th:action="@{/receptionist/bookings/cancel/{id}(id=${booking.id})}"
+                      method="post" class="d-inline">
+                  <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy &amp; hoàn tiền"
+                          onclick="return confirm('Hủy lịch này? Nếu đã thanh toán, tiền sẽ tự động hoàn vào ví bệnh nhân.');">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
 
                 <!-- Chỉ in lý do cho lịch đang chờ / đã xác nhận — tức những dòng đáng lẽ CÓ nút.
                      Lịch đã hủy hay đã khám xong thì cột Trạng thái đã nói rồi. -->

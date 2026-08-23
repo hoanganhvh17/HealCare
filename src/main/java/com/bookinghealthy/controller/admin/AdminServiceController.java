@@ -78,7 +78,7 @@ public class AdminServiceController {
         }
     }
 
-    @GetMapping("/delete/{id}")
+    @PostMapping("/delete/{id}")
     public String deleteService(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             serviceService.deleteById(id);

@@ -202,7 +202,7 @@ public class ProfileController {
         }
     }
 
-    @GetMapping("/cancel-booking/{id}")
+    @PostMapping("/cancel-booking/{id}")
     public String cancelMyBooking(@PathVariable("id") Long id, Authentication authentication, RedirectAttributes ra) {
         try {
             User currentUser = getCurrentUser(authentication);

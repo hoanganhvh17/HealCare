@@ -32,7 +32,8 @@
                 if (!badge || badge.classList.contains('d-none')) {
                     return;
                 }
-                fetch('/api/notifications/read', { method: 'POST' })
+                fetch('/api/notifications/read',
+                      { method: 'POST', headers: MediTrustCsrf.headers() })
                     .then(function () { hide(badge); })
                     .catch(function () { /* để nguyên badge, lần sau mở lại vẫn thử */ });
             });

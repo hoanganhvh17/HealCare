@@ -242,7 +242,7 @@ if (window.aiChatDoctorLoaded) {
         try {
             const response = await fetch('/api/doctor/chat/ask', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: MediTrustCsrf.headers({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     sessionId: sessionId,
                     prompt: text,

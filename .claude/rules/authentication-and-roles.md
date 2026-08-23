@@ -73,6 +73,22 @@ Three things that make this trap hard to see, all worth keeping in mind:
 Verified end-to-end from the packaged jar: all four roles land on their correct dashboard, the session round-trips through MySQL (`SPRING_SECURITY_CONTEXT` present in `SPRING_SESSION_ATTRIBUTES`), `principal.fullName` / `principal.avatar` still render, and `/api/notifications` + `/api/chat/my-bookings` still resolve the user. **Google and Facebook login still need a real browser test** — the fix above is the same defect on both paths, but only the form path could be exercised from the CLI.
 
 ## Gotcha
-**CSRF is disabled globally.** Keep this in mind for any form or API change; do not assume a CSRF token is present or required.
+**CSRF is ON** (since 2026-08-22 — it was globally disabled for the whole life of the project before that). The token lives in a **cookie**, not the session: `CookieCsrfTokenRepository.withHttpOnlyFalse()`. Two rules for anything you add:
 
-**This is an open security debt, not a design choice.** Every state-changing POST in the app is CSRF-able — wallet operations, `/user/booking/edit/{id}`, all admin CRUD. `SameSite=Lax` on the session cookie (above) withholds the cookie on cross-site POSTs in every current browser, which is most of the practical mitigation, but it is not the fix. Re-enabling CSRF across this many Thymeleaf forms and `fetch()` calls is **the first thing to do after deployment** — it was deliberately kept out of the deploy-hardening batch because doing it alongside a session-store swap and a security-matcher reshuffle is how a launch breaks.
+- **A new Thymeleaf form needs nothing** — the `th:action` processor injects the hidden `_csrf` input. But it is `th:action` **on the `<form>` element** that does it: `th:formaction` on a `<button>` does **not**, and a form whose action is assigned by JS gets nothing either. Both shapes exist in this repo and both had to be fixed by hand; see [coding-conventions.md](coding-conventions.md).
+- **A new `fetch` POST must send the token**: `headers: MediTrustCsrf.headers({...})` from `assets/js/csrf.js`. It reads the `XSRF-TOKEN` cookie fresh on every call (Spring issues a **new** token after login, so a value cached at page load dies at the next sign-in).
+
+### The two Spring Security 6 traps, both silent
+
+- **Deferred token loading.** Spring 6 only writes the cookie when the token is actually *read*. A page that renders no form — the patient home page with just the chat widget is the exact case — would never issue one, and its first `fetch` POST 403s. `config/CsrfCookieFilter` touches `getToken()` on every request to force it. **Do not remove it**; the failure appears only on the most static pages, i.e. the ones tested last.
+- **XOR masking.** The default `XorCsrfTokenRequestAttributeHandler` masks the token per render (BREACH protection), while the cookie holds the **raw** value — so a token read from the cookie and sent as a header would be un-masked and rejected. `config/SpaCsrfTokenRequestHandler` routes by source: header → raw, form param → un-mask. Verified live: the form value is 96 chars, the cookie value is a 36-char UUID, both are accepted, and putting the raw value in the form param is correctly **refused**.
+
+### Exactly one exemption
+
+`.ignoringRequestMatchers("/api/payment/webhook")`. Casso/SePay call it server-to-server with no session and no cookie, so it cannot carry a token; it authenticates on a shared secret header (`VietQRController.isAuthorizedWebhook`). **`permitAll()` does not help** — `CsrfFilter` runs *before* the authorization layer. Forgetting this line stops real bank transfers from being recorded, silently.
+
+### CSRF does not protect GET — so nothing may mutate on GET
+
+Spring's `CsrfFilter` ignores GET/HEAD/OPTIONS/TRACE, and `SameSite=Lax` **does** send the session cookie on top-level GET navigation. So a state-changing `@GetMapping` is exploitable by simply sending someone a link, CSRF on or off. The project had **19** of them (delete user, delete booking, approve candidate, publish article — which also fanned a notification to every patient); all were converted to `@PostMapping` on 2026-08-22, with their 25 `<a>` links rewritten as inline POST forms.
+
+**Never add a `@GetMapping` that writes.** GET is for reading; the `whyCannot…()` guards decide *whether* the button renders, `@PostMapping` decides *how* it is invoked.

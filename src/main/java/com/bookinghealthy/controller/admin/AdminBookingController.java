@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -86,7 +87,7 @@ public class AdminBookingController {
     }
 
     // 2. XÁC NHẬN LỊCH HẸN
-    @GetMapping("/manage-booking/confirm/{id}")
+    @PostMapping("/manage-booking/confirm/{id}")
     public String confirmBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             Booking booking = bookingService.findById(id).orElseThrow(() -> new Exception("Booking not found"));
@@ -114,7 +115,7 @@ public class AdminBookingController {
     }
 
     // 3. HỦY LỊCH & HOÀN TIỀN (dùng chung logic với quầy lễ tân)
-    @GetMapping("/manage-booking/cancel/{id}")
+    @PostMapping("/manage-booking/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             Booking booking = bookingService.findById(id)
@@ -143,7 +144,7 @@ public class AdminBookingController {
     }
 
     // 4. XÓA VĨNH VIỄN (Chỉ dùng cho admin)
-    @GetMapping("/manage-booking/delete/{id}")
+    @PostMapping("/manage-booking/delete/{id}")
     public String deleteBooking(@PathVariable("id") Long id, RedirectAttributes ra) {
         try {
             Booking booking = bookingService.findById(id)

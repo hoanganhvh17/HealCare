@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const res = await fetch('/api/admin/chat/ask', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: MediTrustCsrf.headers({'Content-Type': 'application/json'}),
                 body: JSON.stringify({prompt: userText, sessionId: 'admin_session'})
             });
             const data = await res.json();

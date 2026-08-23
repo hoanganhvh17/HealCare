@@ -72,10 +72,17 @@
                                     <span th:if="${post.status == 'DRAFT'}" class="badge bg-warning text-dark">Bản nháp</span>
                                 </td>
                                 <td>
-                                    <a th:if="${post.status == 'DRAFT'}" th:href="@{/admin/manage-news/publish/{id}(id=${post.id})}" class="btn btn-success btn-sm" title="Xuất bản"><i class="bi bi-check-circle"></i></a>
+                                    <!--/* POST chứ không phải GET: đây là đường XUẤT BẢN, và nó còn bắn
+                                           thông báo tới TOÀN BỘ bệnh nhân. Khi còn là GET thì một lần F5
+                                           hay một cú prefetch của trình duyệt cũng đủ chạy lại. */-->
+                                    <form th:if="${post.status == 'DRAFT'}" th:action="@{/admin/manage-news/publish/{id}(id=${post.id})}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-success btn-sm" title="Xuất bản"><i class="bi bi-check-circle"></i></button>
+                                    </form>
                                     <a th:href="@{/admin/manage-news/edit/{id}(id=${post.id})}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
-                                    <a th:href="@{/admin/manage-news/delete/{id}(id=${post.id})}" class="btn btn-danger btn-sm"
-                                       onclick="return confirm('Xóa bài viết này?')"><i class="bi bi-trash"></i></a>
+                                    <form th:action="@{/admin/manage-news/delete/{id}(id=${post.id})}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-danger btn-sm"
+                                                onclick="return confirm('Xóa bài viết này?')"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 </td>
                             </tr>
                             </tbody>

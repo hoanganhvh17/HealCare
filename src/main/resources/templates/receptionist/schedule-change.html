@@ -101,7 +101,12 @@
           </span>
         </div>
 
-        <form id="bulkForm" method="post">
+        <!--/* th:action BẮT BUỘC phải có, dù hai nút bên dưới đều tự khai th:formaction: Thymeleaf
+               chỉ chèn hidden input _csrf qua bộ xử lý th:action TRÊN CHÍNH THẺ <form>, còn
+               th:formaction trên <button> thì KHÔNG kích hoạt nó. Đây là chỗ dễ tưởng nhầm là đã an
+               toàn vì nhìn cũng là biểu thức @{...}. Thiếu nó thì cả hai nút 403 khi CSRF bật. */-->
+        <form id="bulkForm" method="post"
+              th:action="@{/receptionist/schedule-change/transfer-bulk}">
           <input type="hidden" name="doctorId" th:value="${selectedDoctorId}">
           <input type="hidden" name="date" th:value="${selectedDate}">
           <input type="hidden" name="session" th:value="${selectedSession}">
