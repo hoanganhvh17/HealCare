@@ -2,103 +2,248 @@
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
-<aside id="sidebar" class="sidebar d-flex flex-column" th:fragment="sidebar" style="background-color: #F8FAFC; border-right: 1px solid #E2E8F0; padding-top: 20px; z-index: 999;">
+
+<!--/*
+  Sidebar khu bác sĩ. ĐANG ĐƯỢC 8 TRANG DÙNG CHUNG, thuộc 3 khu khác nhau:
+    - 6 trang doctor/*  (dashboard, examination-list, booking-manager, booking-requests,
+                         medical-record-form, patient-records)
+    - 3 trang staff/*   (work-schedule, leave-history, shift-cover) qua __${sidebarFragment}__
+    - user/medical-record-detail.html, nhánh role == 'DOCTOR'
+  Cả 8 đều nằm dưới URL /doctor/**, nên DoctorNavInterceptor phủ hết — kể cả trang cuối, vì bác sĩ
+  tới đó qua /doctor/medical-record/view/{id}.
+
+  ID VÀ CLASS CỦA <aside> KHÔNG ĐƯỢC ĐỔI: assets-admin/js/main.js:45 bật/tắt body.toggle-sidebar,
+  còn style.css + responsive-admin.css định vị theo .sidebar. Đổi là mất sạch điều hướng trên điện
+  thoại ở cả 8 trang, trong khi desktop vẫn bình thường vì >=1200px sidebar ghim sẵn.
+
+  TRẠNG THÁI ACTIVE đến từ `activePage` do từng controller bác sĩ tự đặt (KHÁC khu admin, nơi
+  AdminNavInterceptor bơm). Thêm trang mới thì nhớ đặt activePage trong controller, bằng không cả
+  sidebar tối thui và bác sĩ không biết mình đang đứng ở đâu.
+
+  HUY HIỆU đến từ config/DoctorNavInterceptor (navPendingRequests, navTodayExams) và luôn phải
+  giữ guard `!= null and > 0`: null khi sidebar được nhúng ở URL ngoài /doctor/**, còn số 0 thì
+  KHÔNG render — một chấm xám ghi "0" chỉ kéo mắt tới chỗ không có gì để xem.
+*/-->
+<aside id="sidebar" class="sidebar doc-sidebar d-flex flex-column" th:fragment="sidebar">
 
   <style>
-    /* CSS Tùy chỉnh riêng cho Sidebar giống thiết kế */
-    .sidebar-profile { text-align: center; margin-bottom: 25px; }
-    .sidebar-profile img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid #fff; margin-bottom: 10px; }
-    .sidebar-profile h5 { font-weight: 700; color: #006B63; font-size: 1.15rem; margin-bottom: 2px; }
-    .sidebar-profile span { font-size: 0.75rem; color: #64748B; }
+    /*  Vì sao CSS nằm ngay trong fragment chứ không tách ra một tệp .css riêng:
+        khối <style> này ở trong <body>, tức SAU mọi <link> của <head>, nên ở cùng độ ưu tiên nó
+        THẮNG — đó là thứ cần để đè `.sidebar { padding; background; box-shadow }` của style.css
+        mà không phải dùng !important. Nó cũng bảo đảm CSS luôn có mặt đúng chỗ sidebar có mặt,
+        bất kể trang đó nạp fragment pagehead nào. Cùng ngoại lệ cascade mà các fragment ai-chat*
+        đang dùng.
 
-    .sidebar-nav { padding: 0 12px; }
-    .nav-heading-custom { font-size: 0.75rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; padding: 15px 15px 5px; margin: 0; letter-spacing: 0.5px; }
+        style.css và admin-theme.css KHÔNG chạm tới được sidebar này: tệp sau bọc toàn bộ luật
+        dưới `body.admin-theme`, mà không trang doctor nào mang class đó — và một trong 8 trang
+        tiêu thụ là trang BỆNH NHÂN cũng nhìn thấy, nên không được phép thêm class đó vào. */
 
-    .custom-nav-link {
-      display: flex; align-items: center; padding: 12px 15px; border-radius: 12px; color: #475569; font-size: 0.95rem; font-weight: 500; text-decoration: none; transition: all 0.2s; margin-bottom: 4px;
+    /* #id (1,0,0) thắng .sidebar (0,1,0) của theme — không cần !important.
+       z-index để nguyên 996 của theme: header là 997, sidebar không được đè lên nó. */
+    #sidebar.doc-sidebar {
+      background-color: #F8FAFC;
+      border-right: 1px solid #E2E8F0;
+      box-shadow: none;
+      padding: 14px 0 0;
     }
-    .custom-nav-link i { font-size: 1.1rem; margin-right: 12px; color: #64748B; }
 
-    .custom-nav-link:hover { background-color: #F1F5F9; color: #0F172A; }
-    .custom-nav-link:hover i { color: #0F172A; }
+    /* ------------------------------------------------------------------ hồ sơ bác sĩ */
+    /*  Xếp NGANG, avatar 40px, chứ không phải khối dọc avatar 64px căn giữa như bản cũ:
+        sidebar admin đã từng tràn màn hình trên laptop 1366×768 (vùng khả dụng ~708px), mà bản
+        này còn thêm một mục nữa. Kiểu ngang tiết kiệm ~50px và đọc ra ngay là "tôi là ai". */
+    .doc-profile {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 16px 14px;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .doc-profile-avatar {
+      width: 40px; height: 40px; flex-shrink: 0;
+      border-radius: 50%; object-fit: cover;
+      border: 2px solid #fff; box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+    }
+    /* min-width:0 là thứ cho phép text-overflow chạy được bên trong flex item */
+    .doc-profile-text { min-width: 0; }
+    .doc-profile-name,
+    .doc-profile-role {
+      display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .doc-profile-name { font-size: .92rem; font-weight: 700; color: #0F172A; line-height: 1.25; }
+    .doc-profile-role { font-size: .75rem; color: #64748B; line-height: 1.35; }
 
-    /* Trạng thái Active (Đang chọn) */
-    .custom-nav-link.active { background-color: #E6F4F1; color: #006B63; font-weight: 600; }
-    .custom-nav-link.active i { color: #006B63; }
+    /* ------------------------------------------------------------------ điều hướng */
+    .doc-nav { list-style: none; margin: 0; padding: 6px 12px 0; }
+    .doc-nav-heading {
+      margin: 0; padding: 12px 14px 6px;
+      font-size: .65rem; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: #94A3B8;
+    }
+    .doc-nav-item { margin-bottom: 2px; }
 
-    /* Nút Đăng xuất */
-    .nav-logout { color: #DC2626 !important; margin-top: 10px; }
-    .nav-logout i { color: #DC2626 !important; }
-    .nav-logout:hover { background-color: #FEF2F2; }
+    .doc-nav-link {
+      position: relative;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 10px;
+      font-size: .89rem; font-weight: 500; color: #475569;
+      text-decoration: none;
+      transition: background-color .15s, color .15s;
+    }
+    .doc-nav-link i { font-size: 1.05rem; color: #94A3B8; flex-shrink: 0; transition: color .15s; }
+    .doc-nav-link span { flex: 1 1 auto; min-width: 0; }
 
-    /* Nút Khẩn cấp */
-    .emergency-btn { background-color: #DC2626; color: white; border: none; border-radius: 12px; padding: 12px; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
-    .emergency-btn:hover { background-color: #B91C1C; color: white; }
+    /*  Tên thẻ + class (0,1,1) là CỐ Ý: nút Đăng xuất là <button> trong <form>, và trình duyệt
+        không cho <button> thừa kế font. Một selector chỉ có class sẽ thua chính nó ở chỗ khác —
+        đúng bẫy `.ai-chat-input-area button` đã ghi trong coding-conventions.md. */
+    button.doc-nav-link {
+      width: 100%; text-align: left;
+      background: none; border: 0; font-family: inherit;
+    }
+
+    .doc-nav-link:hover { background-color: #F1F5F9; color: #0F172A; }
+    .doc-nav-link:hover i { color: #006B63; }
+    .doc-nav-link:focus-visible { outline: 2px solid #006B63; outline-offset: -2px; }
+
+    .doc-nav-link.active { background-color: #E6F4F1; color: #006B63; font-weight: 600; }
+    .doc-nav-link.active i { color: #006B63; }
+    /* Vạch chỉ dấu bên trái: màu nền nhạt một mình dễ bị bỏ qua trên màn hình chói. */
+    .doc-nav-link.active::before {
+      content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
+      width: 3px; border-radius: 0 3px 3px 0; background-color: #006B63;
+    }
+
+    .doc-nav-badge {
+      flex-shrink: 0;
+      font-size: .68rem; font-weight: 700; line-height: 1;
+      padding: .22rem .45rem; border-radius: 999px;
+      background-color: #E2E8F0; color: #475569;
+    }
+    /* Việc cần QUYẾT (duyệt hay không) — hổ phách. */
+    .doc-nav-badge-warn { background-color: #FDE68A; color: #78350F; }
+    /* Khối lượng hôm nay — teal nhạt, vẫn đọc được khi mục đang active (nền #E6F4F1). */
+    .doc-nav-badge-teal { background-color: #CCE6E3; color: #00544D; }
+
+    .doc-nav-logout { color: #DC2626; }
+    .doc-nav-logout i { color: #DC2626; }
+    .doc-nav-logout:hover { background-color: #FEF2F2; color: #B91C1C; }
+    .doc-nav-logout:hover i { color: #B91C1C; }
+
+    /* ------------------------------------------------------------------ đáy sidebar */
+    .doc-sidebar-foot { margin-top: auto; padding: 12px; border-top: 1px solid #E2E8F0; }
+    .doc-ai-btn {
+      width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 12px;
+      border: 1px solid #B7DED9; border-radius: 12px;
+      background-color: #E6F4F1; color: #006B63;
+      font-family: inherit; font-size: .88rem; font-weight: 600;
+      cursor: pointer;
+      transition: background-color .15s, border-color .15s;
+    }
+    .doc-ai-btn:hover { background-color: #D3EAE7; border-color: #8FCCC5; }
+    .doc-ai-btn i { font-size: 1rem; }
   </style>
 
-  <!-- Thông tin Phòng khám / Bác sĩ -->
-  <div class="sidebar-profile">
-    <!-- Thay URL ảnh bằng avatar thực tế của bác sĩ (ví dụ: currentUser.avatar) nếu có -->
-    <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Doctor Profile">
-    <h5>HealCare Family</h5>
-    <span>Manage family health</span>
+  <!--/* Ảnh và tên của CHÍNH bác sĩ đang đăng nhập. Biểu thức avatar chép nguyên từ
+         doctor/include/header.html:94-97 — nó đã xử lý sẵn trường hợp avatar rỗng, nên đừng
+         viết lại bằng tay. Bản cũ ở đây là một ảnh stock Unsplash cùng dòng chữ tiếng Anh
+         "HealCare Family / Manage family health" hardcode, còn sót từ bản mẫu giao diện. */-->
+  <div class="doc-profile">
+    <img class="doc-profile-avatar"
+         th:src="${#authentication.principal.avatar != null && !#strings.isEmpty(#authentication.principal.avatar)}
+                 ? @{'/uploads/' + ${#authentication.principal.avatar}}
+                 : @{/assets-admin/img/profile-img.jpg}"
+         alt="Ảnh đại diện">
+    <div class="doc-profile-text">
+      <span class="doc-profile-name" th:text="${#authentication.principal.fullName}">Bác sĩ</span>
+      <!--/* TOÀN BỘ ternary phải nằm TRONG một cặp ${...}. Viết `${x} != null ? A : B` sẽ bị
+             Thymeleaf đọc thành một giá trị rồi tới chữ literal — bẫy đã cắn dự án hai lần,
+             xem coding-conventions.md. navDepartmentName null khi trang nằm ngoài /doctor/**. */-->
+      <span class="doc-profile-role"
+            th:text="${navDepartmentName != null ? navDepartmentName : 'Bác sĩ'}">Bác sĩ</span>
+    </div>
   </div>
 
-  <ul class="sidebar-nav flex-grow-1" id="sidebar-nav">
-    <li class="nav-heading-custom">Công việc</li>
+  <ul class="doc-nav" id="sidebar-nav">
+    <li class="doc-nav-heading">Công việc</li>
 
-    <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'dashboard' ? 'active' : ''}" th:href="@{/doctor/dashboard}">
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'dashboard' ? 'active' : ''}"
+         th:href="@{/doctor/dashboard}">
         <i class="bi bi-grid-1x2"></i>
         <span>Tổng quan</span>
       </a>
     </li>
 
-    <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'examinations' ? 'active' : ''}" th:href="@{/doctor/examinations}">
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'examinations' ? 'active' : ''}"
+         th:href="@{/doctor/examinations}">
         <i class="bi bi-journal-medical"></i>
         <span>Lịch khám bệnh</span>
+        <!--/* Ca đã xác nhận của HÔM NAY. Giảm dần về 0 sau mỗi ca khám xong, và mục này dẫn
+               đúng tới trang khám — điều kiện để một huy hiệu đáng tồn tại. Chỉ đếm CONFIRMED,
+               khớp countToday của DoctorDashboardController. */-->
+        <span class="doc-nav-badge doc-nav-badge-teal"
+              th:if="${navTodayExams != null and navTodayExams > 0}"
+              th:text="${navTodayExams}">0</span>
       </a>
     </li>
 
-    <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'manage-bookings' ? 'active' : ''}" th:href="@{/doctor/manage-bookings}">
+    <!--/* Mục MỚI. Trang /doctor/booking-requests vẫn luôn tồn tại và controller vẫn đặt
+           activePage = "requests", nhưng sidebar chưa từng có mục nào kiểm giá trị đó — bác sĩ
+           chỉ tới được nó bằng một link trên dashboard. */-->
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'requests' ? 'active' : ''}"
+         th:href="@{/doctor/booking-requests}">
+        <i class="bi bi-inbox"></i>
+        <span>Yêu cầu đặt lịch</span>
+        <span class="doc-nav-badge doc-nav-badge-warn"
+              th:if="${navPendingRequests != null and navPendingRequests > 0}"
+              th:text="${navPendingRequests}">0</span>
+      </a>
+    </li>
+
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'manage-bookings' ? 'active' : ''}"
+         th:href="@{/doctor/manage-bookings}">
         <i class="bi bi-calendar3"></i>
-        <span>Quản lý Tất cả Lịch</span>
+        <span>Quản lý tất cả lịch</span>
       </a>
     </li>
 
-    <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'work-schedule' ? 'active' : ''}" th:href="@{/doctor/work-schedule}">
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'work-schedule' ? 'active' : ''}"
+         th:href="@{/doctor/work-schedule}">
         <i class="bi bi-calendar-week"></i>
         <span>Lịch làm việc &amp; Nghỉ phép</span>
       </a>
     </li>
 
-    <!-- Chỉ trưởng khoa mới thấy khu duyệt đơn của khoa -->
-    <li class="nav-item" sec:authorize="hasRole('HEAD_DOCTOR')">
-      <a class="custom-nav-link" th:href="@{/head/dashboard}">
-        <i class="bi bi-inbox"></i>
+    <!--/* Chỉ trưởng khoa mới thấy. KHÔNG có th:classappend vì /head/** render một sidebar khác
+           hẳn (head/include/sidebar.html) — không có trạng thái nào để tô ở đây.
+           Icon riêng, không dùng lại bi-inbox của "Yêu cầu đặt lịch": hai mục khác nhau mà cùng
+           một hình là lỗi admin/include/sidebar.html:47-48 đã phải sửa một lần. */-->
+    <li class="doc-nav-item" sec:authorize="hasRole('HEAD_DOCTOR')">
+      <a class="doc-nav-link" th:href="@{/head/dashboard}">
+        <i class="bi bi-clipboard2-check"></i>
         <span>Phê duyệt của khoa</span>
       </a>
     </li>
 
-    <li class="nav-heading-custom mt-3">Cá nhân</li>
+    <li class="doc-nav-heading">Cá nhân</li>
 
-    <li class="nav-item">
-      <a class="custom-nav-link" th:classappend="${activePage == 'profile' ? 'active' : ''}" th:href="@{/user/profile}">
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'profile' ? 'active' : ''}"
+         th:href="@{/user/profile}">
         <i class="bi bi-person"></i>
         <span>Hồ sơ cá nhân</span>
       </a>
     </li>
 
-    <li class="nav-item">
+    <li class="doc-nav-item">
       <!--/* Form POST chứ không phải <a>: khi bật CSRF, LogoutFilter chỉ còn khớp POST /logout
              nên mọi thẻ <a> sẽ IM LẶNG ngừng đăng xuất — không lỗi, không log. Khuôn lấy
              nguyên từ user/include/header.html, chỗ duy nhất xưa nay vẫn làm đúng. */-->
       <form th:action="@{/logout}" method="post" class="m-0">
-        <button type="submit" class="custom-nav-link nav-logout"
-                style="background:none;border:0;width:100%;text-align:left;">
+        <button type="submit" class="doc-nav-link doc-nav-logout">
           <i class="bi bi-box-arrow-right"></i>
           <span>Đăng xuất</span>
         </button>
@@ -106,12 +251,19 @@
     </li>
   </ul>
 
-  <!-- Nút Emergency Call nằm dưới cùng -->
-  <div class="p-3 mt-auto border-top">
-    <button class="emergency-btn w-100">
-      <i class="bi bi-asterisk"></i> Emergency Call
+  <!--/* Thay cho nút đỏ "Emergency Call" của bản mẫu, thứ KHÔNG có handler nào trong toàn dự án —
+         bấm không ra gì, mà một nút đỏ chết còn tệ hơn không có nút. window.toggleDoctorAI do
+         widget chat trong doctor/include/header :: header-nav định nghĩa; cả 8 trang đều nạp
+         fragment đó, nhưng vẫn giữ guard `if (window...)` để một trang tương lai quên nạp thì
+         nút chỉ im chứ không ném lỗi JS làm chết phần script còn lại. */-->
+  <div class="doc-sidebar-foot">
+    <button type="button" class="doc-ai-btn"
+            onclick="if (window.toggleDoctorAI) { window.toggleDoctorAI(); }">
+      <i class="bi bi-stars"></i>
+      <span>Trợ lý AI</span>
     </button>
   </div>
 </aside>
+
 </body>
 </html>

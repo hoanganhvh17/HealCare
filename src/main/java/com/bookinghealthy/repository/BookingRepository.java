@@ -69,6 +69,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @EntityGraph(attributePaths = {"user", "doctor"})
     List<Booking> findByDoctorIdAndStatus(Long doctorId, BookingStatus status);
 
+    /**
+     * Huy hiệu "Yêu cầu đặt lịch" trên sidebar bác sĩ (DoctorNavInterceptor).
+     *
+     * <p>Cố ý KHÔNG lọc theo ngày, để đếm đúng bằng số dòng mà
+     * {@code DoctorBookingRequestController} liệt kê — một huy hiệu nói khác trang nó dẫn tới thì
+     * bác sĩ bấm vào rồi đếm lại, và lần sau không tin nó nữa.
+     */
+    long countByDoctorIdAndStatus(Long doctorId, BookingStatus status);
+
     long countByStatus(BookingStatus status);
 
     @EntityGraph(attributePaths = {"doctor", "doctor.department"})

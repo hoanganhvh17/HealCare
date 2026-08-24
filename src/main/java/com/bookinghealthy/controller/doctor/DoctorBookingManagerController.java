@@ -13,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,15 @@ public class DoctorBookingManagerController {
         // Lấy tất cả lịch của bác sĩ này (Sắp xếp mới nhất lên đầu)
         List<Booking> allBookings = bookingRepository.findByDoctor(currentDoctor);
 
-        // Sắp xếp giảm dần theo ngày tạo (hoặc ngày hẹn tùy bạn)
-        allBookings.sort((b1, b2) -> b2.getCreatedAt().compareTo(b1.getCreatedAt()));
+        // Mới nhất lên đầu, dòng KHÔNG có createdAt xuống cuối.
+        //
+        // Bản cũ là `b2.getCreatedAt().compareTo(b1.getCreatedAt())` và ném NullPointerException
+        // ngay khi gặp MỘT dòng có created_at NULL — tức HTTP 500 cho toàn bộ trang, không phải
+        // mất một dòng. Cột này nullable và `@CreationTimestamp` chỉ điền cho dòng đi qua
+        // Hibernate, nên mọi dòng nhập bằng SQL thô (dữ liệu cũ, import, sửa tay lúc vận hành)
+        // đều là một quả mìn; sắp xếp là việc hiển thị, không đáng đánh sập màn hình.
+        allBookings.sort(Comparator.comparing(Booking::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
 
         model.addAttribute("listBookings", allBookings);
         model.addAttribute("actionBlockReasons", buildActionBlockReasons(allBookings));

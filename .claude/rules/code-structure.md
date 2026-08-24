@@ -50,4 +50,13 @@ ngày. Xem [ai-assistant.md](ai-assistant.md).
 
 `config/AdminNavInterceptor` bơm `activePage` + số huy hiệu cho mọi URL `/admin/**` ở một chỗ, thay cho ~29 lời gọi `model.addAttribute` rải khắp 9 controller. Xem [coding-conventions.md](coding-conventions.md) để biết vì sao nó là `HandlerInterceptor.postHandle` chứ không phải `@ControllerAdvice`, và vì sao mọi thuộc tính nó đặt đều mang tiền tố `nav`.
 
+`config/DoctorNavInterceptor` (`/doctor/**`) theo **cùng bốn ràng buộc đó** — `postHandle`, chốt chặn
+`mv == null`/`redirect:`, tiền tố `nav`, bọc `try/catch` — nhưng **chỉ bơm huy hiệu, KHÔNG bơm
+`activePage`**. Đây là chỗ hai lớp cố ý khác nhau: khu admin gom `activePage` vào interceptor vì nó
+từng bị hardcode ở template và sẽ phải sửa 9 controller; khu bác sĩ thì từng controller đã tự đặt và
+đang đặt đúng, ghi đè lên chúng là đổi một hành vi đang tốt để lấy sự "gọn" không ai cần. Interceptor
+chỉ làm phần không controller nào làm nổi tại chỗ: một con số dùng chung cho **8 trang** đang nhúng
+sidebar bác sĩ. Nó giải người dùng qua `CurrentUserService.find(auth)` chứ không đọc `auth.getName()`
+thẳng (principal có thể là `OAuth2User`), và thoát ngay khi người đăng nhập không phải bác sĩ.
+
 Bulk seed data is kept out of `DataInitializer`: `config/DoctorSeedData` holds only the `SeedDoctor` table (department → 5 doctors), while the logic that turns it into `User`/`Doctor`/`Schedule` rows stays in `DataInitializer`. It is called from `run()` rather than being its own `CommandLineRunner`, because a separate runner could execute *before* `DataInitializer` and create users, which would make `count() == 0` false and skip the entire main seed (no departments, no roles).

@@ -26,13 +26,19 @@ In email templates this is invisible until it reaches a real inbox — `EmailSer
 
 **Theme sắp xếp header mobile bằng `order`, và nó gọi tên một class dự án KHÔNG dùng.** Dưới 1200px `main.css:214-238` đặt `.header .logo{order:1}`, `.header .btn-getstarted{order:2}`, `.header .navmenu{order:3}`. Header bệnh nhân của dự án không có `.btn-getstarted` — nhóm nút bên phải là `.header-actions`, không khai `order` nên nhận mặc định **0**, tức xếp **trước cả logo**: trên điện thoại hai nút nằm bên trái còn "HealCare" bị đẩy vào giữa. `responsive.css` trả nó về khe số 2. **Bất kỳ phần tử nào thêm mới vào `.header-container` cũng phải tự khai `order` trong dải <1200px**, nếu không nó sẽ nhảy lên đầu hàng — mặc định 0 luôn đứng trước mọi `order` dương của theme.
 
+**Logo trên header nhân viên phải trỏ về nhà của CHÍNH vai trò đang xem.** Dự án có ba fragment header nhân viên và chỉ `admin/include/header` là của admin. `doctor/include/header :: header-nav` phục vụ **ba** vai trò khác — bác sĩ (6 trang `doctor/*` + nhánh `role=='DOCTOR'` của `user/medical-record-detail`), trưởng khoa (4 trang `head/*`) và **lễ tân** (3 trang `staff/*`, vì `StaffWorkScheduleController` dùng chung cho cả hai vai trò) — nhưng logo của nó hardcode `@{/admin/dashboard}`, tức bấm vào là **403** cho tất cả. Nay rẽ nhánh bằng `sec:authorize`, và **DOCTOR phải đứng TRƯỚC HEAD_DOCTOR** đúng như `successHandler` của `SecurityConfig`: trưởng khoa do `DataInitializer` tạo vẫn giữ `ROLE_DOCTOR` nên nhà của họ là `/doctor/dashboard`; nhánh HEAD_DOCTOR chỉ dành cho tài khoản được admin cấp mỗi quyền trưởng khoa. Nhánh cuối (`!` cả ba) là lưới an toàn — mất hẳn logo hỏng nặng hơn một liên kết trỏ sai.
+
+**Sắp xếp để hiển thị thì phải chịu được `null`.** `DoctorBookingManagerController` từng viết `b2.getCreatedAt().compareTo(b1.getCreatedAt())`, nên **một** dòng `bookings` có `created_at` NULL là `NullPointerException` → HTTP 500 cho **toàn bộ** trang, chứ không phải mất một dòng. `createdAt` mang `@CreationTimestamp` nên mọi dòng đi qua Hibernate đều có — nhưng cột **nullable**, nên dữ liệu cũ, bản import hay một câu SQL sửa tay lúc vận hành đều gài được quả mìn đó. Khuôn đúng: `Comparator.comparing(X::getKey, Comparator.nullsLast(Comparator.reverseOrder()))` — dòng thiếu khoá xuống cuối, phần còn lại giữ nguyên thứ tự.
+
 **Khách chưa đăng nhập phải thấy một nút CÓ CHỮ, không phải icon người.** `user/include/header.html` render `.btn-header-login` ("Đăng nhập", viền teal) dưới `sec:authorize="!isAuthenticated()"`. Trước đây chỗ đó là một `bi-person-circle` trần cỡ `fs-5`: icon người được đọc là "hồ sơ của tôi" — thứ mà khách chưa đăng nhập không có — nên đường vào tài khoản coi như bị giấu. Dùng **viền** chứ không nền đặc vì nó đứng cạnh "Đặt lịch khám", CTA chính của trang.
 
 **Luật thu gọn header dưới 400px phải bám class cụ thể, không bám `.btn`.** `responsive.css` nuốt chữ nút đặt lịch (`font-size:0`) rồi vẽ lại icon lịch bằng `::before`. Luật đó viết khi header chỉ có đúng một nút; bám `.btn` thì mọi nút thêm sau — kể cả "Đăng nhập" — cũng bị nuốt chữ và mọc ra icon lịch, tức giả dạng thành nút đặt lịch thứ hai. Nay nó bám `.btn-header-book`, còn `.btn-header-login` **giữ nguyên chữ** (chỉ ẩn icon + siết đệm) vì chữ chính là lý do nút đó tồn tại.
 
 **Exactly one place may bind `.mobile-nav-toggle`, and it is `assets/js/mobile-nav.js`.** The block was removed from `assets/js/main.js` because only 12/23 patient pages load that file (it calls `new PureCounter()`, `GLightbox(...)` and `scrollTop.addEventListener` unconditionally, so it cannot simply be added to the rest). `mobile-nav.js` is loaded from `user/include/header.html`, next to the bell script, so it covers all of them. Binding in both places means one tap runs `toggle()` twice — menu opens and shuts instantly — the same shape as the double-Bootstrap bug above.
 
-**Responsive fixes go in the two overlay stylesheets, never into the theme files.** `assets/css/responsive.css` (patient, loaded after `main.css` in all 23 heads) and `assets-admin/css/responsive-admin.css` (staff, loaded from the two `pagehead` fragments) — `main.css` and `assets-admin/css/style.css` are BootstrapMade theme files and a theme upgrade would swallow anything written into them. **Two exceptions, both forced by cascade order:** rules for the AI chat widgets live in the `<style>` of each `ai-chat*` fragment, and rules for the calendar grid live at the end of `work-schedule.css` — those `<style>` blocks sit in `<body>`, i.e. *after* the `<head>` links, so at equal specificity they win and an overlay file cannot reach them.
+**Responsive fixes go in the two overlay stylesheets, never into the theme files.** `assets/css/responsive.css` (patient, loaded after `main.css` in all 23 heads) and `assets-admin/css/responsive-admin.css` (staff, loaded from the two `pagehead` fragments) — `main.css` and `assets-admin/css/style.css` are BootstrapMade theme files and a theme upgrade would swallow anything written into them. **Three exceptions, all forced by cascade order:** rules for the AI chat widgets live in the `<style>` of each `ai-chat*` fragment, rules for the calendar grid live at the end of `work-schedule.css`, and **rules for the doctor sidebar live in the `<style>` of `doctor/include/sidebar.html`** — those `<style>` blocks sit in `<body>`, i.e. *after* the `<head>` links, so at equal specificity they win and an overlay file cannot reach them.
+
+Sidebar bác sĩ có thêm lý do thứ hai để ở lại trong fragment: nó được **8 trang thuộc 3 khu khác nhau** nhúng (6 trang `doctor/*`, 3 trang `staff/*` qua `__${sidebarFragment}__`, và nhánh `role == 'DOCTOR'` của `user/medical-record-detail.html` — một trang **bệnh nhân cũng nhìn thấy**), nên CSS nằm cùng chỗ với markup là thứ bảo đảm nó không bao giờ vắng mặt. Đừng "dọn" nó sang `admin-theme.css`: mọi luật ở đó bọc dưới `body.admin-theme`, mà thêm class đó vào các trang này là restyle luôn trang của bệnh nhân. Container tự đè theme bằng `#sidebar.doc-sidebar` (`#id` = 1,0,0 thắng `.sidebar` = 0,1,0) thay cho thuộc tính `style=` inline của bản cũ — thuộc tính đó còn kèm `z-index: 999`, tức **đè lên header vốn là 997**; để theme giữ 996.
 
 **Staff tables no longer need a hand-written `.table-responsive` wrapper.** `assets-admin/js/responsive-admin.js` wraps every unwrapped `<table>` on `window.load` — after `main.js` has initialised simple-datatables, so a `.datatable` gets its whole `.datatable-wrapper` wrapped rather than the bare table. This covers the 19 templates that never had one. It runs only in the staff area; patient pages still wrap by hand.
 
@@ -93,6 +99,21 @@ Sidebar admin chỉ có hai: bài nháp chờ duyệt và ứng viên chờ ph�
 `PENDING`: từ khi có `PAY_AT_COUNTER`, `PENDING + UNPAID` là trạng thái nghỉ *bình thường* do **lễ tân**
 xử lý, badge đó sẽ sáng vĩnh viễn và nhắc admin về việc của người khác. Số 0 thì không render — một chấm
 xám ghi "0" chỉ kéo mắt tới chỗ không có gì để xem.
+
+Sidebar **bác sĩ** cũng có hai, và cả hai đều qua được phép thử đó: "yêu cầu chờ duyệt" (bác sĩ bấm
+Xác nhận là giảm) và "ca cần khám hôm nay" (khám xong một ca là giảm). Con số phải bằng **đúng số dòng
+của trang mà mục đó dẫn tới** — huy hiệu nói khác trang nó dẫn tới thì người dùng đếm lại một lần rồi
+thôi tin nó. Vì vậy "yêu cầu chờ duyệt" **không lọc theo ngày**, khớp `DoctorBookingRequestController`,
+chứ không khớp thẻ "Yêu cầu mới" trên dashboard (thẻ đó cắt theo kỳ 7/30 ngày — hai câu hỏi khác nhau,
+và chính ô AI Insight dưới thẻ đã nói ra phần chênh: *"có N yêu cầu cho những ngày tới đang chờ duyệt"*).
+
+**"Bệnh án chưa hoàn tất" TRÔNG như một huy hiệu tốt nhưng không phải** — đã cân nhắc và loại:
+`BookingStatus.COMPLETED` chỉ được gán ở đúng hai chỗ, `MedicalRecordServiceImpl:71` và `:141`, **cả hai
+đều ngay sau `medicalRecordRepository.save(record)` trong cùng transaction**, nên "đã khám xong mà chưa
+có bệnh án" là trạng thái không thể tồn tại và `countIncompleteRecordsByDoctor` luôn trả 0. Kể cả khi
+khác 0 vì dữ liệu cũ, bác sĩ vẫn **không sửa được**: `/doctor/examinations` chỉ hiện nút "Khám" khi
+`isToday`, còn `showCreateForm` cũng chặn `appointmentDate != today` ở server. Nó vẫn có ích ở chỗ khác
+— ô AI Insight trên dashboard — vì ở đó nó là một *nhận định*, không phải một nút việc-cần-làm.
 
 **`@Transactional` trên method được gọi từ CÙNG bean là một dòng chữ không làm gì cả.** Lời gọi nội
 bộ không đi qua proxy của Spring, nên annotation ấy vô hiệu — và tệ hơn là không có, vì người đọc sau

@@ -43,7 +43,41 @@
 <header th:fragment="header-nav" id="header" class="header fixed-top d-flex align-items-center">
 
   <div class="d-flex align-items-center justify-content-between">
-    <a th:href="@{/admin/dashboard}" class="logo d-flex align-items-center">
+    <!--/*
+      Logo trỏ về TRANG CHỦ CỦA CHÍNH VAI TRÒ ĐANG XEM, chứ không phải một URL cố định.
+
+      Bản cũ là @{/admin/dashboard} cho tất cả, nên bấm vào logo là ăn 403: fragment này KHÔNG
+      phải của admin — nó phục vụ ba vai trò khác (`admin/include/header :: header-nav` mới là
+      của admin, và nó trỏ /admin/dashboard cho đúng):
+        - BÁC SĨ        : 6 trang doctor/* + nhánh role=='DOCTOR' của user/medical-record-detail
+        - TRƯỞNG KHOA   : 4 trang head/*
+        - LỄ TÂN        : 3 trang staff/* (StaffWorkScheduleController dùng chung cho cả hai vai trò)
+
+      THỨ TỰ nhánh sao chép successHandler của SecurityConfig, và DOCTOR phải đứng TRƯỚC
+      HEAD_DOCTOR: trưởng khoa do DataInitializer tạo vẫn GIỮ ROLE_DOCTOR, nên nhà của họ là
+      /doctor/dashboard; nhánh HEAD_DOCTOR chỉ dành cho tài khoản được admin cấp mỗi quyền trưởng
+      khoa mà không có quyền bác sĩ.
+
+      Nhánh cuối là lưới an toàn: không khớp vai trò nào thì vẫn phải CÒN logo. Mất hẳn logo là
+      hỏng nặng hơn một liên kết trỏ sai.
+    */-->
+    <a sec:authorize="hasRole('DOCTOR')"
+       th:href="@{/doctor/dashboard}" class="logo d-flex align-items-center">
+      <img th:src="@{/assets-admin/img/logo.png}" alt="">
+      <span class="d-none d-lg-block">HealCare</span>
+    </a>
+    <a sec:authorize="!hasRole('DOCTOR') and hasRole('RECEPTIONIST')"
+       th:href="@{/receptionist/dashboard}" class="logo d-flex align-items-center">
+      <img th:src="@{/assets-admin/img/logo.png}" alt="">
+      <span class="d-none d-lg-block">HealCare</span>
+    </a>
+    <a sec:authorize="!hasRole('DOCTOR') and !hasRole('RECEPTIONIST') and hasRole('HEAD_DOCTOR')"
+       th:href="@{/head/dashboard}" class="logo d-flex align-items-center">
+      <img th:src="@{/assets-admin/img/logo.png}" alt="">
+      <span class="d-none d-lg-block">HealCare</span>
+    </a>
+    <a sec:authorize="!hasRole('DOCTOR') and !hasRole('RECEPTIONIST') and !hasRole('HEAD_DOCTOR')"
+       th:href="@{/}" class="logo d-flex align-items-center">
       <img th:src="@{/assets-admin/img/logo.png}" alt="">
       <span class="d-none d-lg-block">HealCare</span>
     </a>

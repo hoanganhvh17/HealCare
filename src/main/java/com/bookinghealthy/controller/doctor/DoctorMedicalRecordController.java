@@ -162,6 +162,10 @@ public class DoctorMedicalRecordController {
         model.addAttribute("externalRecords",
                 externalMedicalRecordService.findForUser(patientUserId));
 
+        // Form khám là màn hình con của luồng "Lịch khám bệnh" — thiếu dòng này thì cả sidebar tối
+        // thui và bác sĩ không biết mình đang đứng ở đâu.
+        model.addAttribute("activePage", "examinations");
+
         return "doctor/medical-record-form";
     }
 
@@ -324,6 +328,7 @@ public class DoctorMedicalRecordController {
         // === THÊM 2 DÒNG NÀY ===
         model.addAttribute("role", "DOCTOR"); // Đánh dấu người xem là Bác sĩ
         model.addAttribute("backLink", "/doctor/examinations"); // Quay lại trang danh sách khám
+        model.addAttribute("activePage", "examinations");
 
         // Tái sử dụng giao diện xem chi tiết của User (nhưng cần chỉnh sửa chút xíu ở View để ẩn nút quay lại của User)
         return "user/medical-record-detail";
@@ -394,6 +399,7 @@ public class DoctorMedicalRecordController {
         model.addAttribute("patient", patient);
         model.addAttribute("listRecords", listRecords);
         model.addAttribute("externalRecords", externalMedicalRecordService.findForUser(userId));
+        model.addAttribute("activePage", "examinations");
 
         // Trả về file HTML mới
         return "doctor/patient-records";
