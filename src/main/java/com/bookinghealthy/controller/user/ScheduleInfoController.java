@@ -56,8 +56,14 @@ public class ScheduleInfoController {
 
         // 2. Lọc
         if (departmentId != null) {
+            // Doctor.department là nullable (admin có thể tạo bác sĩ chưa gán khoa). Đây là
+            // trang CÔNG KHAI, nên chỉ cần MỘT bác sĩ như vậy có lịch trong ngày là cả trang
+            // trả 500 cho mọi khách vãng lai. Bác sĩ chưa có khoa thì không thuộc khoa nào cả,
+            // lọc bỏ là đúng nghĩa chứ không phải né lỗi.
             schedules = schedules.stream()
-                    .filter(s -> s.getDoctor().getDepartment().getId().equals(departmentId))
+                    .filter(s -> s.getDoctor() != null
+                            && s.getDoctor().getDepartment() != null
+                            && departmentId.equals(s.getDoctor().getDepartment().getId()))
                     .collect(Collectors.toList());
         }
         if (doctorId != null) {

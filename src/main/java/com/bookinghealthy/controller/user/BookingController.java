@@ -122,27 +122,26 @@ public class BookingController {
             // CASE 1: THANH TOÁN BẰNG VÍ (WALLET)
             if ("WALLET".equals(paymentMethod)) {
                 booking.setPaymentMethod("WALLET");
-                Booking reservedBooking = bookingService.reserve(booking);
-                boolean success = walletService.payWithWallet(currentUser, doctor.getPrice(),
+                // Giữ chỗ + trừ tiền + chốt trạng thái nằm trong MỘT transaction của service.
+                // Trước đây controller điều phối ba transaction rời nhau, nên một lỗi ở bước
+                // cuối để lại đúng trạng thái tệ nhất: tiền đã trừ, lịch vẫn chưa thanh toán.
+                Booking savedBooking = bookingService.reserveAndPayWithWallet(booking,
+                        doctor.getPrice(),
                         "Thanh toán đặt lịch khám bác sĩ " + doctor.getUser().getFullName());
-                if (success) {
-                    reservedBooking.setStatus(BookingStatus.CONFIRMED);
-                    reservedBooking.setPaymentStatus("PAID");
-                    Booking savedBooking = bookingService.save(reservedBooking);
-                    emailService.sendBookingConfirmation(savedBooking);
-                    notificationService.pushBookingEvent(savedBooking, "bi-calendar-check text-success",
-                            "Đặt lịch thành công");
 
-                    redirectAttributes.addFlashAttribute("successMessage",
-                            "Đặt lịch và thanh toán bằng Ví thành công!");
-                    return "redirect:/user/profile"; // Về trang lịch sử
-                } else {
-                    reservedBooking.setStatus(BookingStatus.CANCELED);
-                    reservedBooking.setPaymentStatus("FAILED");
-                    bookingService.save(reservedBooking);
+                if (savedBooking == null) {
                     redirectAttributes.addFlashAttribute("errorMessage", "Số dư ví không đủ để thanh toán!");
                     return "redirect:/appointment";
                 }
+
+                // Email và chuông đặt NGOÀI transaction: thư đã gửi thì không rút lại được.
+                emailService.sendBookingConfirmation(savedBooking);
+                notificationService.pushBookingEvent(savedBooking, "bi-calendar-check text-success",
+                        "Đặt lịch thành công");
+
+                redirectAttributes.addFlashAttribute("successMessage",
+                        "Đặt lịch và thanh toán bằng Ví thành công!");
+                return "redirect:/user/profile"; // Về trang lịch sử
             }
             // === [THÊM MỚI] CASE 3: CHUYỂN KHOẢN NGÂN HÀNG (VietQR) ===
             else if ("BANK_TRANSFER".equals(paymentMethod)) {

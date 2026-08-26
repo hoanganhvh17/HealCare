@@ -50,6 +50,8 @@
              class="btn btn-sm" th:classappend="${selectedStatus == 'COMPLETED'} ? 'btn-secondary' : 'btn-outline-secondary'">Đã khám</a>
           <a th:href="@{/receptionist/bookings(status='CANCELED')}"
              class="btn btn-sm" th:classappend="${selectedStatus == 'CANCELED'} ? 'btn-danger' : 'btn-outline-danger'">Đã hủy</a>
+          <a th:href="@{/receptionist/bookings(status='NO_SHOW')}"
+             class="btn btn-sm" th:classappend="${selectedStatus == 'NO_SHOW'} ? 'btn-dark' : 'btn-outline-dark'">Không đến</a>
         </div>
 
         <table class="table datatable align-middle">
@@ -96,6 +98,7 @@
               <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
               <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
               <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Hoàn thành</span>
+              <span th:if="${booking.status.name() == 'NO_SHOW'}" class="badge bg-dark">Không đến khám</span>
             </td>
             <td>
               <!-- actionBlockReasons[id] != null: lịch đã hủy / đã khám / đã trôi qua. Không
@@ -127,6 +130,30 @@
                   <i class="bi bi-lock-fill"></i>
                   <span th:text="${blockReason}">Lịch hẹn đã trôi qua nên không sửa được nữa.</span>
                 </span>
+
+                <!--/* THU TIỀN TẠI QUẦY.
+                       Dùng paymentBlockReasons chứ KHÔNG dùng blockReason ở trên: whyStaffCannotChange
+                       từ chối mọi lịch đã qua giờ hẹn, mà thu tiền quầy xảy ra đúng SAU giờ hẹn
+                       (bệnh nhân tới ca 08:00, lễ tân thu lúc 08:05). Dùng nhầm là nút không bao
+                       giờ hiện. */-->
+                <form th:if="${paymentBlockReasons[booking.id] == null}"
+                      th:action="@{/receptionist/bookings/collect-payment/{id}(id=${booking.id})}"
+                      method="post" class="d-inline">
+                  <button type="submit" class="btn btn-success btn-sm" title="Ghi nhận đã thu tiền mặt"
+                          th:attr="onclick=|return confirm('Xác nhận đã thu ' + ${#numbers.formatDecimal(booking.bookingPrice, 0, 'POINT', 0, 'POINT')} + ' đ tiền mặt của bệnh nhân?')|">
+                    <i class="bi bi-cash-coin"></i>
+                  </button>
+                </form>
+
+                <!--/* ĐÁNH DẤU KHÔNG ĐẾN KHÁM. Không tự hoàn tiền — xem ReceptionService.markNoShow. */-->
+                <form th:if="${noShowBlockReasons[booking.id] == null}"
+                      th:action="@{/receptionist/bookings/no-show/{id}(id=${booking.id})}"
+                      method="post" class="d-inline">
+                  <button type="submit" class="btn btn-outline-dark btn-sm" title="Bệnh nhân không đến khám"
+                          onclick="return confirm('Ghi nhận bệnh nhân KHÔNG đến khám? Tiền đã thanh toán sẽ KHÔNG được hoàn tự động.');">
+                    <i class="bi bi-person-x"></i>
+                  </button>
+                </form>
 
                 <a th:href="@{/receptionist/print/receipt/{id}(id=${booking.id})}" target="_blank"
                    class="btn btn-outline-primary btn-sm" title="In phiếu thu">

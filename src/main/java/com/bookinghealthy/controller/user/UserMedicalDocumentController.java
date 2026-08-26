@@ -62,6 +62,21 @@ public class UserMedicalDocumentController {
         try {
             ExternalMedicalRecord saved = externalMedicalRecordService.upload(
                     user.getId(), title, patientNote, file);
+
+            // MỌI đường gọi model tính tiền đều phải qua hạn mức. Trước đây chỉ nhánh
+            // /chat-upload kiểm, nên bệnh nhân tải lên từ trang hồ sơ là đốt lượt gọi AI
+            // không giới hạn còn bộ đếm ai_image_usage đứng yên — tức phép kiểm ở khung chat
+            // soi mãi một con số không bao giờ tăng.
+            String overQuota = chatImageService.whyCannotAnalyzeImage(user);
+            if (overQuota != null) {
+                // Tệp VẪN được giữ lại, chỉ hoãn phần đọc bằng AI. Hồ sơ nằm ở PENDING và
+                // bệnh nhân bấm "Phân tích lại" được vào ngày hôm sau.
+                ra.addFlashAttribute("successMessage",
+                        "Đã tải hồ sơ lên. " + overQuota);
+                return BACK_TO_TAB;
+            }
+            chatImageService.countOneAnalysis(user);
+
             // Phân tích chạy NGAY và ĐỒNG BỘ: bệnh nhân vừa bấm Tải lên thì đang chờ trước màn
             // hình, một trang nạp lại kèm kết quả là phản hồi rõ ràng nhất. Bản thân analyze()
             // tự nuốt mọi lỗi vào aiStatus nên không có đường nào làm hỏng lượt tải lên.
@@ -90,6 +105,15 @@ public class UserMedicalDocumentController {
                 ra.addFlashAttribute("errorMessage", blocked);
                 return BACK_TO_TAB;
             }
+            // Nút "Phân tích lại" bấm được bao nhiêu lần tuỳ ý, mỗi lần là một lượt gọi model
+            // trả tiền — đây chính là đường lách hạn mức rẻ nhất nếu không kiểm.
+            String overQuota = chatImageService.whyCannotAnalyzeImage(user);
+            if (overQuota != null) {
+                ra.addFlashAttribute("errorMessage", overQuota);
+                return BACK_TO_TAB;
+            }
+            chatImageService.countOneAnalysis(user);
+
             externalMedicalRecordService.analyze(id);
             ra.addFlashAttribute("successMessage", "Đã phân tích lại hồ sơ.");
         } catch (Exception e) {

@@ -48,7 +48,14 @@ public class BookingApi {
             @RequestParam Long doctorId,
             @RequestParam String date) {
 
-        LocalDate localDate = LocalDate.parse(date);
+        // Endpoint này là permitAll, nên ?date=abc từ người lạ không được phép thành HTTP 500.
+        // AiController đã trả 400 cho đúng tình huống này; làm giống nó.
+        LocalDate localDate;
+        try {
+            localDate = LocalDate.parse(date);
+        } catch (java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().build();
+        }
         List<String> unavailableSlots = new ArrayList<>();
 
         // 1. Lấy các slot đã có người Đặt (Booking)

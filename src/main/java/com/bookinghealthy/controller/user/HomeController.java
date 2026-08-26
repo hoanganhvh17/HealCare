@@ -8,14 +8,13 @@ import com.bookinghealthy.service.DepartmentService;
 import com.bookinghealthy.service.DoctorService;
 import com.bookinghealthy.service.ServiceService; // Giả sử bạn đã có ServiceService
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,7 +26,12 @@ public class HomeController {
     @Autowired private DoctorService doctorService;
     @Autowired private ServiceService serviceService; // Cần Service này (đã tạo ở Module 7)
     @Autowired private BookingRepository bookingRepository;
-    @Autowired private JavaMailSender mailSender;
+    @Autowired private com.bookinghealthy.repository.DoctorRepository doctorRepository;
+    @Autowired private com.bookinghealthy.service.EmailService emailService;
+
+    /** Hộp thư nhận liên hệ từ khách. Trước đây là địa chỉ Gmail cá nhân hardcode trong mã. */
+    @org.springframework.beans.factory.annotation.Value("${app.contact-email:${spring.mail.username}}")
+    private String contactEmail;
 
     @GetMapping("/")
     public String home(Model model) {
@@ -41,11 +45,13 @@ public class HomeController {
 
     private String showHomePage(Model model) {
 
-        // (Tối 12/11 - update) Lấy TẤT CẢ Khoa (để dùng cho Dropdown tìm kiếm)
+        // Lấy TẤT CẢ Khoa (dùng cho Dropdown tìm kiếm) — MỘT lần thôi. Bản cũ gọi
+        // departmentService.findAll() hai lần trong cùng một lần tải trang chủ rồi vứt đi
+        // một nửa kết quả.
         List<Department> allDepartments = departmentService.findAll();
 
-        // 1. Lấy 6 Khoa đầu tiên
-        List<Department> departments = departmentService.findAll().stream()
+        // 1. Lấy 6 Khoa đầu tiên, cắt từ danh sách vừa lấy ở trên
+        List<Department> departments = allDepartments.stream()
                 .limit(6)
                 .collect(Collectors.toList());
 
@@ -71,7 +77,9 @@ public class HomeController {
     // === TRANG GIỚI THIỆU ===
     @GetMapping("/about")
     public String about(Model model) {
-        long doctorCount = doctorService.findAll().size();
+        // countAll() thay cho findAll().size(): bản cũ nạp trọn 132 dòng bác sĩ kèm quan hệ
+        // chỉ để lấy đúng một con số.
+        long doctorCount = doctorRepository.count();
         long treatedCount = bookingRepository.count(); // Đếm tổng số lịch hẹn
 
         model.addAttribute("doctorCount", doctorCount);
@@ -99,12 +107,22 @@ public class HomeController {
                                  @RequestParam("message") String message,
                                  RedirectAttributes ra) {
         try {
-            SimpleMailMessage mailMessage = new SimpleMailMessage();
-            mailMessage.setTo("vuhoanganh1706@gmail.com");
-            mailMessage.setSubject("Liên hệ mới từ: " + name);
-            mailMessage.setText("Người gửi: " + name + "\nEmail: " + email + "\n\nNội dung:\n" + message);
+            // Đi qua EmailService (@Async) thay vì gọi thẳng mailSender: bản cũ gửi ĐỒNG BỘ
+            // nên khách phải ngồi chờ trọn vòng bắt tay SMTP mới thấy trang phản hồi, và
+            // một sự cố ở máy chủ mail thì hiện thẳng ra mặt khách. Người nhận nay lấy từ
+            // cấu hình chứ không còn là địa chỉ Gmail cá nhân hardcode trong mã nguồn.
+            String safeName = HtmlUtils.htmlEscape(name == null ? "" : name);
+            String safeEmail = HtmlUtils.htmlEscape(email == null ? "" : email);
+            String safeMessage = HtmlUtils.htmlEscape(message == null ? "" : message);
 
-            mailSender.send(mailMessage);
+            emailService.sendStaffNotification(
+                    contactEmail,
+                    "Liên hệ mới từ: " + safeName,
+                    "Tin nhắn liên hệ từ website",
+                    "<p><strong>Người gửi:</strong> " + safeName + "</p>"
+                            + "<p><strong>Email:</strong> " + safeEmail + "</p>"
+                            + "<p><strong>Nội dung:</strong></p><p>"
+                            + safeMessage.replace("\n", "<br>") + "</p>");
 
             ra.addFlashAttribute("successMessage", "Cảm ơn bạn! Tin nhắn đã được gửi thành công.");
         } catch (Exception e) {

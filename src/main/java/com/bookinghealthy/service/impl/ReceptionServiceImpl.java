@@ -4,6 +4,7 @@ import com.bookinghealthy.dto.BulkResultDTO;
 import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.model.Doctor;
+import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.repository.DoctorRepository;
 import com.bookinghealthy.service.BookingService;
@@ -13,6 +14,7 @@ import com.bookinghealthy.service.NotificationService;
 import com.bookinghealthy.service.ReceptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -175,6 +177,110 @@ public class ReceptionServiceImpl implements ReceptionService {
         }
         return null;
     }
+
+    /* =========================== THU NGÂN TẠI QUẦY =========================== */
+
+    @Override
+    public String whyCannotCollectPayment(Booking booking) {
+        if (booking == null) {
+            return "Không tìm thấy lịch hẹn.";
+        }
+        if (booking.getStatus() == BookingStatus.CANCELED) {
+            return "Lịch hẹn đã bị hủy nên không thu tiền.";
+        }
+        if (booking.getStatus() == BookingStatus.NO_SHOW) {
+            return "Bệnh nhân không đến khám nên không thu tiền.";
+        }
+        if ("PAID".equals(booking.getPaymentStatus())) {
+            return "Lịch hẹn này đã thanh toán rồi.";
+        }
+        if ("REFUNDED".equals(booking.getPaymentStatus())) {
+            return "Lịch hẹn này đã được hoàn tiền.";
+        }
+        // Không có giá thì không biết thu bao nhiêu; ghi PAID cho một số tiền không xác định
+        // là làm hỏng đúng con số mà tính năng này sinh ra để sửa.
+        if (booking.getBookingPrice() == null) {
+            return "Lịch hẹn không có giá khám, vui lòng liên hệ quản trị viên.";
+        }
+        return null;
+    }
+
+    @Override
+    @Transactional
+    public void collectCashPayment(Long bookingId, User collector) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        String blocked = whyCannotCollectPayment(booking);
+        if (blocked != null) {
+            throw new IllegalStateException(blocked);
+        }
+
+        booking.setPaymentStatus("PAID");
+        booking.setPaidAt(LocalDateTime.now());
+        booking.setCollectedBy(collector);
+
+        // Trả tiền tại quầy CHÍNH LÀ hành động xác nhận: giữ nguyên PENDING sau khi đã cầm
+        // tiền của người bệnh là để lịch treo ở trạng thái chờ duyệt một cách vô lý.
+        // COMPLETED thì để nguyên — ca đã khám xong, chỉ là trả tiền muộn.
+        if (booking.getStatus() == BookingStatus.PENDING) {
+            booking.setStatus(BookingStatus.CONFIRMED);
+        }
+        bookingRepository.save(booking);
+
+        // Chuông chứ KHÔNG email: một lá thư gần trùng lá "đã xác nhận" là thứ khiến người
+        // bệnh tưởng hệ thống lỗi rồi đặt lại — xem lập luận ở nhánh PAY_AT_COUNTER.
+        notificationService.pushBookingEvent(booking, "bi-cash-coin text-success",
+                "Đã thanh toán tại quầy");
+    }
+
+    @Override
+    public String whyCannotMarkNoShow(Booking booking) {
+        if (booking == null) {
+            return "Không tìm thấy lịch hẹn.";
+        }
+        if (booking.getStatus() == BookingStatus.NO_SHOW) {
+            return "Lịch hẹn đã được đánh dấu vắng khám.";
+        }
+        if (booking.getStatus() == BookingStatus.CANCELED) {
+            return "Lịch hẹn đã bị hủy trước đó.";
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            return "Bệnh nhân đã khám xong, không đánh dấu vắng được.";
+        }
+
+        // Chưa tới giờ hẹn thì chưa thể kết luận là vắng — bệnh nhân vẫn đang trên đường.
+        LocalDateTime start = bookingService.appointmentStart(booking);
+        if (start == null) {
+            return "Không đọc được khung giờ của lịch hẹn.";
+        }
+        if (start.isAfter(LocalDateTime.now())) {
+            return "Chưa tới giờ hẹn nên chưa đánh dấu vắng khám được.";
+        }
+        return null;
+    }
+
+    @Override
+    @Transactional
+    public void markNoShow(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
+
+        String blocked = whyCannotMarkNoShow(booking);
+        if (blocked != null) {
+            throw new IllegalStateException(blocked);
+        }
+
+        booking.setStatus(BookingStatus.NO_SHOW);
+        booking.setNoShowMarkedAt(LocalDateTime.now());
+        // KHÔNG đụng tới paymentStatus: xem giải thích ở ReceptionService.markNoShow.
+        bookingRepository.save(booking);
+
+        notificationService.pushBookingEvent(booking, "bi-person-x text-warning",
+                "Bạn đã không tới khám theo lịch hẹn");
+    }
+
+    /* ========================================================================= */
 
     @Override
     public void pushToEndOfQueue(Long bookingId) {

@@ -254,7 +254,11 @@
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label mb-0" th:classappend="${param.error} ? 'label-error' : ''">Mật khẩu</label>
-                <a href="#" class="forgot-link">Quên mật khẩu?</a>
+                <!--/* Ẩn cho tới khi có luồng đặt lại mật khẩu thật. Trước đây đây là
+                       href="#": người quên mật khẩu bấm vào không có gì xảy ra, mà dự án
+                       KHÔNG có route reset nào — tức họ bị chặn cứng khỏi tài khoản của
+                       chính mình và giao diện thì vờ như có lối ra. Không có nút còn đỡ
+                       hơn một nút giả. */-->
             </div>
             <div class="position-relative password-group" th:classappend="${param.error} ? 'has-error' : ''">
                 <input type="password" name="password" id="password" class="form-control pe-5" th:classappend="${param.error} ? 'is-invalid' : ''" placeholder="••••••••" required>

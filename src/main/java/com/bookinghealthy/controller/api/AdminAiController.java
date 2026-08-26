@@ -76,6 +76,12 @@ public class AdminAiController {
 
     @PostMapping("/ask")
     public ResponseEntity<?> chatWithAdminAssistant(@RequestBody ChatRequest chatRequest) {
+        // Body thiếu khóa "prompt" là chuyện bình thường của một API; nó phải thành 400 chứ
+        // không phải 500. AiController.askAi đã từ chối prompt rỗng theo đúng cách này.
+        if (chatRequest == null || chatRequest.getPrompt() == null
+                || chatRequest.getPrompt().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng nhập câu hỏi."));
+        }
         String userPrompt = chatRequest.getPrompt().toLowerCase();
         AdminDashboardSummaryDTO summary = adminAiReportService.getDashboardSummary();
         long draftNewsCount = postService.countDrafts();
@@ -105,6 +111,11 @@ public class AdminAiController {
 
     private String detectSimpleIntent(String prompt, AdminDashboardSummaryDTO summary, long draftNewsCount) {
         DecimalFormat currencyFormatter = new DecimalFormat("#,###'đ'");
+        // KHÔNG chia 100 ở đây. Dấu nháy trong '%' làm nó thành KÝ TỰ literal, nên DecimalFormat
+        // không nhân 100 như mẫu "%" trần — mà revenueTrend/bookingTrend/cancellationRate đã là
+        // điểm phần trăm sẵn (AdminAiReportService nhân 100 lúc tính). Chia thêm là báo cáo tăng
+        // trưởng 15,2% thành "0,2%", và tỷ lệ hủy lịch 30% thành "0,3%" — đúng con số mà prompt
+        // dặn trợ lý phải chủ động nhấn mạnh khi tiêu cực.
         DecimalFormat percentFormatter = new DecimalFormat("#,##0.0'%';-#,##0.0'%'");
 
         if (prompt.contains("tin khẩn cấp") || prompt.contains("bản nháp tin tức")) {
@@ -118,12 +129,12 @@ public class AdminAiController {
         if (prompt.contains("doanh thu")) {
             return String.format("Dạ sếp, **doanh thu tháng này** hiện đạt **%s**. Xu hướng so với tháng trước là **%s** ạ.",
                     currencyFormatter.format(summary.getFinancialStats().getRevenueThisMonth()),
-                    percentFormatter.format(summary.getFinancialStats().getRevenueTrend() / 100));
+                    percentFormatter.format(summary.getFinancialStats().getRevenueTrend()));
         }
         
         if (prompt.contains("hủy lịch") || prompt.contains("tỷ lệ hủy")) {
             return String.format("Dạ, **tỷ lệ hủy lịch** toàn hệ thống hiện là **%s**. Khoa có tỷ lệ hủy cao nhất đang được theo dõi sát sao sếp nhé.",
-                    percentFormatter.format(summary.getOperationalStats().getCancellationRate() / 100));
+                    percentFormatter.format(summary.getOperationalStats().getCancellationRate()));
         }
 
         if (prompt.contains("bác sĩ") && (prompt.contains("tốt nhất") || prompt.contains("cao nhất") || prompt.contains("top"))) {
@@ -144,7 +155,7 @@ public class AdminAiController {
         if (prompt.contains("lịch hẹn") || prompt.contains("đặt lịch")) {
             return String.format("Dạ, tháng này chúng ta có **%d lịch hẹn mới**. Xu hướng tăng trưởng đạt **%s**, khoa đông nhất là **%s** ạ.",
                     summary.getOperationalStats().getNewBookingsThisMonth(),
-                    percentFormatter.format(summary.getOperationalStats().getBookingTrend() / 100),
+                    percentFormatter.format(summary.getOperationalStats().getBookingTrend()),
                     summary.getOperationalStats().getBusiestDepartment());
         }
 
@@ -165,6 +176,11 @@ public class AdminAiController {
 
     private String formatSummaryToText(AdminDashboardSummaryDTO summary, long draftNewsCount) {
         DecimalFormat currencyFormatter = new DecimalFormat("#,###'đ'");
+        // KHÔNG chia 100 ở đây. Dấu nháy trong '%' làm nó thành KÝ TỰ literal, nên DecimalFormat
+        // không nhân 100 như mẫu "%" trần — mà revenueTrend/bookingTrend/cancellationRate đã là
+        // điểm phần trăm sẵn (AdminAiReportService nhân 100 lúc tính). Chia thêm là báo cáo tăng
+        // trưởng 15,2% thành "0,2%", và tỷ lệ hủy lịch 30% thành "0,3%" — đúng con số mà prompt
+        // dặn trợ lý phải chủ động nhấn mạnh khi tiêu cực.
         DecimalFormat percentFormatter = new DecimalFormat("#,##0.0'%';-#,##0.0'%'");
 
         AdminDashboardSummaryDTO.FinancialStats fin = summary.getFinancialStats();
@@ -173,12 +189,12 @@ public class AdminAiController {
 
         StringBuilder sb = new StringBuilder();
         sb.append("--- BÁO CÁO TÀI CHÍNH ---\n");
-        sb.append(String.format("- Doanh thu tháng này: %s (Xu hướng: %s)\n", currencyFormatter.format(fin.getRevenueThisMonth()), percentFormatter.format(fin.getRevenueTrend() / 100)));
+        sb.append(String.format("- Doanh thu tháng này: %s (Xu hướng: %s)\n", currencyFormatter.format(fin.getRevenueThisMonth()), percentFormatter.format(fin.getRevenueTrend())));
         sb.append(String.format("- Tổng tiền đã hoàn trả: %s\n\n", currencyFormatter.format(fin.getTotalRefunds())));
 
         sb.append("--- HIỆU SUẤT HOẠT ĐỘNG ---\n");
-        sb.append(String.format("- Lịch hẹn mới tháng này: %d (Xu hướng: %s)\n", ops.getNewBookingsThisMonth(), percentFormatter.format(ops.getBookingTrend() / 100)));
-        sb.append(String.format("- Tỷ lệ hủy lịch toàn hệ thống: %s\n", percentFormatter.format(ops.getCancellationRate() / 100)));
+        sb.append(String.format("- Lịch hẹn mới tháng này: %d (Xu hướng: %s)\n", ops.getNewBookingsThisMonth(), percentFormatter.format(ops.getBookingTrend())));
+        sb.append(String.format("- Tỷ lệ hủy lịch toàn hệ thống: %s\n", percentFormatter.format(ops.getCancellationRate())));
         sb.append(String.format("- Khoa đông khách nhất: %s\n", ops.getBusiestDepartment()));
         sb.append(String.format("- Tổng số bệnh nhân: %d\n\n", ops.getTotalPatients()));
 
@@ -188,10 +204,19 @@ public class AdminAiController {
         if (qhr.getRecentNegativeReviews() != null && !qhr.getRecentNegativeReviews().isEmpty()) {
             sb.append("- Các đánh giá tiêu cực gần đây:\n");
             qhr.getRecentNegativeReviews().stream().limit(3).forEach(review -> {
+                // Chuỗi 4 lần deref: lịch hẹn, bác sĩ, tài khoản bác sĩ đều có thể đã bị xóa.
+                // Một dòng hỏng không được phép làm sập cả trợ lý của admin — bỏ trống tên
+                // còn hơn mất nguyên báo cáo.
+                String doctorName = "không rõ";
+                if (review.getBooking() != null
+                        && review.getBooking().getDoctor() != null
+                        && review.getBooking().getDoctor().getUser() != null) {
+                    doctorName = review.getBooking().getDoctor().getUser().getFullName();
+                }
                 sb.append(String.format("  + %d sao - \"%s\" (Bác sĩ: %s)\n",
                         review.getRating(),
                         review.getComment(),
-                        review.getBooking().getDoctor().getUser().getFullName()));
+                        doctorName));
             });
         } else {
             sb.append("- Không có đánh giá tiêu cực nào gần đây.\n");

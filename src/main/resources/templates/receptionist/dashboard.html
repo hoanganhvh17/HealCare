@@ -140,6 +140,7 @@
                   <span th:if="${b.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
                   <span th:if="${b.status.name() == 'CANCELED'}" class="badge bg-danger">Đã hủy</span>
                   <span th:if="${b.status.name() == 'COMPLETED'}" class="badge bg-secondary">Hoàn thành</span>
+                  <span th:if="${b.status.name() == 'NO_SHOW'}" class="badge bg-dark">Không đến khám</span>
                 </td>
                 <td class="text-end">
                   <a th:href="@{/receptionist/print/receipt/{id}(id=${b.id})}" target="_blank"

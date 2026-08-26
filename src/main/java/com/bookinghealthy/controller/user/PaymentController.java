@@ -79,6 +79,15 @@ public class PaymentController {
         boolean succeeded = "00".equals(responseCode) && "00".equals(transactionStatus);
 
         if (succeeded) {
+            // Không đối chiếu được số tiền thì KHÔNG được coi là thành công: đây là chốt chặn
+            // chống giả mạo giao dịch, bỏ qua nó nguy hiểm hơn hẳn việc báo lỗi cho khách.
+            if (booking.getBookingPrice() == null) {
+                log.warn("[VNPay] Lịch hẹn #{} không có giá khám, không đối chiếu được số tiền",
+                        booking.getId());
+                model.addAttribute("errorMessage",
+                        "Không đối chiếu được số tiền thanh toán. Vui lòng liên hệ phòng khám.");
+                return "user/payment-result";
+            }
             BigDecimal expected = booking.getBookingPrice().multiply(BigDecimal.valueOf(100));
             BigDecimal actual;
             try {

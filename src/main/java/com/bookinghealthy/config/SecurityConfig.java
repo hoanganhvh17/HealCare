@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +16,9 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
+// Bật @PreAuthorize/@PostAuthorize. THIẾU dòng này thì mọi annotation đó chỉ là chú thích:
+// chúng KHÔNG chặn gì cả, và không có cảnh báo nào lúc biên dịch lẫn lúc chạy.
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -50,6 +54,10 @@ public class SecurityConfig {
                         // trên: /api/chat/** là permitAll ở khối dưới, mà Spring lấy luật khớp
                         // ĐẦU TIÊN — khai ở dưới đó thì dòng này hoàn toàn vô tác dụng.
                         .requestMatchers("/api/chat/my-documents").authenticated()
+                        // Giữ chỗ tạm thời cho MỘT khung giờ. Nằm dưới /api/chat/** (permitAll) nên
+                        // trước đây khách vô danh gửi sessionId tuỳ ý là giữ được cả lịch; chỉ người đã
+                        // đăng nhập mới đặt được lịch nên siết ở đây không mất chức năng nào.
+                        .requestMatchers("/api/chat/hold-slot").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
@@ -65,6 +73,12 @@ public class SecurityConfig {
                                 "/contact", "/about",
                                 "/news", "/news/**",
                                 "/medical-process",
+                                // Trang tuyển dụng là trang CÔNG KHAI. Thiếu ba dòng này, khách vãng
+                                // lai bấm "Tuyển dụng" bị đẩy sang /login và cả tính năng vô hình
+                                // với đúng đối tượng nó phục vụ.
+                                "/careers",
+                                "/career-details/**",
+                                "/career-apply",
                                 "/working-hours",
                                 "/doctor-schedule",
                                 "/api/chat/**",
@@ -73,7 +87,10 @@ public class SecurityConfig {
                                 "/departments", "/department-details/**",
                                 "/api/doctors",
                                 "/api/doctors/**",
-                                "/api/doctor/**",
+                                // KHÔNG được để "/api/doctor/**": luật rộng đó từng nuốt cả
+                                // /api/doctor/assistant/** và biến nó thành endpoint công khai gọi
+                                // OpenRouter bằng API key bệnh viện. Chỉ /api/doctor/{id} cần mở.
+                                "/api/doctor/{id:[0-9]+}",
                                 "/api/bookings/booked-slots"
                         ).permitAll()
                         .requestMatchers(

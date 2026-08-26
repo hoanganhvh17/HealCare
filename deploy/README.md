@@ -4,6 +4,8 @@ Làm theo đúng thứ tự. Mỗi bước có cách kiểm chứng ngay bên d�
 
 Tệp này là runbook **chung**, không phụ thuộc nhà cung cấp. Bản cụ thể cho một hạ tầng miễn phí có sẵn: **[DEPLOY-ORACLE-FREE.md](DEPLOY-ORACLE-FREE.md)** (Oracle Cloud Always Free — máy ảo ARM 2 OCPU/12GB, MySQL + nginx + certbot trên cùng một máy, 0đ vĩnh viễn).
 
+> **Hiện trạng production (cập nhật 2026-08-24).** Tên miền đang chạy là **`hoanganhvh17.online`**, không phải `nnlhospital.io.vn` như `DEPLOY-ORACLE-FREE.md` còn ghi — tên cũ **không còn phân giải được** từ cả máy dev lẫn chính máy chủ, còn chứng chỉ Let's Encrypt mà nginx đang nạp là của tên mới. Máy chủ `ubuntu@134.185.87.112`, jar ở `/opt/nnlhospital/app.jar`, dịch vụ `nnlhospital`, đứng sau Cloudflare. **Đừng tin tên miền in trong tài liệu — hỏi `sudo nginx -T | grep server_name` trước mỗi lần kiểm chứng**, bằng không mọi lệnh `curl` sẽ báo lỗi DNS và rất dễ bị đọc nhầm thành "trang chết".
+
 Các tệp đi kèm trong thư mục này:
 
 | Tệp | Dùng ở bước |

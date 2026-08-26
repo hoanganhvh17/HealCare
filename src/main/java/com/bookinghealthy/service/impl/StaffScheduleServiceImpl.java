@@ -918,6 +918,38 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         return null;
     }
 
+    /**
+     * Người quyết định có đúng là trưởng khoa của ca trực này không.
+     *
+     * <p>Tách khỏi {@link #whyCannotDecideShift} có chủ ý: hàm kia nói về tính hợp lệ của
+     * BẢN THÂN ca trực (đã hủy chưa, đã trực xong chưa) và được màn hình dùng để làm mờ nút —
+     * khoa của người duyệt không phải thuộc tính của ca trực.
+     *
+     * <p>Hàng đợi trên màn hình đã lọc theo khoa, nhưng {@code approveShift}/{@code rejectShift}
+     * nhận thẳng {@code @PathVariable id}. Một POST tự chế là trưởng khoa Nội duyệt được ca
+     * của khoa Ngoại — kéo theo {@code generateCompensatoryLeave} tự tạo VÀ tự duyệt một đơn
+     * nghỉ bù cho nhân viên khoa khác.
+     *
+     * <p>Dùng thẳng {@code shift.getDepartment()} (StaffShift có cột khoa riêng) nên luật này
+     * đúng cho cả lễ tân, vốn không có bản ghi trong bảng {@code doctors}.
+     */
+    private String whyCannotDecideShiftAs(StaffShift shift, User approver) {
+        if (approver == null) {
+            return "Không xác định được người duyệt.";
+        }
+        Department headOf = staffProfileRepository.findByUserId(approver.getId())
+                .map(StaffProfile::getHeadOfDepartment)
+                .orElse(null);
+        if (headOf == null) {
+            return "Anh/chị chưa được gán làm trưởng khoa nên không duyệt ca trực được.";
+        }
+        if (shift.getDepartment() == null
+                || !shift.getDepartment().getId().equals(headOf.getId())) {
+            return "Ca trực này không thuộc khoa anh/chị phụ trách.";
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public String approveShift(Long shiftId, User approver, String comment) {
@@ -927,6 +959,10 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         }
 
         StaffShift shift = found.get();
+        String wrongDepartment = whyCannotDecideShiftAs(shift, approver);
+        if (wrongDepartment != null) {
+            return wrongDepartment;
+        }
         String blocked = whyCannotDecideShift(shift);
         if (blocked != null) {
             return blocked;
@@ -955,6 +991,10 @@ public class StaffScheduleServiceImpl implements StaffScheduleService {
         }
 
         StaffShift shift = found.get();
+        String wrongDepartment = whyCannotDecideShiftAs(shift, approver);
+        if (wrongDepartment != null) {
+            return wrongDepartment;
+        }
         String blocked = whyCannotDecideShift(shift);
         if (blocked != null) {
             return blocked;

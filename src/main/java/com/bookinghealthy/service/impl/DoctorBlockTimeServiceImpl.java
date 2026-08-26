@@ -61,7 +61,27 @@ public class DoctorBlockTimeServiceImpl implements DoctorBlockTimeService {
     }
 
     @Override
-    public void unblockTime(Long blockId) {
-        doctorBlockTimeRepository.deleteById(blockId);
+    public String unblockTime(Long blockId, Long doctorId) {
+        Optional<DoctorBlockTime> found = doctorBlockTimeRepository.findById(blockId);
+        if (found.isEmpty()) {
+            return "Không tìm thấy khung giờ bận này.";
+        }
+        DoctorBlockTime block = found.get();
+
+        if (block.getDoctor() == null || !block.getDoctor().getId().equals(doctorId)) {
+            return "Bạn chỉ gỡ được khung giờ bận của chính mình.";
+        }
+
+        // Khối giờ sinh ra từ đơn nghỉ phép ĐÃ DUYỆT thuộc về hệ thống nghỉ phép, không phải
+        // của bác sĩ. Cho gỡ tay ở đây là mở lại lịch khám ngay trong ngày mình đang nghỉ phép,
+        // trong khi đơn vẫn ở trạng thái APPROVED — hai nguồn sự thật nói ngược nhau.
+        // Muốn bỏ thì trưởng khoa từ chối đơn, LeaveService.removeBlockTimes tự dọn theo.
+        if (block.getLeaveRequestId() != null) {
+            return "Khung giờ này sinh từ đơn nghỉ phép đã duyệt, "
+                    + "vui lòng liên hệ trưởng khoa nếu cần thay đổi.";
+        }
+
+        doctorBlockTimeRepository.delete(block);
+        return null;
     }
 }

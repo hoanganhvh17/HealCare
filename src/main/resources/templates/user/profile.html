@@ -323,18 +323,20 @@
           </button>
 
           <h5 class="fw-bold text-dark mb-1" th:text="${user.fullName}">Vũ Hữu Hoàng Anh</h5>
-          <p class="text-muted mb-2 fs-6">ID: HC-849201</p>
-          <div class="badge-verified">
-            <i class="bi bi-check-circle"></i> Tài khoản đã xác thực
-          </div>
+          <!--/* Mã bệnh nhân trước đây là chuỗi hardcode "HC-849201", tức MỌI bệnh nhân đều
+                 nhìn thấy đúng một mã giống nhau — vô dụng khi cần đọc mã cho nhân viên. */-->
+          <p class="text-muted mb-2 fs-6">Mã bệnh nhân: <span th:text="'HC-' + ${user.id}">HC-1</span></p>
+          <!--/* Huy hiệu "Tài khoản đã xác thực" từng hiện CHO MỌI NGƯỜI, bất kể đã xác thực
+                 hay chưa — mà dự án không hề có luồng xác thực email nào. Một lời khẳng định
+                 về bảo mật mà hệ thống không kiểm chứng được thì tệ hơn là không nói. */-->
         </div>
 
         <div class="wallet-card">
           <div class="wallet-label">HEALCARE WALLET</div>
           <div class="wallet-balance" th:text="${@globalHelper.getUserBalance(#authentication)}">49.999.400.000 đ</div>
-          <button class="btn-wallet-add">
-            <i class="bi bi-plus-circle"></i> Nạp thêm tiền
-          </button>
+          <!--/* Nút "Nạp thêm tiền" là <button> trần: không type, không nằm trong <form>,
+                 không handler JS nào — bấm vào tuyệt đối không có gì xảy ra. Dự án cũng
+                 chưa có endpoint nạp ví. Ẩn đi cho tới khi luồng nạp tiền tồn tại thật. */-->
         </div>
       </div>
 
@@ -629,6 +631,7 @@
                         <i class="bi bi-check-circle-fill"></i> Đã hoàn tiền
                       </span>
                       <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-secondary">Đã khám</span>
+                      <span th:if="${booking.status.name() == 'NO_SHOW'}" class="badge bg-dark">Không đến khám</span>
                       <!-- Lịch quá giờ mà chưa được cập nhật kết quả -->
                       <span th:if="${booking.status.name() == 'PENDING' || booking.status.name() == 'CONFIRMED'}"
                             class="badge bg-light text-muted border">Đã quá hạn</span>

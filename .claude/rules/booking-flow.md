@@ -41,7 +41,7 @@ Three rules hold that fourth branch together, and each one is a trap that fails 
 - **The `else` catch-all in `processAppointment` is gone.** It used to force *any* unrecognised value to VNPAY, so a new radio whose Java branch was missing sent the patient to a payment gateway they never chose — no exception, no log. The chain is now four explicit `else if`s plus an `else` that rejects with "Hình thức thanh toán không hợp lệ".
 - **No confirmation email is sent on this branch, on purpose.** §4c pairs every `emailService.*` call with a `pushBookingEvent`; it does not require an email to exist. `sendBookingConfirmation` says *đã xác nhận*, which is false for a `PENDING` booking, and the patient would get a near-identical second mail when a receptionist really confirms — the sort of thing that reads as a broken system and makes people **book again**, which is the spam the quota below exists to prevent. The bell notification is the receipt.
 
-**Cash collected at the desk is still never recorded as `PAID`** — there is no screen anywhere that writes it, so walk-in `CASH` bookings have always stayed `UNPAID` and the four revenue queries in `BookingRepository` (which all filter `paymentStatus = 'PAID'`) never count that money. Pay-at-counter inherits the same gap. It is a known debt, not a regression; the staff lists carry a "Thu tại quầy" badge so the person holding the cash box can at least see what is owed.
+**Tiền mặt thu tại quầy nay ĐƯỢC ghi nhận** — `POST /receptionist/bookings/collect-payment/{id}`, xem §4d. Trước 2026-08-25 không màn hình nào ghi được: `setPaymentStatus("PAID")` chỉ tồn tại ở ba nơi (ví, webhook VietQR, VNPay trả về), nên lịch `CASH` và `PAY_AT_COUNTER` nằm `UNPAID` vĩnh viễn và bốn truy vấn doanh thu không bao giờ đếm số tiền đó. Đo trên DB dev lúc sửa: **2.800.000đ tiền thật đang vô hình**.
 
 ### `paymentStatus` là TRẠNG THÁI SỐNG — mọi phép cộng tiền phải tính đến điều đó
 
@@ -159,7 +159,48 @@ It compares the **full `LocalDateTime`**, not just the date, so an 08:00 slot is
 ## 4c. Every booking event reaches the patient twice
 Each patient-facing `emailService.*` call is now paired with `NotificationService.pushBookingEvent(booking, icon, title)` **on the adjacent line** — email is `@Async` and fails into `System.err`, so it alone was never proof the patient was told. The pairs are: booking confirmed (wallet in `BookingController`, VNPay in `PaymentController`, VietQR in `VietQRController`, walk-in in `ReceptionistWalkInController`), staff confirmation (`DoctorDashboardController`, `AdminBookingController`, `ReceptionistBookingController`), `rescheduleByUser` and `cancelWithRefund` in `BookingServiceImpl`, self-cancel in `ProfileController`, and doctor transfer in `ReceptionServiceImpl`.
 
-**`ProfileController.cancelBooking` needs its own push** because it hand-rolls the refund instead of going through `cancelWithRefund` — the one cancel path the shared method does not cover. See [supporting-subsystems.md](supporting-subsystems.md) for the bell that renders these.
+**`ProfileController.cancelBooking` nay đi qua `cancelWithRefund` như mọi đường hủy khác** (2026-08-25). Trước đó nó tự viết lại logic hoàn ví + email + chuông, và vì controller không có transaction bao ngoài nên `refundToWallet` (mang transaction riêng) commit xong mà `save(booking)` hỏng là tiền đã ra khỏi két trong khi lịch vẫn `PAID` — bấm Hủy lần nữa là hoàn tiếp. Xem [supporting-subsystems.md](supporting-subsystems.md) cho cái chuông hiển thị các sự kiện này.
+
+## 4d. Thu ngân tại quầy — `whyCannotCollectPayment` / `whyCannotMarkNoShow`
+
+Hai hàm gác trên `ReceptionService`, cùng khuôn `whyCannot…()`: `null` = còn làm được, ngược
+lại là câu tiếng Việt mà **cả controller lẫn template** dùng chung.
+
+**Cả hai CỐ Ý không dùng lại `whyStaffCannotChange`.** Hàm đó từ chối mọi lịch có
+`appointmentStart` đã ở quá khứ — mà hai thao tác này chỉ hợp lệ **SAU** giờ hẹn: bệnh nhân
+tới ca 08:00 thì lễ tân thu tiền lúc 08:05, và không thể tuyên bố ai đó vắng khám trước khi
+giờ hẹn tới. Dùng lại là nút không bao giờ hiện. Vì vậy `ReceptionistBookingController` đẩy
+xuống view **ba** bản đồ lý do riêng biệt: `actionBlockReasons`, `paymentBlockReasons`,
+`noShowBlockReasons`.
+
+- **`POST /receptionist/bookings/collect-payment/{id}`** — ghi `paymentStatus = PAID`, lưu
+  `paidAt` + `collectedBy`. Lịch đang `PENDING` thì chuyển luôn `CONFIRMED`: trả tiền tại
+  quầy chính là hành động xác nhận. Chặn khi đã `PAID`/`REFUNDED`, khi lịch `CANCELED`/
+  `NO_SHOW`, và khi `bookingPrice == null` (không biết thu bao nhiêu thì không được ghi PAID).
+  Kèm `pushBookingEvent` nhưng **không gửi email** — cùng lập luận với nhánh `PAY_AT_COUNTER`.
+- **`POST /receptionist/bookings/no-show/{id}`** — đặt `status = NO_SHOW`, ghi `noShowMarkedAt`.
+
+**Bốn truy vấn doanh thu không phải sửa một dòng nào.** Chúng đã khoá theo `paymentStatus`
+(`sumPriceByPaymentStatusIn(['PAID','REFUNDED'])` = đã thu; `sumUnpaidByStatusIn` = còn phải
+thu), nên ghi `PAID` là tiền tự chảy vào mọi con số. Kiểm chứng: thu 500.000đ cho một lịch →
+"đã thu" **+500.000**, "còn phải thu" **−500.000**, khớp từng đồng.
+
+**`NO_SHOW` KHÔNG tự hoàn tiền, kể cả khi lịch đã thanh toán.** Chỗ khám đã bị chiếm và bác
+sĩ đã chờ. Tự hoàn biến vắng khám thành một đường **hủy miễn phí đi vòng qua luật
+`MIN_HOURS_BEFORE_CHANGE`** trong `whyCannotCancel` — cứ không đến là được trả lại tiền. Muốn
+hoàn thì lễ tân bấm Hủy, `cancelWithRefund` vẫn còn đó.
+
+`NO_SHOW` cũng là trạng thái **kết thúc** trong `whyStaffCannotChange`, và nó **không** nằm
+trong `OWED_UPCOMING`/`OWED_COMPLETED` nên lịch vắng khám tự rời khỏi thẻ "tiền còn phải thu".
+Nó cũng nằm ngoài `OPEN_STATUSES`, nên hạn mức `MAX_PAY_AT_COUNTER_BOOKINGS` của bệnh nhân
+được nhả ra — đúng ý.
+
+**Thêm `NO_SHOW` vào enum bắt buộc kèm migration.** `Booking.status` là
+`@Enumerated(EnumType.STRING)` nên Hibernate ánh xạ thành cột **MySQL ENUM native**, và
+`ddl-auto=update` **không bao giờ** viết lại danh sách giá trị — kể cả trên máy dev. Đã kiểm
+chứng trực tiếp: sau khi khởi động lại với hằng số mới trong Java, cột vẫn nguyên bốn giá trị
+cũ và lệnh ghi trả `ERROR 1265: Data truncated for column 'status'`. Xem
+`db/manual/004_cash_collection_and_no_show.sql`.
 
 ## 5. Shared cancel logic
 `BookingServiceImpl.cancelWithRefund(bookingId, reason)` is the single place that cancels a booking: sets `CANCELED`, refunds `bookingPrice` to the wallet when `paymentStatus == "PAID"` (marking it `REFUNDED`, otherwise `FAILED`), and sends the cancellation email. `AdminBookingController`, the receptionist bulk-cancel flow **and `DoctorDashboardController.cancelBooking`** all call it — put any change to cancellation behaviour here, not in a controller. The doctor path used to hand-roll its own copy of the refund, which is how it ended up with none of the guards.

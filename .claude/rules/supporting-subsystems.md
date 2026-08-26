@@ -89,6 +89,25 @@ Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveSe
 ## Wallet & transactions
 `User.balance` (a `BigDecimal` on the user) plus a `WalletTransaction` ledger typed by `TransactionType`. `WalletService` handles debit (`payWithWallet`, returns `false` on insufficient funds rather than throwing) and `refundToWallet`. Booking cancellations refund to the wallet.
 
+**Số dư phải đổi bằng UPDATE nguyên tử, KHÔNG đọc-tính-ghi trong Java.** `UserRepository.debitBalance`
+đặt điều kiện `balance >= :amount` ngay trong `WHERE` nên phép kiểm và phép trừ là MỘT thao tác;
+số dòng bị ảnh hưởng (0 hoặc 1) chính là câu trả lời "có đủ tiền không". Bản cũ đọc `getBalance()`
+→ so sánh → `setBalance()` → `save()`, nên hai request song song cùng đọc 200.000, cả hai cùng qua
+cửa, cả hai cùng ghi 0 — bệnh nhân đặt được HAI lịch mà ví chỉ bị trừ MỘT lần. Bấm đúp nút Đặt lịch
+là đủ tái hiện. Chọn cách này thay vì `@Version` trên `User` vì optimistic locking ở đó bắt MỌI
+đường ghi User khác (đổi hồ sơ, đổi avatar, admin sửa vai trò) phải xử lý xung đột phiên bản.
+
+**Nhánh WALLET của `processAppointment` gộp vào `BookingService.reserveAndPayWithWallet`**, một
+method `@Transactional` duy nhất. Trước đó controller điều phối BA transaction rời nhau —
+`reserve()` commit, `payWithWallet()` commit (tiền đã trừ), rồi `save()` mới chạy — nên một lỗi ở
+bước cuối để lại đúng trạng thái tệ nhất: bệnh nhân **mất tiền**, lịch vẫn `PENDING`/`UNPAID`, và
+khối catch chỉ in một dòng "Lỗi: ...".
+
+**Không có đường NẠP tiền vào ví**, và `WalletService.getHistory` không controller nào gọi — bệnh
+nhân không xem được lịch sử giao dịch. Nút "Nạp thêm tiền" ở `/user/profile` từng là một `<button>`
+trần không handler; đã ẩn đi cho tới khi luồng nạp tiền tồn tại thật. Nghĩa là phương thức thanh
+toán WALLET hiện chỉ dùng được khi ví đã có tiền từ một lần hoàn.
+
 ## Recruitment
 `JobPosting` + `Candidate` (with `CandidateStatus`) — public careers pages plus admin management (`AdminJobController`, `AdminCandidateController`). Applicants receive a confirmation email.
 
@@ -187,6 +206,13 @@ lỗ hổng: `/api/dashboard/**` chưa từng có luật phân quyền riêng tr
 `anyRequest().authenticated()`, tức **bất kỳ bệnh nhân nào đã đăng nhập** cũng đọc được thống kê lịch hẹn
 của phòng khám. Nếu sau này cần dựng lại một endpoint thống kê, phải khai nó ở **khối 0** với
 `hasRole("ADMIN")`, giống `/api/admin/chat/**`.
+
+**Tỷ lệ phần trăm trong báo cáo AI của admin KHÔNG được chia 100.** `AdminAiController` dùng
+`new DecimalFormat("#,##0.0'%';-#,##0.0'%'")` — dấu nháy làm `%` thành **ký tự literal**, nên
+`DecimalFormat` không nhân 100 như mẫu `%` trần. Mà `revenueTrend` / `bookingTrend` /
+`cancellationRate` đã là điểm phần trăm sẵn (`AdminAiReportService` nhân 100 lúc tính). Chia thêm
+một lần nữa là tăng trưởng 15,2% in ra thành "0,2%" và tỷ lệ hủy lịch 30% thành "0,3%" — đúng con
+số mà prompt dặn trợ lý "chủ động nhấn mạnh nếu tiêu cực". Sáu chỗ chia 100 đã gỡ ngày 2026-08-25.
 
 **Chuỗi theo ngày bắt buộc phải zero-fill trước khi vẽ.** Truy vấn `GROUP BY` không trả dòng nào cho ngày
 không có lịch hẹn, nên vẽ thẳng là biểu đồ **nhảy cóc** qua ngày trống thay vì vẽ số 0 — bản cũ mắc đúng

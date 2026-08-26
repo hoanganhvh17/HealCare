@@ -60,6 +60,45 @@ public interface ReceptionService {
      */
     String whyCannotReorderQueue(Booking booking);
 
+    /* =========================== THU NGÂN TẠI QUẦY =========================== */
+
+    /**
+     * Lịch này có còn ghi nhận "đã thu tiền" được không.
+     * {@code null} = thu được, ngược lại là lý do bằng tiếng Việt.
+     *
+     * <p>CỐ Ý KHÔNG dùng lại {@code BookingService.whyStaffCannotChange}: hàm đó từ chối mọi
+     * lịch đã qua giờ hẹn, mà thu tiền tại quầy xảy ra đúng SAU giờ hẹn — bệnh nhân tới ca
+     * 08:00 thì lễ tân thu lúc 08:05. Dùng lại là tính năng chết ngay khi vừa ship.
+     */
+    String whyCannotCollectPayment(Booking booking);
+
+    /**
+     * Ghi nhận đã thu tiền mặt tại quầy: {@code paymentStatus = PAID}, lưu thời điểm và người
+     * thu. Lịch còn PENDING thì chuyển luôn sang CONFIRMED — trả tiền tại quầy chính là hành
+     * động xác nhận.
+     *
+     * @param collector nhân viên đang đăng nhập, để biết ai cầm tiền
+     */
+    void collectCashPayment(Long bookingId, com.bookinghealthy.model.User collector);
+
+    /**
+     * Lịch này có đánh dấu "bệnh nhân không đến" được không.
+     * {@code null} = đánh dấu được, ngược lại là lý do bằng tiếng Việt.
+     */
+    String whyCannotMarkNoShow(Booking booking);
+
+    /**
+     * Đánh dấu bệnh nhân không đến khám.
+     *
+     * <p>CỐ Ý KHÔNG tự động hoàn tiền dù lịch đã thanh toán: chỗ khám đã bị chiếm và bác sĩ
+     * đã chờ. Tự hoàn sẽ biến "vắng khám" thành một đường HỦY MIỄN PHÍ đi vòng qua luật
+     * {@code MIN_HOURS_BEFORE_CHANGE} trong {@code whyCannotCancel} — cứ không đến là được
+     * trả lại tiền. Muốn hoàn thì lễ tân bấm Hủy, đường {@code cancelWithRefund} vẫn còn đó.
+     */
+    void markNoShow(Long bookingId);
+
+    /* ========================================================================= */
+
     /** Đẩy một bệnh nhân đến trễ xuống cuối hàng chờ. */
     void pushToEndOfQueue(Long bookingId);
 

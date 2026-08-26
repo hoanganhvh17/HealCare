@@ -55,6 +55,12 @@ public class VietQRController {
             return "redirect:/";
         }
 
+        // booking_price là cột nullable; một dòng thiếu giá làm nổ NPE giữa luồng thanh toán,
+        // đúng lúc khách đang cầm điện thoại chờ quét mã.
+        if (booking.getBookingPrice() == null) {
+            log.warn("[VietQR] Lịch hẹn #{} không có giá khám, không dựng được mã QR", bookingId);
+            return "redirect:/user/profile";
+        }
         String addInfo = PaymentMemo.format(vietqr.getMemoPrefix(), booking.getId());
         long amount = booking.getBookingPrice().longValue();
 

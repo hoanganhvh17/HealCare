@@ -33,6 +33,19 @@ public interface BookingService {
     Booking save(Booking booking);
     Booking reserve(Booking booking);
 
+    /**
+     * Giữ chỗ VÀ trừ tiền ví trong MỘT transaction, rồi chốt CONFIRMED/PAID.
+     *
+     * <p>Trả về lịch đã lưu nếu trừ được tiền, {@code null} nếu ví không đủ số dư (lịch khi
+     * đó đã được ghi CANCELED/FAILED để nhả chỗ).
+     *
+     * <p>Tồn tại vì controller trước đây điều phối BA transaction rời nhau: reserve() commit,
+     * payWithWallet() commit (tiền đã trừ), rồi save() mới chạy. Bước cuối hỏng là bệnh nhân
+     * MẤT TIỀN mà lịch vẫn PENDING/UNPAID, và khối catch của controller chỉ in một dòng
+     * "Lỗi: ..." — không có đường nào tự hoàn lại.
+     */
+    Booking reserveAndPayWithWallet(Booking booking, java.math.BigDecimal amount, String description);
+
     boolean isSlotWithinWorkingHours(Long doctorId, java.time.LocalDate date, String timeSlot);
 
     List<String> slotsOutsideWorkingHours(Long doctorId, java.time.LocalDate date, List<String> slots);

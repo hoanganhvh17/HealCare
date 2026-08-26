@@ -17,6 +17,14 @@ public interface DoctorBlockTimeService {
     // Lấy giờ bị chặn cho 1 ngày cụ thể
     List<DoctorBlockTime> getBlockedSlotsForDoctorAndDate(Long doctorId, LocalDate date);
 
-    // Gỡ chặn
-    void unblockTime(Long blockId);
+    /**
+     * Gỡ chặn một khung giờ bận. Trả {@code null} nếu gỡ được, ngược lại là câu tiếng Việt
+     * giải thích — cùng khuôn {@code whyCannot…()} dùng khắp dự án.
+     *
+     * <p>BẮT BUỘC nhận {@code doctorId}: bản cũ là {@code deleteById(blockId)} mù, gọi từ một
+     * {@code @GetMapping} không nhận cả {@code Authentication}, nên bác sĩ A duyệt id là xoá
+     * sạch giờ bận của mọi bác sĩ — và vì là GET nên một thẻ {@code <img>} trên trang lạ cũng
+     * kích hoạt được (CsrfFilter không xét GET).
+     */
+    String unblockTime(Long blockId, Long doctorId);
 }

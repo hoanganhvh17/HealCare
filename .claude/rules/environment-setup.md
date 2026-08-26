@@ -41,6 +41,7 @@ There is still no migration tool. Three things Hibernate `ddl-auto=update` canno
 
 - `001_prod_hardening.sql` — the `bookings.slot_uk` generated column + `uk_bookings_slot`, `uk_posts_source_url`, and the `shedlock` table.
 - `002_spring_session.sql` — `SPRING_SESSION` + `SPRING_SESSION_ATTRIBUTES`.
+- `004_cash_collection_and_no_show.sql` — mở rộng ENUM `bookings.status` thêm `NO_SHOW`, cộng ba cột `paid_at` / `collected_by_id` / `no_show_marked_at`. **Câu ALTER ENUM cần cả trên máy dev**, không chỉ production: `ddl-auto=update` thêm được cột mới nhưng không bao giờ viết lại danh sách giá trị của một cột ENUM đã tồn tại (đã kiểm chứng trực tiếp — ghi `NO_SHOW` trả `ERROR 1265: Data truncated for column 'status'`). Tệp này **chạy lại được nhiều lần**: nó hỏi `INFORMATION_SCHEMA` rồi `PREPARE`, vì MySQL 8 không có `ADD COLUMN IF NOT EXISTS` và trên dev ba cột kia đã được Hibernate tạo sẵn.
 - `003_external_medical_records.sql` — `external_medical_records` + `ai_image_usage`. Not something Hibernate *cannot* express — it maps both entities fine — but something `validate` **refuses to create**; see the trap below.
 
 `config/SchemaGuard` (an `ApplicationRunner`) checks each object against `information_schema` at boot. By default it only logs loudly — same principle as the lazily-loaded PDF fonts below: a missing artifact must degrade rather than kill startup. Set **`SCHEMA_STRICT=true` in production** so a forgotten migration becomes a boot failure instead of a silent double-booking.

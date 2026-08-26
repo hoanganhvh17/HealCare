@@ -217,18 +217,15 @@ public class ProfileController {
                 ra.addFlashAttribute("errorMessage", blockedReason);
                 return "redirect:/user/profile#booking-history";
             }
-            booking.setStatus(BookingStatus.CANCELED);
-            if ("PAID".equals(booking.getPaymentStatus())) {
-                walletService.refundToWallet(currentUser, booking.getBookingPrice(), "Hoàn tiền do hủy lịch khám #" + booking.getId());
-                booking.setPaymentStatus("REFUNDED");
-                ra.addFlashAttribute("successMessage", "Đã hủy lịch. Tiền đã được hoàn lại vào Ví của bạn.");
-            } else {
-                booking.setPaymentStatus("FAILED");
-                ra.addFlashAttribute("successMessage", "Đã hủy lịch hẹn thành công.");
-            }
-            bookingService.save(booking);
-            emailService.sendBookingCancellation(booking, "Người bệnh tự hủy (Đúng quy định trước 24h).");
-            notificationService.pushBookingEvent(booking, "bi-x-circle text-danger", "Lịch hẹn đã bị hủy");
+            // Đi qua cancelWithRefund thay vì tự viết lại: đây từng là đường hủy DUY NHẤT
+            // không dùng hàm chung, nên nó vừa lặp lại logic hoàn ví + email + chuông, vừa
+            // thiếu transaction bao ngoài — refundToWallet commit xong mà save() hỏng là
+            // tiền đã ra khỏi két trong khi lịch vẫn PAID.
+            boolean refunded = bookingService.cancelWithRefund(
+                    booking.getId(), "Người bệnh tự hủy (Đúng quy định trước 24h).");
+            ra.addFlashAttribute("successMessage", refunded
+                    ? "Đã hủy lịch. Tiền đã được hoàn lại vào Ví của bạn."
+                    : "Đã hủy lịch hẹn thành công.");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
         }

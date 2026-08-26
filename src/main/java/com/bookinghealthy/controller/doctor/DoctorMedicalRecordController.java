@@ -242,6 +242,20 @@ public class DoctorMedicalRecordController {
             RedirectAttributes ra) {
 
         try {
+            // Đường GHI quan trọng nhất của cả màn hình khám, và nó từng NHẬN `authentication`
+            // rồi không dùng tới. Không có phép kiểm này thì bác sĩ A đổi `bookingId` trong form
+            // là ghi được bệnh án + đơn thuốc ký tên bác sĩ B, đẩy ca đó sang COMPLETED, rồi
+            // deliver() ở cuối hàm gửi thẳng email kèm PDF đơn thuốc tới bệnh nhân của B — còn
+            // ca thật của B thì kẹt cứng vì "Lịch hẹn này đã có hồ sơ bệnh án!".
+            Doctor currentDoctor = getLoggedInDoctor(authentication);
+            Booking ownedBooking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn."));
+            if (ownedBooking.getDoctor() == null
+                    || !ownedBooking.getDoctor().getId().equals(currentDoctor.getId())) {
+                ra.addFlashAttribute("errorMessage", "Bạn không có quyền lưu bệnh án cho ca khám này.");
+                return "redirect:/doctor/examinations";
+            }
+
             // 1. Tạo đối tượng Vitals
             VitalSign vitals = null;
             if (height != null || weight != null || systolic != null || temperature != null || heartRate != null) {
@@ -300,11 +314,14 @@ public class DoctorMedicalRecordController {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // Check quyền: Bác sĩ xem phải là người khám ca này
-        //if (!booking.getDoctor().getId().equals(currentDoctor.getId())) {
-         //   ra.addFlashAttribute("errorMessage", "Bạn không có quyền xem hồ sơ này.");
-         //   return "redirect:/doctor/examinations";
-      //  }
+        // Check quyền: Bác sĩ xem phải là người khám ca này.
+        // Phép kiểm này từng bị comment lại, nên bất kỳ tài khoản ROLE_DOCTOR nào duyệt
+        // /doctor/medical-record/view/1,2,3... là đọc được bệnh án của cả bệnh viện.
+        if (booking.getDoctor() == null
+                || !booking.getDoctor().getId().equals(currentDoctor.getId())) {
+            ra.addFlashAttribute("errorMessage", "Bạn không có quyền xem hồ sơ này.");
+            return "redirect:/doctor/examinations";
+        }
 
         // Tìm bệnh án
         // Lưu ý: Cần Inject MedicalRecordRepository vào Controller này nếu chưa có
@@ -385,9 +402,19 @@ public class DoctorMedicalRecordController {
     @GetMapping("/patient-records/{userId}")
     public String viewPatientHistoryRecords(@PathVariable("userId") Long userId,
                                             Model model,
-                                            Authentication authentication) {
-        // Kiểm tra quyền (Bác sĩ phải đang đăng nhập)
-        getLoggedInDoctor(authentication);
+                                            Authentication authentication,
+                                            RedirectAttributes ra) {
+        // Nguyên tắc need-to-know: bác sĩ chỉ đọc được bệnh sử của bệnh nhân mình CÓ lịch hẹn.
+        // Trước đây chỗ này chỉ gọi getLoggedInDoctor rồi vứt kết quả đi — tức chỉ kiểm "có phải
+        // bác sĩ không", nên đổi userId trên URL là đọc được toàn bộ bệnh sử + hồ sơ ngoại viện
+        // của bệnh nhân bất kỳ. Nó đi vòng qua đúng lớp gác mà ExternalMedicalRecordService
+        // .whyCannotView đã dựng sẵn, vì findForUser(userId) bên dưới không kiểm gì cả.
+        Doctor currentDoctor = getLoggedInDoctor(authentication);
+        if (!bookingRepository.existsByDoctorIdAndUserId(currentDoctor.getId(), userId)) {
+            ra.addFlashAttribute("errorMessage",
+                    "Bạn chỉ xem được bệnh sử của bệnh nhân đã có lịch hẹn với mình.");
+            return "redirect:/doctor/examinations";
+        }
 
         // Lấy thông tin bệnh nhân
         User patient = userRepository.findById(userId)

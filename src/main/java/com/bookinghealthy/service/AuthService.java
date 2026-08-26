@@ -1,6 +1,7 @@
 package com.bookinghealthy.service;
 
 import com.bookinghealthy.dto.RegisterDTO;
+import com.bookinghealthy.model.AuthProvider;
 import com.bookinghealthy.model.Role;
 import com.bookinghealthy.model.User;
 import com.bookinghealthy.repository.RoleRepository;
@@ -33,6 +34,11 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setFullName(dto.getFullName());
         user.setPhone(dto.getPhone());
+        // Không đặt trường này thì mọi tài khoản đăng ký qua web mang auth_provider = NULL,
+        // trong khi tài khoản seed, tài khoản lễ tân tạo tại quầy và tài khoản Google/Facebook
+        // đều có giá trị — tức cột dùng để phân biệt đăng nhập nội bộ với đăng nhập mạng xã
+        // hội đang bỏ trống ở đúng nhóm người dùng đông nhất.
+        user.setAuthProvider(AuthProvider.LOCAL);
 
         Role roleUser = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> roleRepository.save(new Role(null, "ROLE_USER")));

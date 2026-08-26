@@ -115,4 +115,25 @@ public class Booking {
     // Dùng để chống xử lý trùng khi Casso/SePay gửi lại cùng một webhook.
     @Column(name = "bank_txn_ref", length = 128)
     private String bankTxnRef;
+
+    // === THU TIỀN MẶT TẠI QUẦY ===
+    // Trước khi có hai cột này, tiền mặt thu ở quầy KHÔNG có chỗ nào để ghi nhận:
+    // setPaymentStatus("PAID") chỉ xuất hiện ở ba nơi — ví, webhook VietQR và VNPay trả về —
+    // nên mọi lịch trả tiền mặt nằm UNPAID vĩnh viễn và bốn truy vấn doanh thu (đều lọc theo
+    // paymentStatus) không bao giờ đếm số tiền đó. Đo trên DB dev lúc thêm tính năng này:
+    // 2.800.000đ tiền thật đang vô hình.
+    //
+    // CỐ Ý nullable cả hai: thêm cột NOT NULL không DEFAULT vào bảng đã có dữ liệu sẽ làm
+    // hỏng MỌI lệnh INSERT về sau (xem environment-setup.md).
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "collected_by_id")
+    private User collectedBy;
+
+    // Thời điểm lễ tân đánh dấu bệnh nhân không đến khám. Tách khỏi status để biết ai đánh
+    // dấu lúc nào, và để phân biệt "chưa ai xử lý" với "đã xác nhận là vắng".
+    @Column(name = "no_show_marked_at")
+    private LocalDateTime noShowMarkedAt;
 }

@@ -4,8 +4,11 @@ import com.bookinghealthy.model.Booking;
 import com.bookinghealthy.model.BookingStatus;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.BookingService;
+import com.bookinghealthy.service.CurrentUserService;
 import com.bookinghealthy.service.EmailService;
 import com.bookinghealthy.service.NotificationService;
+import com.bookinghealthy.service.ReceptionService;
+import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,27 +34,44 @@ public class ReceptionistBookingController {
     @Autowired private BookingService bookingService;
     @Autowired private EmailService emailService;
     @Autowired private NotificationService notificationService;
+    @Autowired private ReceptionService receptionService;
+    @Autowired private CurrentUserService currentUserService;
 
     @GetMapping
     public String list(@RequestParam(value = "status", required = false) String status, Model model) {
         List<Booking> listBookings = bookingRepository.findAllByOrderByCreatedAtDesc();
 
         if (status != null && !status.isBlank()) {
-            BookingStatus filter = BookingStatus.valueOf(status);
-            listBookings = listBookings.stream()
-                    .filter(b -> b.getStatus() == filter)
-                    .toList();
+            // valueOf ném IllegalArgumentException cho mọi giá trị lạ — kể cả "pending" viết
+            // thường — và dự án không có @ControllerAdvice nào, nên nó thành HTTP 500 cả trang.
+            // Giá trị không đọc được thì bỏ lọc, giống hệt cách AdminBookingController đã làm.
+            try {
+                BookingStatus filter = BookingStatus.valueOf(status.trim().toUpperCase());
+                listBookings = listBookings.stream()
+                        .filter(b -> b.getStatus() == filter)
+                        .toList();
+            } catch (IllegalArgumentException ignored) {
+                status = null;
+            }
         }
 
         // null = còn thao tác được; ngược lại là lý do để template làm mờ nút và in ra.
         // Cùng hàm mà confirm()/cancel() gọi, nên giao diện không mời bấm một nút chắc chắn lỗi.
         Map<Long, String> actionBlockReasons = new HashMap<>();
+        // Hai thao tác thu ngân có luật thời gian NGƯỢC với whyStaffCannotChange: chúng chỉ
+        // hợp lệ SAU giờ hẹn, nên phải có bản đồ lý do riêng.
+        Map<Long, String> paymentBlockReasons = new HashMap<>();
+        Map<Long, String> noShowBlockReasons = new HashMap<>();
         for (Booking booking : listBookings) {
             actionBlockReasons.put(booking.getId(), bookingService.whyStaffCannotChange(booking));
+            paymentBlockReasons.put(booking.getId(), receptionService.whyCannotCollectPayment(booking));
+            noShowBlockReasons.put(booking.getId(), receptionService.whyCannotMarkNoShow(booking));
         }
 
         model.addAttribute("listBookings", listBookings);
         model.addAttribute("actionBlockReasons", actionBlockReasons);
+        model.addAttribute("paymentBlockReasons", paymentBlockReasons);
+        model.addAttribute("noShowBlockReasons", noShowBlockReasons);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("activePage", "bookings");
         return "receptionist/booking-list";
@@ -112,6 +132,38 @@ public class ReceptionistBookingController {
             ra.addFlashAttribute("successMessage", refunded
                     ? "Đã hủy lịch #" + id + " và hoàn tiền vào ví bệnh nhân."
                     : "Đã hủy lịch hẹn #" + id);
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
+        }
+        return "redirect:/receptionist/bookings";
+    }
+
+    /**
+     * Ghi nhận đã thu tiền mặt tại quầy.
+     *
+     * <p>Đây là màn hình DUY NHẤT trong cả ứng dụng ghi được tiền mặt vào doanh thu. Trước
+     * khi có nó, {@code setPaymentStatus("PAID")} chỉ tồn tại ở ba nơi (ví, webhook VietQR,
+     * VNPay trả về) nên mọi lịch trả tiền mặt nằm UNPAID vĩnh viễn.
+     */
+    @PostMapping("/collect-payment/{id}")
+    public String collectPayment(@PathVariable Long id,
+                                 Authentication authentication,
+                                 RedirectAttributes ra) {
+        try {
+            receptionService.collectCashPayment(id, currentUserService.require(authentication));
+            ra.addFlashAttribute("successMessage", "Đã ghi nhận thanh toán tại quầy cho lịch hẹn #" + id);
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
+        }
+        return "redirect:/receptionist/bookings";
+    }
+
+    /** Đánh dấu bệnh nhân không đến khám. Không tự hoàn tiền — xem ReceptionService.markNoShow. */
+    @PostMapping("/no-show/{id}")
+    public String markNoShow(@PathVariable Long id, RedirectAttributes ra) {
+        try {
+            receptionService.markNoShow(id);
+            ra.addFlashAttribute("successMessage", "Đã ghi nhận bệnh nhân không đến khám (lịch #" + id + ").");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
         }

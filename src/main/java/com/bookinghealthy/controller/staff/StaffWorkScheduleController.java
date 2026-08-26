@@ -68,6 +68,11 @@ public abstract class StaffWorkScheduleController {
         java.util.Set<String> morningDays = new java.util.HashSet<>();
         java.util.Set<String> afternoonDays = new java.util.HashSet<>();
         for (com.bookinghealthy.model.Schedule schedule : staffScheduleService.getClinicSchedules(user.getId())) {
+            // Một dòng thiếu giờ bắt đầu / thứ trong tuần làm sập cả trang lịch làm việc,
+            // trong khi nó chỉ là một ô tick trên lưới đăng ký.
+            if (schedule.getStartTime() == null || schedule.getDayOfWeek() == null) {
+                continue;
+            }
             // Buổi sáng nếu bắt đầu trước 12h, ngược lại là buổi chiều.
             if (schedule.getStartTime().getHour() < 12) {
                 morningDays.add(schedule.getDayOfWeek().name());

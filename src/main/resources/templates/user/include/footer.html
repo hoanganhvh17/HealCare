@@ -73,19 +73,25 @@
                 </div>
             </div>
 
+            <!--/* Fragment này có mặt trên MỌI trang bệnh nhân, nên một link chết ở đây là
+                   link chết nhân lên 22 lần. Bốn mục cũ đều hỏng: /privacy và /terms không
+                   có controller nào map (bấm vào ra 404), còn "Patient Rights", "Hướng dẫn
+                   đặt lịch", "Careers" là href="#" nên chỉ nhảy lên đầu trang — riêng
+                   Careers thì trớ trêu là /careers CÓ thật. Mọi mục dưới đây đều trỏ tới
+                   route có thật trong controller. */-->
             <div class="col-lg-2 col-md-6">
                 <h5>Thông tin</h5>
                 <ul>
-                    <li><a th:href="@{/privacy}">Privacy Policy</a></li>
-                    <li><a th:href="@{/terms}">Terms of Service</a></li>
+                    <li><a th:href="@{/medical-process}">Quy trình khám</a></li>
+                    <li><a th:href="@{/working-hours}">Giờ làm việc</a></li>
                 </ul>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <h5>Bệnh nhân</h5>
                 <ul>
-                    <li><a href="#">Patient Rights</a></li>
-                    <li><a href="#">Hướng dẫn đặt lịch</a></li>
+                    <li><a th:href="@{/appointment}">Đặt lịch khám</a></li>
+                    <li><a th:href="@{/doctor-schedule}">Lịch khám bác sĩ</a></li>
                 </ul>
             </div>
 
@@ -93,7 +99,7 @@
                 <h5>HealCare</h5>
                 <ul>
                     <li><a th:href="@{/about}">Về chúng tôi</a></li>
-                    <li><a href="#">Careers</a></li>
+                    <li><a th:href="@{/careers}">Tuyển dụng</a></li>
                 </ul>
             </div>
 

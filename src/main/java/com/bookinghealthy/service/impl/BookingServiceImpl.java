@@ -79,6 +79,27 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
+    public Booking reserveAndPayWithWallet(Booking booking, java.math.BigDecimal amount, String description) {
+        // Cùng MỘT transaction với reserve(): tiền và lịch cùng sống hoặc cùng chết. Khóa
+        // theo khung giờ mà reserve() giữ cũng được thả muộn hơn (khi transaction ngoài kết
+        // thúc) nên phạm vi bảo vệ rộng ra chứ không hẹp lại.
+        Booking reserved = reserve(booking);
+
+        if (walletService.payWithWallet(reserved.getUser(), amount, description)) {
+            reserved.setStatus(BookingStatus.CONFIRMED);
+            reserved.setPaymentStatus("PAID");
+            return bookingRepository.save(reserved);
+        }
+
+        // Không đủ tiền: nhả chỗ ngay trong cùng transaction thay vì để lịch treo.
+        reserved.setStatus(BookingStatus.CANCELED);
+        reserved.setPaymentStatus("FAILED");
+        bookingRepository.save(reserved);
+        return null;
+    }
+
+    @Override
+    @Transactional
     public Booking reserve(Booking booking) {
         if (booking.getAppointmentDate() != null
                 && booking.getAppointmentDate().isBefore(LocalDate.now())) {
@@ -243,7 +264,17 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * BẮT BUỘC @Transactional: refundToWallet mang transaction riêng nên nó COMMIT NGAY khi
+     * trả về. Không có transaction bao ngoài, một lỗi ở save(booking) bên dưới để lại đúng
+     * trạng thái tệ nhất — tiền đã rời khỏi két mà lịch vẫn PAID, tức bấm Hủy lần nữa là
+     * hoàn tiền tiếp, lặp bao nhiêu lần cũng được.
+     *
+     * Ba anh em reserve/reassign/rescheduleByUser đều đã có annotation này; riêng đường hủy
+     * bị bỏ quên.
+     */
     @Override
+    @Transactional
     public boolean cancelWithRefund(Long bookingId, String reason) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy lịch hẹn #" + bookingId));
@@ -326,6 +357,12 @@ public class BookingServiceImpl implements BookingService {
         }
         if (booking.getStatus() == BookingStatus.COMPLETED) {
             return "Lịch hẹn đã khám xong nên không sửa được nữa.";
+        }
+        // NO_SHOW cũng là trạng thái KẾT THÚC: ca đã trôi qua và đã được lễ tân chốt là bệnh
+        // nhân không tới. Thiếu nhánh này thì nhân viên vẫn "xác nhận" hoặc "hủy" được nó,
+        // và đường hủy sẽ hoàn tiền cho một chỗ khám đã bị chiếm thật.
+        if (booking.getStatus() == BookingStatus.NO_SHOW) {
+            return "Bệnh nhân đã được ghi nhận không đến khám nên không sửa được nữa.";
         }
 
         LocalDateTime start = appointmentStart(booking);

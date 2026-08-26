@@ -334,7 +334,11 @@
         <div class="form-check mb-4 mt-2">
             <input class="form-check-input" type="checkbox" id="terms" required>
             <label class="form-check-label" for="terms">
-                Tôi đồng ý với <a href="#">Điều khoản dịch vụ</a> và <a href="#">Chính sách bảo mật</a> của HealCare.
+                <!--/* Hai link này từng là href="#": bắt người dùng tick "tôi đồng ý" với
+                       một văn bản họ không mở ra xem được. Dự án chưa có trang điều khoản
+                       (không route /terms, /privacy nào), nên bỏ link đi là trung thực hơn
+                       một đường dẫn không dẫn tới đâu. Có nội dung thật thì gắn lại. */-->
+                Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của HealCare.
             </label>
         </div>
 

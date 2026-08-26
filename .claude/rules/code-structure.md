@@ -38,6 +38,13 @@ ngày. Xem [ai-assistant.md](ai-assistant.md).
 
 `ExternalMedicalRecord` + `ExternalMedicalRecordService` (+ impl) carry hồ sơ bệnh án bệnh nhân mang từ nơi khác tới, keyed on `User` — **not** on `MedicalRecord`, and **not** a reuse of the dead `MedicalAttachment`, whose FK to `MedicalRecord` is `nullable = false`. `DocumentTextExtractor` (+ impl) is the one place allowed to know PDFBox exists. See [medical-records.md](medical-records.md).
 
+**`DoctorAssistantController` + `DoctorAssistantService` đã bị XOÁ** (2026-08-25) cùng
+`static/assets-admin/js/doctor-ai-chat.js` — nơi gọi duy nhất của chúng, mà tệp JS đó không
+template nào nạp. Đừng dựng lại: trợ lý AI của bác sĩ là `DoctorAiController` (khung chat nổi)
+và `DoctorExamAiController` (4 trợ lý trên form khám), cả hai nằm dưới `/api/doctor/chat/`.
+Lớp cũ vừa trùng chức năng vừa mở một endpoint gọi OpenRouter công khai. `controller/UserController`
+(class rỗng, toàn bộ bị comment) cũng đã xoá.
+
 `Notification` + `NotificationService` (interface + impl) carry in-app notifications; see [supporting-subsystems.md](supporting-subsystems.md) for why they exist alongside email and where `push` must be called.
 
 `config/NewsSourceCatalog` follows the same data/logic split for a different feature: it holds only the allow-list of newspapers (and the outbreak keywords), while `NewsFeedServiceImpl` does the fetching and `MedicalNewsTask` turns the result into `Post` rows. See [supporting-subsystems.md](supporting-subsystems.md).

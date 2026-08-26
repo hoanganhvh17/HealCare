@@ -346,6 +346,44 @@ public class LeaveServiceImpl implements LeaveService {
         return null;
     }
 
+    /**
+     * Người quyết định có đúng là trưởng khoa của người xin nghỉ không.
+     *
+     * <p>Tách khỏi {@link #whyCannotDecide} có chủ ý: hàm kia nói về tính hợp lệ của BẢN THÂN
+     * lá đơn (đã hủy chưa, kỳ nghỉ trôi qua chưa) và được màn hình dùng để tách khối "đơn đã
+     * hết hiệu lực" — khoa của người duyệt không phải thuộc tính của lá đơn.
+     *
+     * <p>Vì sao cần: hàng đợi trên màn hình đã lọc theo khoa nên giao diện chưa bao giờ mời
+     * bấm nhầm, nhưng {@code approve}/{@code reject} nhận thẳng {@code @PathVariable id} —
+     * một POST tự chế là trưởng khoa Nội duyệt được đơn của khoa Ngoại, kéo theo
+     * {@code applyBlockTimes} chặn sạch giờ khám của bác sĩ khoa khác và ghi sai người chịu
+     * trách nhiệm vào {@code approver}.
+     *
+     * <p>Phép kiểm phản chiếu đúng truy vấn của hàng đợi ({@code findByDepartmentAndStatus}):
+     * người xin phải là BÁC SĨ thuộc khoa mà người duyệt đang phụ trách.
+     */
+    private String whyCannotDecideAs(LeaveRequest request, User approver) {
+        if (approver == null) {
+            return "Không xác định được người duyệt.";
+        }
+        Department headOf = staffProfileRepository.findByUserId(approver.getId())
+                .map(StaffProfile::getHeadOfDepartment)
+                .orElse(null);
+        if (headOf == null) {
+            return "Anh/chị chưa được gán làm trưởng khoa nên không duyệt đơn được.";
+        }
+        if (request.getUser() == null) {
+            return "Đơn nghỉ không có thông tin người xin.";
+        }
+        Department requesterDept = doctorRepository.findByUserId(request.getUser().getId())
+                .map(Doctor::getDepartment)
+                .orElse(null);
+        if (requesterDept == null || !requesterDept.getId().equals(headOf.getId())) {
+            return "Đơn này không thuộc khoa anh/chị phụ trách.";
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public String approve(Long leaveId, User approver, String comment) {
@@ -355,6 +393,10 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest request = found.get();
+        String wrongDepartment = whyCannotDecideAs(request, approver);
+        if (wrongDepartment != null) {
+            return wrongDepartment;
+        }
         String blocked = whyCannotDecide(request);
         if (blocked != null) {
             return blocked;
@@ -383,6 +425,12 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest request = found.get();
+        // Từ chối cũng là một quyết định có hậu quả: removeBlockTimes bên dưới trả lại giờ
+        // khám cho một đơn ĐÃ DUYỆT, tức thu hồi kỳ nghỉ của bác sĩ khoa khác.
+        String wrongDepartment = whyCannotDecideAs(request, approver);
+        if (wrongDepartment != null) {
+            return wrongDepartment;
+        }
         String blocked = whyCannotDecide(request);
         if (blocked != null) {
             return blocked;

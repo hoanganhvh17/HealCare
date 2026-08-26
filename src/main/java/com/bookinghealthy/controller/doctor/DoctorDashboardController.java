@@ -4,7 +4,6 @@ import com.bookinghealthy.dto.DoctorDashboardStatsDTO;
 import com.bookinghealthy.model.*;
 import com.bookinghealthy.repository.BookingRepository;
 import com.bookinghealthy.service.*;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -62,6 +61,9 @@ public class DoctorDashboardController {
 
         List<Booking> allBookings = bookingRepository.findByDoctor(currentDoctor);
         List<Booking> filteredBookings = allBookings.stream()
+                // Một dòng appointment_date NULL sập nguyên dashboard bác sĩ; nó không nằm
+                // trong kỳ nào cả nên loại ra là đúng nghĩa.
+                .filter(b -> b.getAppointmentDate() != null)
                 .filter(b -> !b.getAppointmentDate().isBefore(startDate) && !b.getAppointmentDate().isAfter(today))
                 .collect(Collectors.toList());
 
@@ -101,7 +103,8 @@ public class DoctorDashboardController {
         for (DayOfWeek day : days) {
             List<Schedule> shifts = rawSchedule.stream()
                     .filter(s -> s.getDayOfWeek() == day)
-                    .sorted(Comparator.comparing(Schedule::getStartTime))
+                    .sorted(Comparator.comparing(Schedule::getStartTime,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
                     .collect(Collectors.toList());
 
             if (!shifts.isEmpty()) {
@@ -180,7 +183,12 @@ public class DoctorDashboardController {
     }
 
     // 3. XỬ LÝ HỦY LỊCH (CANCEL & REFUND)
-    @Transactional
+    // CỐ Ý KHÔNG @Transactional ở đây — transaction thuộc về service, không thuộc controller.
+    // Khi còn annotation này, hủy một lịch đã CANCELED đi theo đường: cancelWithRefund ném
+    // IllegalStateException -> theo đặc tả JPA transaction bị đánh dấu rollback-only -> khối
+    // catch bên dưới nuốt lỗi và trả redirect tử tế -> proxy giao dịch commit một transaction
+    // đã hỏng -> UnexpectedRollbackException. Bác sĩ nhận trang 500 trắng thay vì câu tiếng
+    // Việt. Đúng cái bẫy booking-flow.md đã ghi cho ba controller đặt lịch.
     @PostMapping("/bookings/cancel/{id}")
     public String cancelBooking(@PathVariable("id") Long id, Authentication authentication, RedirectAttributes ra) {
         try {
@@ -234,10 +242,20 @@ public class DoctorDashboardController {
         return "redirect:/doctor/work-schedule";
     }
 
-    @GetMapping("/schedule/unblock/{id}")
-    public String unblockSchedule(@PathVariable("id") Long id, RedirectAttributes ra) {
-        doctorBlockTimeService.unblockTime(id);
-        ra.addFlashAttribute("successMessage", "Đã gỡ chặn khung giờ.");
+    // POST chứ KHÔNG GetMapping: đây là thao tác GHI, mà CsrfFilter bỏ qua GET và cookie phiên
+    // vẫn được gửi kèm khi điều hướng cấp cao — tức bản cũ gỡ được bằng một thẻ <img> trên
+    // trang lạ trong lúc bác sĩ đang đăng nhập.
+    @PostMapping("/schedule/unblock/{id}")
+    public String unblockSchedule(@PathVariable("id") Long id,
+                                  Authentication authentication,
+                                  RedirectAttributes ra) {
+        Doctor currentDoctor = getLoggedInDoctor(authentication);
+        String blocked = doctorBlockTimeService.unblockTime(id, currentDoctor.getId());
+        if (blocked != null) {
+            ra.addFlashAttribute("errorMessage", blocked);
+        } else {
+            ra.addFlashAttribute("successMessage", "Đã gỡ chặn khung giờ.");
+        }
         return "redirect:/doctor/work-schedule";
     }
 

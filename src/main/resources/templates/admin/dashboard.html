@@ -377,6 +377,7 @@
                     <span th:if="${b.status.name() == 'PENDING'}" class="badge bg-warning">Chờ xác nhận</span>
                     <span th:if="${b.status.name() == 'CONFIRMED'}" class="badge bg-primary">Đã xác nhận</span>
                     <span th:if="${b.status.name() == 'COMPLETED'}" class="badge bg-success">Đã hoàn thành</span>
+                    <span th:if="${b.status.name() == 'NO_SHOW'}" class="badge bg-dark">Không đến khám</span>
                     <span th:if="${b.status.name() == 'CANCELED'}" class="badge bg-danger">Đã huỷ</span>
                   </td>
                 </tr>

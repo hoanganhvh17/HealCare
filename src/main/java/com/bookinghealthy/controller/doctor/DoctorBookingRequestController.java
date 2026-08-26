@@ -14,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,11 @@ public class DoctorBookingRequestController {
         // Lọc ra các lịch đang CHỜ DUYỆT (PENDING)
         List<Booking> pendingBookings = allBookings.stream()
                 .filter(b -> b.getStatus() == BookingStatus.PENDING)
-                .sorted((b1, b2) -> b1.getAppointmentDate().compareTo(b2.getAppointmentDate())) // Sắp xếp ngày gần nhất lên đầu
+                // nullsLast: một dòng appointment_date NULL (dữ liệu cũ, import, SQL sửa tay)
+                // làm NPE và mất CẢ trang chứ không phải mất một dòng. Khuôn đã dùng ở
+                // DoctorBookingManagerController.
+                .sorted(Comparator.comparing(Booking::getAppointmentDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
 
         // Lý do không còn xác nhận/từ chối được (lịch đã trôi qua) — id nào không có khóa

@@ -191,6 +191,29 @@ The voice layer relies on browser-only APIs, so anything touching it must degrad
   **The real limit is ~15 SECONDS, not N characters, and confusing the two made the assistant sound broken.** `MAX_CHUNK_CHARS` was 180 (~8s at rate 1.5), so an ordinary schedule answer (~230 chars) was split into two `SpeechSynthesisUtterance`s — and the browser always inserts a real gap between queued utterances. Because `splitIntoChunks` can only break at `.!?`, that gap landed exactly on a full stop and sounded like the assistant freezing at every period. It is now 300 (~13s), leaving the 10s keep-alive as the actual guard; raising it further starts betting against the watchdog.
 - **`joinSentences()` rewrites mid-text `". "` into `", "` before speaking**, because a Vietnamese voice pauses far longer at a full stop than at a comma — and `toSpeechText` *manufactures* extra full stops by turning every `<br>` and every closing `</p>/</div>/</li>` into `". "`, so a card built from several `<div>`s was read as a string of disconnected fragments. It runs inside `speak()` rather than `toSpeechText()` so it also covers `raw: true` (the hand-written Vietnamese in the voice-call module). Three things it must never touch: the **final** period (the sentence needs somewhere to drop pitch), `?` and `!` (the assistant always closes on a question — losing that intonation means the patient doesn't realise they were asked), and a period with **no whitespace after it**, which is what keeps the Vietnamese thousands separator in `350.000 đ` intact.
 
+## Sắp xếp / so sánh phải chịu được `null` — khuôn đã có sẵn
+
+`DoctorBookingManagerController` đã dùng đúng khuôn từ trước:
+`Comparator.comparing(X::getKey, Comparator.nullsLast(Comparator.naturalOrder()))`. Đợt rà soát
+2026-08-25 tìm thấy **10 chỗ khác** chưa áp dụng, và hậu quả luôn là mất **cả trang** chứ không
+phải mất một dòng: `ScheduleInfoController` deref `getDoctor().getDepartment().getId()` trên
+**trang công khai** `/doctor-schedule` (một bác sĩ chưa gán khoa là 500 cho mọi khách vãng lai),
+`DoctorBookingRequestController` và `DoctorDashboardController` sắp xếp theo `appointmentDate`,
+`StaffWorkScheduleController` và `DoctorController` gọi `getStartTime().getHour()`,
+`AdminAiController` deref chuỗi `review.getBooking().getDoctor().getUser()`, và
+`VietQRController`/`PaymentController` deref `getBookingPrice()` **ngay giữa luồng thanh toán**.
+
+Hai luật đi kèm:
+
+- **Cột nullable thì phải guard, kể cả khi Java luôn ghi giá trị.** `createdAt` mang
+  `@CreationTimestamp` nên mọi dòng qua Hibernate đều có — nhưng cột vẫn nullable, nên dữ liệu cũ,
+  bản import hay một câu SQL sửa tay lúc vận hành đều gài được quả mìn đó.
+- **Tham số từ người dùng phải bọc trước khi parse.** `BookingStatus.valueOf(status)` và
+  `LocalDate.parse(date)` ném `IllegalArgumentException`/`DateTimeParseException` cho mọi giá trị
+  lạ — kể cả `"pending"` viết thường — và dự án **không có `@ControllerAdvice` nào**, nên nó thành
+  HTTP 500. Giá trị không đọc được thì bỏ lọc (`/receptionist/bookings`) hoặc trả 400
+  (`/api/bookings/booked-slots`, đây là endpoint `permitAll`).
+
 ## Error handling
 Controllers largely catch broad `Exception`, call `printStackTrace()`, and surface a message through `RedirectAttributes` flash attributes. There is no global `@ControllerAdvice`; custom error pages exist at `templates/error/{403,404,500}.html`.
 

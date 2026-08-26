@@ -65,6 +65,7 @@
                   <span th:if="${booking.status.name() == 'CONFIRMED'}" class="badge bg-primary"><i class="bi bi-check2"></i> Đã xác nhận</span>
                   <span th:if="${booking.status.name() == 'CANCELED'}" class="badge bg-danger"><i class="bi bi-x-circle"></i> Đã hủy</span>
                   <span th:if="${booking.status.name() == 'COMPLETED'}" class="badge bg-success"><i class="bi bi-clipboard-check"></i> Đã khám</span>
+                  <span th:if="${booking.status.name() == 'NO_SHOW'}" class="badge bg-dark"><i class="bi bi-person-x"></i> Không đến khám</span>
                 </td>
                 <td>
                   <!-- Lịch đã trôi qua / đã hủy / đã khám xong thì mọi nút thao tác bị vô hiệu:

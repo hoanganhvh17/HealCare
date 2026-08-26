@@ -93,12 +93,17 @@ public class AdminDoctorController {
             Role doctorRole = roleRepository.findByName("ROLE_DOCTOR").orElseThrow();
             user.setRoles(Set.of(doctorRole));
             user.setPassword(passwordEncoder.encode(rawPassword));
-            User savedUser = userService.save(user);
-
             // --- XỬ LÝ LƯU ẢNH (qua FileStorageService: đường dẫn tuyệt đối + lọc tên tệp) ---
+            // PHẢI gán avatar TRƯỚC khi save. Bản cũ save() rồi mới setAvatar: controller
+            // không có @Transactional nên userRepository.save chạy trong transaction riêng và
+            // DETACH entity khi trả về — lệnh set sau đó rơi vào hư không, ảnh đã ghi ra đĩa
+            // (rác tích lũy) còn cột avatar trong DB vẫn trống. updateDoctor làm đúng thứ tự
+            // này; chỉ đường tạo mới sai.
             if (avatarFile != null && !avatarFile.isEmpty()) {
                 user.setAvatar(fileStorageService.storeImage(avatarFile, null));
             }
+
+            User savedUser = userService.save(user);
 
             // 2. Liên kết User với Doctor và Lưu
             doctor.setUser(savedUser);

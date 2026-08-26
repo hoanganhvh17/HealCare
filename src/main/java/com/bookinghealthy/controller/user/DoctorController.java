@@ -101,6 +101,11 @@ public class DoctorController {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
 
         for (Schedule s : schedules) {
+            // Trang giới thiệu bác sĩ là trang công khai: một dòng lịch thiếu giờ hoặc thiếu
+            // thứ không được phép làm cả trang trả 500.
+            if (s.getDayOfWeek() == null || s.getStartTime() == null) {
+                continue;
+            }
             String day = s.getDayOfWeek().name(); // VD: MONDAY, TUESDAY...
             String time = s.getStartTime().format(formatter); // VD: "08:00"
             workingScheduleMap.computeIfAbsent(day, k -> new ArrayList<>()).add(time);

@@ -202,83 +202,14 @@
 
 </section></main>
 
-<footer id="footer" class="footer position-relative light-background">
-
-  <div class="container footer-top">
-    <div class="row gy-4">
-      <div class="col-lg-4 col-md-6 footer-about">
-        <a th:href="@{/}" class="logo d-flex align-items-center">
-          <span class="sitename">NNL Hospital</span>
-        </a>
-        <div class="footer-contact pt-3">
-          <p>Số 888</p>
-          <p>Tây Mỗ, Nam Từ Liêm, Hà Nội</p>
-          <p class="mt-3"><strong>Phone:</strong> <span>+1 5589 55488 55</span></p>
-          <p><strong>Email:</strong> <span>info@example.com</span></p>
-        </div>
-        <div class="social-links d-flex mt-4">
-          <a href=""><i class="bi bi-twitter-x"></i></a>
-          <a href=""><i class="bi bi-facebook"></i></a>
-          <a href=""><i class="bi bi-instagram"></i></a>
-          <a href=""><i class="bi bi-linkedin"></i></a>
-        </div>
-      </div>
-
-      <div class="col-lg-2 col-md-3 footer-links">
-        <h4>Liên kết Hữu ích</h4>
-        <ul>
-          <li><a th:href="@{/}">Trang chủ</a></li>
-          <li><a th:href="@{/about}">Giới thiệu</a></li>
-          <li><a th:href="@{/services}">Dịch vụ</a></li>
-          <li><a href="#">Điều khoản dịch vụ</a></li>
-          <li><a href="#">Chính sách bảo mật</a></li>
-        </ul>
-      </div>
-
-      <div class="col-lg-2 col-md-3 footer-links">
-        <h4>Our Services</h4>
-        <ul>
-          <li><a href="#">Web Design</a></li>
-          <li><a href="#">Web Development</a></li>
-          <li><a href="#">Product Management</a></li>
-          <li><a href="#">Marketing</a></li>
-          <li><a href="#">Graphic Design</a></li>
-        </ul>
-      </div>
-
-      <div class="col-lg-2 col-md-3 footer-links">
-        <h4>Hic solutasetp</h4>
-        <ul>
-          <li><a href="#">Molestiae accusamus iure</a></li>
-          <li><a href="#">Excepturi dignissimos</a></li>
-          <li><a href="#">Suscipit distinctio</a></li>
-          <li><a href="#">Dilecta</a></li>
-          <li><a href="#">Sit quas consectetur</a></li>
-        </ul>
-      </div>
-
-      <div class="col-lg-2 col-md-3 footer-links">
-        <h4>Nobis illum</h4>
-        <ul>
-          <li><a href="#">Ipsam</a></li>
-          <li><a href="#">Laudantium dolorum</a></li>
-          <li><a href="#">Dinera</a></li>
-          <li><a href="#">Trodelas</a></li>
-          <li><a href="#">Flexo</a></li>
-        </ul>
-      </div>
-
-    </div>
-  </div>
-
-  <div class="container copyright text-center mt-4">
-    <p>© <span>Copyright</span> <strong class="px-1 sitename">MyWebsite</strong> <span>All Rights Reserved</span></p>
-    <div class="credits">
-      Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
-    </div>
-  </div>
-
-</footer>
+<!--/* Footer tự viết tay ở đây từng giữ nguyên nội dung mẫu của theme BootstrapMade:
+       mục "Our Services" liệt kê Web Design / Web Development / Product Management /
+       Marketing / Graphic Design, hai cột lorem ipsum ("Hic solutasetp", "Molestiae
+       accusamus iure"...), và 4 icon mạng xã hội href="" khiến bấm vào là tải lại chính
+       trang đang xem. Đây là trang CÔNG KHAI bệnh nhân đọc khi tìm hiểu chuyên khoa.
+       Dùng fragment chung như 22 trang bệnh nhân còn lại thì nội dung đó không có đường
+       nào quay lại được nữa. */-->
+<footer th:replace="~{user/include/footer :: footer}"></footer>
 <div th:replace="~{user/include/ai-chat :: chat-widget}"></div>
 <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 

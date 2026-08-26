@@ -13,11 +13,30 @@
 - `/api/staff/**` → any authenticated user (the controller filters by the logged-in user)
 - `/api/notifications/**` → any authenticated user (patient notification bell; `UserNotificationApiController` filters by the logged-in user). Declared in **block 0** even though `anyRequest().authenticated()` would already cover it — block 0 is where every constrained `/api/...` rule must be visible.
 - `/api/chat/my-documents` → authenticated. **Cùng một lý do và cùng một chỗ với dòng ngay dưới**: hồ sơ bệnh án ngoại viện bệnh nhân tự tải lên. Khai dưới `/api/chat/**` là giao dữ liệu sức khoẻ cho bất kỳ ai gọi API.
+- `/api/chat/hold-slot` → authenticated (khối 0). Endpoint giữ chỗ 3 phút cho một khung giờ; nằm dưới `/api/chat/**` (permitAll) nên trước đây khách vô danh gửi `sessionId` tuỳ ý là làm chatbot báo "đang có người giữ chỗ" cho cả lịch. Chỉ người đã đăng nhập mới đặt được lịch nên siết ở đây không mất chức năng nào.
+- `/careers`, `/career-details/**`, `/career-apply` → `permitAll`. Thiếu ba dòng này (tới 2026-08-25) thì khách vãng lai bấm "Tuyển dụng" bị đá sang `/login` — cả tính năng vô hình với đúng đối tượng nó phục vụ.
 - `/api/chat/my-bookings` → authenticated. Must sit in **block 0 above the `permitAll` list**, exactly like `/api/chat/medical-record/**`: `/api/chat/**` is whitelisted below, and Spring takes the first matching rule, so omitting this line serves a patient's appointment list to anonymous callers. The rest of `PatientChatLookupApiController` (`/doctor-profile`, `/doctors/filter`) is public data and stays in the whitelist.
 - Public pages (home, doctors, services, departments, news, `/api/chat/**`, `/api/bookings/booked-slots`, payment webhooks) are explicitly `permitAll`
 - Patient account pages (`/appointment`, `/user/profile`, `/user/change-password`, `/user/review/**`, `/user/booking/**`, `/user/allergy/**`) are `authenticated``/user/allergy/**`, `/user/medical-document/**`) are `authenticated`
 
 **When adding a route, add it to the correct matcher block.** Anything not whitelisted falls through to `anyRequest().authenticated()` and will silently redirect anonymous visitors to the login page.
+
+## `@EnableMethodSecurity` — thiếu nó thì `@PreAuthorize` là chú thích chết
+
+Khai trên `SecurityConfig` từ 2026-08-25. Trước đó **không tồn tại ở bất kỳ đâu trong dự án**,
+nên mọi `@PreAuthorize` chỉ là chữ: chúng không chặn gì cả và **không có cảnh báo nào** lúc
+biên dịch lẫn lúc chạy.
+
+Hậu quả thật: `DoctorAssistantController` khai `@PreAuthorize("hasRole('DOCTOR')")` nhưng
+`/api/doctor/assistant/*` lại rơi vào luật `permitAll` của `/api/doctor/**` — khách vô danh
+`POST /api/doctor/assistant/chat` là gọi được OpenRouter **bằng API key của bệnh viện**. Một
+vòng lặp đủ cạn credit và kéo theo toàn bộ chatbot bệnh nhân + 4 trợ lý form khám chết theo.
+Cả nhánh đó hoá ra là **mã chết** (tệp JS gọi nó không template nào nạp) nên đã bị xoá hẳn
+thay vì vá.
+
+**Luật URL vẫn là nguồn sự thật chính**; `@EnableMethodSecurity` chỉ để annotation thôi nói
+dối. Và `"/api/doctor/**"` đã thu hẹp thành **`"/api/doctor/{id:[0-9]+}"`** — luật rộng đó
+tồn tại chỉ để mở `/api/doctor/{id}` của `DoctorApiController`.
 
 ## Matcher order is load-bearing
 Spring Security applies the **first matching rule**, so a narrow rule must be declared **above** any broader one that would also match. Block 0 at the top of `filterChain` exists for exactly that: `/api/doctor/chat/**` and `/api/admin/chat/**` are declared there, *before* the `permitAll` list.
