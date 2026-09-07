@@ -151,30 +151,76 @@
       gap: 0.5rem;
     }
 
-    /* Giao diện bộ chọn ngày */
+    /* Tiêu đề nhỏ phía trên dải ngày */
+    .slots-grid-title {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Giao diện bộ chọn ngày — 7 ngày trong cột sidebar hẹp (~350px).
+       nowrap để cả tuần nằm một hàng: mục đích của widget là nhìn thấy cả tuần trong một cái
+       liếc, nên cuộn ngang chỉ là van an toàn cho màn hình cực hẹp, không phải bố cục chính. */
     .date-selector-wrapper {
       display: flex;
-      gap: 0.6rem;
-      margin-bottom: 1.5rem;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      margin-bottom: 1.25rem;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
     }
     .date-btn-item {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 2.4rem;      /* min-width mặc định của flex item là auto -> phải ép xuống */
       border: 1px solid #cbd5e1;
       border-radius: 10px;
-      padding: 0.6rem 0.4rem;
+      padding: 0.45rem 0.15rem;
       text-align: center;
       background: white;
       cursor: pointer;
+      font-family: inherit;   /* <button> KHÔNG thừa kế font từ body */
+      color: inherit;
       transition: all 0.2s;
     }
     .date-btn-item.active {
       background-color: #0d7b6a;
       border-color: #0d7b6a;
       color: white;
+      opacity: 1;
     }
-    .date-btn-item .day-name { font-size: 0.75rem; text-transform: uppercase; display: block; opacity: 0.8; }
+    /* Ngày không còn khung trống: làm mờ để biết bấm vào cũng không đặt được, nhưng VẪN bấm
+       được — cả tính năng này là để theo dõi lịch, không chỉ để đặt. */
+    .date-btn-item.is-off { opacity: 0.55; }
+    .date-btn-item .day-name { font-size: 0.68rem; text-transform: uppercase; display: block; opacity: 0.8; }
     .date-btn-item.active .day-name { opacity: 1; }
-    .date-btn-item .day-num { font-size: 1.2rem; font-weight: 700; display: block; }
+    .date-btn-item .day-num { font-size: 1rem; font-weight: 700; display: block; line-height: 1.2; }
+    .date-btn-item .day-dot {
+      display: block; width: 5px; height: 5px; border-radius: 50%;
+      background: #0d7b6a; margin: 0.2rem auto 0;
+    }
+    .date-btn-item.is-off .day-dot { background: #cbd5e1; }
+    .date-btn-item.active .day-dot { background: rgba(255,255,255,0.85); }
+
+    /* Câu trạng thái của ngày đang chọn */
+    .schedule-note {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .schedule-note-muted { background: #f8fafc; color: #64748b; border-left: 3px solid #cbd5e1; }
+    .schedule-note-info { background: #ecfdf5; color: #047857; border-left: 3px solid #10b981; }
+    .slots-empty-note {
+      width: 100%; text-align: center; font-style: italic;
+      font-size: 0.85rem; color: #64748b;
+      background: #f8fafc; border-radius: 8px; padding: 0.6rem 0.5rem;
+    }
 
     /* CSS Giao diện phân buổi (Sáng/Chiều/Tối) */
     .slots-group-header {
@@ -204,11 +250,14 @@
       background: #ffffff;
       color: #334155;
       cursor: pointer;
-      width: calc(33.333% - 0.35rem); /* Chia 3 cột đều nhau */
+      /* 4 cột: 8 khung mỗi buổi thành đúng 2 hàng đều nhau.
+         4 x (25% - 0.375rem) + 3 x 0.5rem (gap) = 100% chằn chặn. */
+      width: calc(25% - 0.375rem);
+      font-family: inherit;   /* <button> KHÔNG thừa kế font từ body */
       text-align: center;
       transition: all 0.2s;
     }
-    .slot-interactive-btn:hover {
+    .slot-interactive-btn:hover:not(.disabled) {
       background-color: #f8fafc;
       border-color: #94a3b8;
       color: #0f172a;
@@ -374,21 +423,12 @@
           <i class="bi bi-calendar-check text-teal"></i> Lịch Khám Bệnh
         </div>
 
-        <label class="slots-grid-title mt-2">Chọn Ngày</label>
-        <div class="date-selector-wrapper" id="dateSelectorGroup">
-          <div class="date-btn-item active" data-offset="0">
-            <span class="day-name" id="dayLabel0">T2</span>
-            <span class="day-num" id="dateLabel0">24</span>
-          </div>
-          <div class="date-btn-item" data-offset="1">
-            <span class="day-name" id="dayLabel1">T3</span>
-            <span class="day-num" id="dateLabel1">25</span>
-          </div>
-          <div class="date-btn-item" data-offset="2">
-            <span class="day-name" id="dayLabel2">T4</span>
-            <span class="day-num" id="dateLabel2">26</span>
-          </div>
-        </div>
+        <div class="slots-grid-title mt-2">Lịch 7 ngày tới</div>
+        <!--/* 7 nút ngày do JS đổ từ week[] của server. Không hardcode nút ở đây: nhãn ngày,
+               số khung trống và trạng thái nghỉ đều là dữ liệu, không phải markup. */-->
+        <div class="date-selector-wrapper" id="dateSelectorGroup"></div>
+
+        <div id="dayStateNote" class="schedule-note d-none"></div>
 
         <div class="slot-group-wrapper">
           <div class="slots-group-header text-morning"><i class="bi bi-brightness-alt-high"></i> Buổi Sáng</div>
@@ -400,10 +440,10 @@
           <div class="slots-flex-group" id="afternoonSlotsContainer"></div>
         </div>
 
-<!--        <div class="slot-group-wrapper">-->
-<!--          <div class="slots-group-header text-evening"><i class="bi bi-moon-stars"></i> Buổi Tối</div>-->
-<!--          <div class="slots-flex-group" id="eveningSlotsContainer"></div>-->
-<!--        </div>-->
+        <!--/* KHÔNG thêm nhóm "Buổi Tối". Ngoài giờ hành chính là phiên trực (StaffShift,
+               TT 32/2023/TT-BYT) và không bao giờ mở khung đặt khám — xem /skills/sync-slot-grid.
+               Một khối markup ca tối bị comment ở đây từng làm chết cả widget: JS vẫn trỏ vào
+               #eveningSlotsContainer và ném TypeError trước khi kịp gọi API. */-->
 
         <small class="text-muted d-block mt-3 fst-italic">* Bấm vào khung giờ còn trống để đặt lịch ngay.</small>
       </div>
@@ -445,134 +485,293 @@
 <script th:inline="javascript">
   document.addEventListener("DOMContentLoaded", function () {
     const doctorId = [[${doctor.id}]];
-    const dateButtons = document.querySelectorAll(".date-btn-item");
+    const WEEK_DAYS = 7;
 
-    document.getElementById("scrollToBookingBtn").addEventListener("click", function() {
-      document.getElementById("bookingWidgetArea").scrollIntoView({ behavior: 'smooth' });
+    // Vì sao /api/chat/doctor-availability chứ không /api/bookings/booked-slots: endpoint kia
+    // CHỈ biết booking, nên khung giờ bác sĩ không đăng ký ca vẫn hiện ra như còn trống.
+    // Endpoint này gộp đủ 4 tầng: ca đã đăng ký (Schedule) + booking + DoctorBlockTime + soft-lock.
+    const AVAILABILITY_URL = "/api/chat/doctor-availability";
+
+    // Câu chữ bám .claude/rules/ai-assistant.md: OFF_DUTY LUÔN nói "không đăng ký ca làm việc";
+    // TUYỆT ĐỐI không dùng cụm "không có ca khám" (tiếng Việt đọc được thành "chưa ai đặt").
+    // BLOCKED chỉ được nói "bác sĩ báo bận" — lý do nghỉ phép là dữ liệu nhân sự, server không gửi.
+    const REASON_TITLE = {
+      OFF_DUTY: "Ngoài ca làm việc bác sĩ đã đăng ký",
+      BOOKED:   "Đã có bệnh nhân khác đặt",
+      BLOCKED:  "Bác sĩ báo bận khung này",
+      HELD:     "Đang chờ bệnh nhân khác xác nhận",
+      PAST:     "Khung giờ đã trôi qua"
+    };
+
+    const strip     = document.getElementById("dateSelectorGroup");
+    const note      = document.getElementById("dayStateNote");
+    const morning   = document.getElementById("morningSlotsContainer");
+    const afternoon = document.getElementById("afternoonSlotsContainer");
+
+    // Lưới an toàn: thiếu BẤT KỲ vùng chứa nào thì thoát im lặng thay vì ném TypeError.
+    // Đây đúng là cách widget này đã chết trước đây — #eveningSlotsContainer bị comment mất
+    // nhưng JS vẫn gán .innerHTML lên null, và lỗi rơi NGOÀI khối try nên catch không đỡ được.
+    if (!strip || !note || !morning || !afternoon) return;
+
+    const scrollBtn = document.getElementById("scrollToBookingBtn");
+    if (scrollBtn) {
+      scrollBtn.addEventListener("click", function () {
+        document.getElementById("bookingWidgetArea").scrollIntoView({ behavior: "smooth" });
+      });
+    }
+
+    let weekData = [];
+
+    // ---------- nạp dữ liệu ----------
+    async function load() {
+      setPlaceholder("Đang tải lịch khám...", false);
+      try {
+        const url = new URL(AVAILABILITY_URL, window.location.origin);
+        url.searchParams.set("doctorId", doctorId);
+        url.searchParams.set("days", WEEK_DAYS);
+        url.searchParams.set("detail", "slots");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        weekData = Array.isArray(data.week) ? data.week : [];
+        if (weekData.length === 0) throw new Error("EMPTY_WEEK");
+
+        renderStrip();
+        selectDay(0);
+      } catch (err) {
+        console.error("Không tải được lịch khám:", err);
+        setPlaceholder("Chưa tải được lịch khám. Anh/chị thử tải lại trang giúp em ạ.", true);
+        strip.innerHTML = "";
+      }
+    }
+
+    function setPlaceholder(text, isError) {
+      morning.innerHTML = "";
+      afternoon.innerHTML = "";
+      morning.appendChild(inlineNote(text, isError));
+      afternoon.appendChild(inlineNote(text, isError));
+      hideNote();
+    }
+
+    // ---------- dải 7 nút ngày ----------
+    function renderStrip() {
+      strip.innerHTML = "";
+      weekData.forEach(function (day, i) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "date-btn-item" + (hasOpening(day) ? "" : " is-off");
+        item.dataset.index = String(i);
+        item.title = day.dayLabel + " — " + (day.freeCount || 0) + " khung trống";
+
+        // Nhãn lấy TỪ SERVER (dayLabel = "T4 26/08", date = "2026-08-26"). Không dùng
+        // new Date("YYYY-MM-DD"): chuỗi đó được parse theo UTC nên lệch ngày ở một số múi giờ.
+        const name = document.createElement("span");
+        name.className = "day-name";
+        name.textContent = String(day.dayLabel || "").split(" ")[0];
+
+        const num = document.createElement("span");
+        num.className = "day-num";
+        num.textContent = String(day.date || "").slice(8);
+
+        const dot = document.createElement("span");
+        dot.className = "day-dot";
+
+        item.appendChild(name);
+        item.appendChild(num);
+        item.appendChild(dot);
+        strip.appendChild(item);
+      });
+    }
+
+    // Uỷ quyền sự kiện: nút do JS sinh ra nên querySelectorAll lúc khởi động sẽ bắt 0 phần tử.
+    strip.addEventListener("click", function (e) {
+      const item = e.target.closest(".date-btn-item");
+      if (!item || !strip.contains(item)) return;
+      selectDay(parseInt(item.dataset.index, 10));
     });
 
-    const dayNamesShort = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-    let selectedDateStr = "";
-
-    function setupDateLabels() {
-      for (let i = 0; i < 3; i++) {
-        let d = new Date();
-        d.setDate(d.getDate() + i);
-
-        document.getElementById(`dayLabel${i}`).textContent = dayNamesShort[d.getDay()];
-        document.getElementById(`dateLabel${i}`).textContent = d.getDate();
-
-        if (i === 0) {
-          selectedDateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        }
-      }
-    }
-    setupDateLabels();
-
-    // Giới hạn giờ đến 19:00 theo đúng yêu cầu
-    const allTimeSlots = [
-      "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
-      "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
-      "17:30", "18:00", "18:30", "19:00"
-    ];
-
-    async function fetchAndRenderSlots() {
-      const morningContainer = document.getElementById("morningSlotsContainer");
-      const afternoonContainer = document.getElementById("afternoonSlotsContainer");
-      const eveningContainer = document.getElementById("eveningSlotsContainer");
-
-      morningContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
-      afternoonContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
-      eveningContainer.innerHTML = '<span class="text-muted small w-100 text-center">Đang tải...</span>';
-
-      try {
-        const checkDate = new Date(selectedDateStr);
-
-        const res = await fetch(`/api/bookings/booked-slots?doctorId=${doctorId}&date=${selectedDateStr}`);
-        let bookedTimes = [];
-        if (res.ok) bookedTimes = await res.json();
-
-        const today = new Date();
-        const isToday = today.toDateString() === checkDate.toDateString();
-        const currentHour = today.getHours();
-        const currentMinute = today.getMinutes();
-
-        let availableMorning = [];
-        let availableAfternoon = [];
-        let availableEvening = [];
-
-        allTimeSlots.forEach(slot => {
-          const [h, m] = slot.split(':').map(Number);
-          let isPast = false;
-
-          if (isToday && (h < currentHour || (h === currentHour && m <= currentMinute))) {
-            isPast = true;
-          }
-
-          const isBooked = bookedTimes.some(b => b.startsWith(slot));
-
-          if (!isPast && !isBooked) {
-            // Phân nhóm thành Sáng, Chiều, Tối
-            if (h < 12) {
-              availableMorning.push(slot);
-            } else if (h < 17 || (h === 17 && m === 0)) {
-              // Chiều: 13:30 đến 17:00
-              availableAfternoon.push(slot);
-            } else {
-              // Tối: 17:30 trở đi
-              availableEvening.push(slot);
-            }
-          }
-        });
-
-        renderSlotGroup(availableMorning, morningContainer);
-        renderSlotGroup(availableAfternoon, afternoonContainer);
-        renderSlotGroup(availableEvening, eveningContainer);
-
-      } catch (err) {
-        morningContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
-        afternoonContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
-        eveningContainer.innerHTML = '<span class="text-danger small w-100 text-center">Lỗi</span>';
-      }
+    function selectDay(i) {
+      if (!weekData[i]) return;
+      Array.prototype.forEach.call(strip.children, function (el, idx) {
+        el.classList.toggle("active", idx === i);
+      });
+      renderDay(weekData[i]);
     }
 
-    function renderSlotGroup(slots, container) {
-      container.innerHTML = "";
+    /** Ngày này có gì để bấm không (dùng cho chấm màu + làm mờ nút ngày). */
+    function hasOpening(day) { return (day.freeCount || 0) > 0; }
 
-      if(slots.length === 0) {
-        container.innerHTML = '<span class="text-muted small w-100 text-center fst-italic py-2" style="background: #f8fafc; border-radius: 8px;">Đã kín lịch</span>';
+    // ---------- render một ngày ----------
+    function renderDay(day) {
+      const slots = Array.isArray(day.slots) ? day.slots : null;
+
+      // OFF_ALL_DAY là trạng thái DUY NHẤT không vẽ nút: 16 nút xám không nói thêm điều gì.
+      // NO_SCHEDULE thì NGƯỢC LẠI — vẫn phải vẽ đủ nút, xem chú thích trong dayNote().
+      if (day.dayState === "OFF_ALL_DAY" || !slots) {
+        showNote(dayNote(day), "muted");
+        morning.innerHTML = "";
+        afternoon.innerHTML = "";
         return;
       }
 
-      slots.forEach(time => {
-        const btn = document.createElement("div");
-        btn.className = "slot-interactive-btn";
-        btn.textContent = time;
+      const text = dayNote(day);
+      if (text) showNote(text, day.dayState === "NO_SCHEDULE" ? "info" : "muted");
+      else hideNote();
 
-        btn.addEventListener("click", function() {
-          window.location.href = `/appointment?doctorId=${doctorId}&date=${selectedDateStr}&time=${time}`;
-        });
-
-        container.appendChild(btn);
-      });
+      renderSession(morning,   filterSession(slots, "morning"),   "morning",   day);
+      renderSession(afternoon, filterSession(slots, "afternoon"), "afternoon", day);
     }
 
-    dateButtons.forEach(btn => {
-      btn.addEventListener("click", function() {
-        dateButtons.forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
+    function filterSession(slots, session) {
+      return slots.filter(function (s) { return s.session === session; });
+    }
 
-        const offset = parseInt(btn.getAttribute("data-offset"));
-        let targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + offset);
+    function renderSession(container, slots, session, day) {
+      container.innerHTML = "";
+      if (slots.length === 0) {
+        container.appendChild(inlineNote("Không có dữ liệu khung giờ.", false));
+        return;
+      }
 
-        selectedDateStr = targetDate.getFullYear() + '-' + String(targetDate.getMonth() + 1).padStart(2, '0') + '-' + String(targetDate.getDate()).padStart(2, '0');
+      const sessionNote = wholeSessionNote(slots, session, day);
+      if (sessionNote) {
+        container.appendChild(inlineNote(sessionNote, false));
+        return;
+      }
 
-        fetchAndRenderSlots();
+      slots.forEach(function (s) { container.appendChild(slotButton(day, s)); });
+    }
+
+    /**
+     * Cả buổi không đặt được vì MỘT nguyên nhân duy nhất -> in một câu, không vẽ 8 nút xám.
+     *
+     * BẪY: blockReason() ở server xét PAST TRƯỚC OFF_DUTY, nên sáng nay một bác sĩ chỉ đăng ký
+     * ca chiều trả về tập hỗn hợp {PAST, PAST, OFF_DUTY, ...} chứ không phải toàn OFF_DUTY.
+     * Kiểm bằng every(r === "OFF_DUTY") sẽ trượt và rơi về 8 nút xám.
+     */
+    function wholeSessionNote(slots, session, day) {
+      const label = session === "morning" ? "buổi sáng" : "buổi chiều";
+      const reasons = slots.map(function (s) { return s.reason; });
+
+      // Còn ít nhất một khung trống -> vẽ nút bình thường.
+      if (reasons.some(function (r) { return !r; })) return null;
+
+      if (reasons.every(function (r) { return r === "PAST"; })) {
+        return "Các khung " + label + " hôm nay đã trôi qua ạ.";
+      }
+      const offOrPast = reasons.every(function (r) { return r === "OFF_DUTY" || r === "PAST"; });
+      if (offOrPast && reasons.indexOf("OFF_DUTY") !== -1) {
+        return "Bác sĩ không đăng ký ca làm việc " + label + " " + day.dayLabel + " ạ.";
+      }
+      // Hỗn hợp BOOKED/BLOCKED/... -> vẫn vẽ nút xám để bệnh nhân thấy khung nào đã kín.
+      return null;
+    }
+
+    function slotButton(day, s) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "slot-interactive-btn";
+      btn.textContent = String(s.slot).split(" - ")[0];   // nhãn chỉ hiện giờ bắt đầu
+
+      if (s.reason) {
+        const why = REASON_TITLE[s.reason] || "Không đặt được khung này";
+        btn.classList.add("disabled");
+        btn.disabled = true;
+        btn.title = why;
+        btn.setAttribute("aria-label", s.slot + " — " + why);
+        return btn;
+      }
+
+      btn.title = "Còn trống — bấm để đặt";
+      btn.addEventListener("click", function () {
+        // Tên tham số PHẢI là appointmentDate/appointmentTime: appointment.html chỉ đọc
+        // appointmentDate, nên gửi tham số tên "date" là mất ngày và form rơi về hôm nay.
+        // Giá trị time giữ nguyên chuỗi chính tắc "HH:mm - HH:mm" của server: nhánh không có
+        // doctorId ở trang kia so sánh BẰNG TUYỆT ĐỐI với value của radio.
+        const url = new URL("/appointment", window.location.origin);
+        url.searchParams.set("doctorId", doctorId);
+        url.searchParams.set("appointmentDate", day.date);
+        url.searchParams.set("appointmentTime", s.slot);
+        window.location.href = url.toString();
       });
-    });
+      return btn;
+    }
 
-    fetchAndRenderSlots();
+    // ---------- câu chữ ----------
+    function dayNote(day) {
+      switch (day.dayState) {
+        // KHÔNG PHẢI "bác sĩ nghỉ". scheduleKnown = false nghĩa là hệ thống chưa có bản ghi
+        // Schedule cho tuần chứa ngày này, mà slotsOutsideWorkingHours coi "rỗng = không giới
+        // hạn" -> bác sĩ ĐẶT ĐƯỢC CẢ 16 KHUNG. Gom nhóm này với OFF_ALL_DAY là khoá lịch của
+        // 132 bác sĩ seed.
+        case "NO_SCHEDULE":
+          return "Hệ thống chưa có lịch đăng ký của bác sĩ cho tuần này, anh/chị vẫn đặt khám "
+               + "trong giờ hành chính (07:30 - 11:30 và 13:30 - 17:30) được ạ.";
+
+        case "OFF_ALL_DAY":
+          return day.dayLabel + " bác sĩ không đăng ký ca làm việc nào ạ.";
+
+        case "FULL":
+          return fullDayNote(day);
+
+        default:  // PARTIAL
+          return (day.workingRanges && day.workingRanges.length)
+            ? "Ca làm việc " + day.workingRanges.join(" và ") + " — còn " + day.freeCount + " khung trống."
+            : "Còn " + day.freeCount + " khung trống.";
+      }
+    }
+
+    /**
+     * FULL gộp nhiều nguyên nhân rất khác nhau, nên phải đọc reason thật chứ không nói chung chung.
+     *
+     * Chỉ xét các khung NẰM TRONG ca làm việc: một khung OFF_DUTY nằm ngoài ca nên nó không nói
+     * được điều gì về việc vì sao ca làm việc hết chỗ. Trộn nó vào là kết luận sai nguyên nhân —
+     * quan sát thật: bác sĩ chỉ đăng ký ca chiều rồi báo bận đúng buổi chiều đó cho ra tập
+     * {OFF_DUTY x8, BLOCKED x8}, và câu mặc định "đều đã kín" khẳng định có người đặt trong khi
+     * không ai đặt cả.
+     */
+    function fullDayNote(day) {
+      const all = (day.slots || []).map(function (s) { return s.reason; })
+                                   .filter(function (r) { return !!r; });
+      const ranges = (day.workingRanges || []).join(" và ");
+
+      if (all.length && all.every(function (r) { return r === "PAST"; })) {
+        return "Các khung giờ hôm nay đã trôi qua, anh/chị chọn giúp em ngày khác ạ.";
+      }
+
+      const inShift = all.filter(function (r) { return r !== "OFF_DUTY"; });
+      // Vế "CÓ ca làm việc ... nhưng" là bắt buộc, nếu không câu đọc được thành "bác sĩ rảnh".
+      const head = day.dayLabel + " bác sĩ CÓ ca làm việc " + ranges + " nhưng ";
+      const tail = ", anh/chị chọn giúp em ngày khác ạ.";
+
+      const only = function (list) {
+        return inShift.length > 0 && inShift.every(function (r) { return list.indexOf(r) !== -1; });
+      };
+      if (only(["BLOCKED", "PAST"])) return head + "đã báo bận hết khung" + tail;
+      if (only(["BOOKED", "PAST"]))  return head + "các khung giờ đều đã có người đặt" + tail;
+      if (only(["HELD", "BOOKED", "PAST"])) return head + "các khung giờ đều đã có người giữ chỗ" + tail;
+      // Hỗn hợp nhiều nguyên nhân: nói trung tính, đừng đoán nguyên nhân nào chiếm ưu thế.
+      return head + "hiện không còn khung trống nào" + tail;
+    }
+
+    function showNote(text, kind) {
+      note.textContent = text;
+      note.className = "schedule-note schedule-note-" + kind;
+    }
+    function hideNote() {
+      note.textContent = "";
+      note.className = "schedule-note d-none";
+    }
+    function inlineNote(text, isError) {
+      const el = document.createElement("span");
+      el.className = "slots-empty-note" + (isError ? " text-danger" : "");
+      el.textContent = text;
+      return el;
+    }
+
+    load();
   });
 </script>
 </body>

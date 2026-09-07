@@ -496,7 +496,8 @@ public class AiController {
             @RequestParam(required = false) String date,
             @RequestParam(required = false) Integer days,
             @RequestParam(required = false) String session,
-            @RequestParam(required = false) String sessionId) {
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(required = false) String detail) {
 
         Doctor doc = doctorService.findById(doctorId).orElse(null);
         if (doc == null) {
@@ -527,6 +528,10 @@ public class AiController {
         result.put("session", wantedSession);
 
         long nowMillis = System.currentTimeMillis();
+        // Giữ lại DaySlots của ngày neo để vòng lặp week dùng lại cho offset 0 thay vì
+        // dựng lần thứ hai cho CÙNG một ngày (mỗi DaySlots tốn 4-8 truy vấn).
+        // Nhánh PAST/TOO_FAR không dựng DaySlots nên biến này ở lại null.
+        DaySlots anchorDay = null;
         Map<String, Object> anchor = new HashMap<>();
         result.put("anchor", anchor);
         anchor.put("date", targetDate.toString());
@@ -557,6 +562,7 @@ public class AiController {
             return ResponseEntity.ok(result);
         } else {
             DaySlots day = new DaySlots(doctorId, targetDate);
+            anchorDay = day;
             List<String> wantedRange = slotsOfSession(null, wantedSession);
             ReasonSummary summary = day.summarizeReasonsIn(wantedRange, sessionId, nowMillis);
 
@@ -569,6 +575,11 @@ public class AiController {
         }
 
         int span = (days == null) ? 7 : Math.max(1, Math.min(AVAILABILITY_MAX_DAYS, days));
+        // Danh sách khung giờ chi tiết là OPT-IN: hai nơi gọi sẵn có (ai-chat.js,
+        // meditrust-voice-call.js) không đọc khoá nào trong đó, mà days=7 thêm ~6.5KB cho
+        // mỗi lượt hỏi lịch của khung chat và của chế độ gọi thoại. Không gửi detail thì
+        // payload giống hệt bản cũ từng byte.
+        boolean withSlots = "slots".equals(detail);
         List<Map<String, Object>> week = new java.util.ArrayList<>();
         List<String> workingDayPhrases = new java.util.ArrayList<>();
         boolean anyScheduleKnown = false;
@@ -577,9 +588,9 @@ public class AiController {
             java.time.LocalDate d = targetDate.plusDays(offset);
             if (d.isAfter(today.plusDays(MAX_BOOKING_AHEAD_DAYS))) break;
 
-            DaySlots day = new DaySlots(doctorId, d);
+            DaySlots day = (offset == 0 && anchorDay != null) ? anchorDay : new DaySlots(doctorId, d);
             Map<String, Object> info = new HashMap<>();
-            fillDayInfo(info, day, d, ALL_SLOTS_LIST, sessionId, nowMillis);
+            fillDayInfo(info, day, d, ALL_SLOTS_LIST, sessionId, nowMillis, withSlots);
             week.add(info);
             anyScheduleKnown |= day.isScheduleKnown();
 
@@ -597,22 +608,62 @@ public class AiController {
 
     private void fillDayInfo(Map<String, Object> info, DaySlots day, java.time.LocalDate d,
                              List<String> pool, String sessionId, long nowMillis) {
+        fillDayInfo(info, day, d, pool, sessionId, nowMillis, false);
+    }
+
+    /**
+     * Một vòng lặp duy nhất thay cho {@code freeSlotsIn}: SỐ LẦN gọi {@code blockReason} không
+     * đổi (đúng {@code pool.size()} lần như trước), chỉ khác là giữ lại LÝ DO của từng khung
+     * thay vì vứt đi. Vì vậy {@code slots[]} tốn 0 truy vấn DB thêm.
+     *
+     * <p>{@code freeCount} / {@code firstFreeSlot} được tính từ CHÍNH vòng lặp này nên ngữ nghĩa
+     * y hệt bản cũ ({@code free.size()} và {@code free.get(0)} theo thứ tự của {@code pool}) —
+     * đây là thay đổi thuần CỘNG THÊM cho hai nơi gọi sẵn có.
+     *
+     * <p>{@code reason == null} nghĩa là khung còn trống. TUYỆT ĐỐI không đặt vào đây
+     * {@code DoctorBlockTime.reason} — đó là loại nghỉ phép, tức dữ liệu nhân sự, mà endpoint
+     * này thì công khai.
+     */
+    private void fillDayInfo(Map<String, Object> info, DaySlots day, java.time.LocalDate d,
+                             List<String> pool, String sessionId, long nowMillis,
+                             boolean withSlots) {
         List<String> ranges = day.workingRanges();
-        List<String> free = day.freeSlotsIn(pool, sessionId, nowMillis);
+
+        List<Map<String, Object>> slots = withSlots ? new java.util.ArrayList<>(pool.size()) : null;
+        int freeCount = 0;
+        String firstFreeSlot = null;
+
+        for (String slot : pool) {
+            String reason = day.blockReason(slot, sessionId, nowMillis);
+            if (reason == null) {
+                freeCount++;
+                if (firstFreeSlot == null) firstFreeSlot = slot;
+            }
+            if (withSlots) {
+                // HashMap chứ không Map.of: Map.of ném NPE với value null, mà null CHÍNH LÀ
+                // tín hiệu "còn trống".
+                Map<String, Object> item = new HashMap<>();
+                item.put("slot", slot);
+                item.put("session", sessionOf(slot));
+                item.put("reason", reason);
+                slots.add(item);
+            }
+        }
 
         info.put("date", d.toString());
         info.put("dayLabel", buildDayLabel(d));
         info.put("scheduleKnown", day.isScheduleKnown());
         info.put("workingRanges", ranges);
-        info.put("freeCount", free.size());
-        info.put("firstFreeSlot", free.isEmpty() ? null : free.get(0));
+        info.put("freeCount", freeCount);
+        info.put("firstFreeSlot", firstFreeSlot);
+        if (withSlots) info.put("slots", slots);
 
         String state;
         if (!day.isScheduleKnown()) {
             state = "NO_SCHEDULE";
         } else if (ranges.isEmpty()) {
             state = "OFF_ALL_DAY";
-        } else if (free.isEmpty()) {
+        } else if (freeCount == 0) {
             state = "FULL";
         } else {
             state = "PARTIAL";

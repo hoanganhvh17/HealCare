@@ -124,7 +124,19 @@ Both are resolved to an **absolute** path at startup (logged as `[Upload]` lines
 
 **Service images use two resource locations**, so `AdminServiceController` uploads work without migrating any data: `/assets/img/health/**` resolves from `file:<upload-dir>/health/` first, then `classpath:/static/assets/img/health/`. New uploads come off disk, seeded images still come from inside the jar.
 
-**The 133 seeded doctor portraits under `uploads/` are tracked by git but are NOT in the jar.** They must be copied into the production upload volume or every seeded doctor renders a broken image.
+**The 122 seeded doctor portraits under `uploads/` are tracked by git but are NOT in the jar.** They must be copied into the production upload volume or every seeded doctor renders a broken image.
+
+The count was 133 until 2026-09-07, when **11 dev-era images that no database row referenced** were deleted (`haui_logo`, `Gemini_Generated_Image_*`, `chatbox`, `anhthe3x4`, two copies of `bslevando`…). **Never delete from this folder by eye** — a filename that looks like a throwaway can be a live `users.avatar`, and a missing image renders as a broken picture with nothing in any log. The check is a query, not a glance:
+
+```sql
+SELECT DISTINCT avatar FROM users WHERE avatar IS NOT NULL AND avatar <> '';
+SELECT DISTINCT image FROM services WHERE image IS NOT NULL AND image <> '';
+SELECT DISTINCT image FROM posts   WHERE image IS NOT NULL AND image <> '';
+```
+
+That query caught two traps in the 2026-09-07 pass: `1787286687212_9850.jpg` and `1787704045253_1096.jpg` are **byte-identical to each other**, untracked, and named exactly like test uploads — and both are live patient avatars. The `*_news.*` files are gitignored and `.gitignore` calls them regenerable, but that only holds for **future** articles: the ones on disk are referenced by existing `posts` rows, so deleting them breaks those articles' images permanently.
+
+**The same query also reports the reverse — rows pointing at files that are already gone.** As of 2026-09-07 that is 10 `bs-*.jpg` doctor portraits and 8 `*_news.*` images (the latter deleted in the 2026-08-18 pass), i.e. 10 seeded doctors currently render a broken portrait. Not fixed; recorded so the next person does not re-diagnose it.
 
 Not everything there arrives by upload: `NewsFeedService.downloadImage` **downloads** the illustration of a collected news article into the same folder (named `<millis>_news.<ext>`, capped at 5MB). Its extension comes from the response `Content-Type`, not the URL — Spring picks the served Content-Type from the file extension, so a `.jpg` holding WebP bytes would mislabel the image to every browser.
 

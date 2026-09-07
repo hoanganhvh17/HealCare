@@ -115,7 +115,7 @@ The function has exactly three branches, and only confirms `fallback: false` whe
 - **Session and/or date stated** → ask `/slot-alternatives`; it returns the earliest free slot *within that session on that date* or the reason it cannot.
 - **Nothing stated** → pick the preview's first slot, **re-verify it** (the preview can be 3 minutes stale via the soft-lock TTL), and mark `suggested: true`.
 
-**The browser must never decide whether a time is on the grid.** Branch 1 used to build the slot itself and check it against `/api/bookings/booked-slots`, which was wrong twice over: it built the range from `booking_target.appointment_time` (the model's invented time — so "10h30" became the model's `"09:00 - 11:00"` and was confirmed as *"khung giờ anh/chị vừa chọn"*), and `booked-slots` only ever lists slots that are **inside** the grid, so anything outside it ("10h20", "12h trưa", "7 giờ tối", "6h sáng") matched no busy entry and read as free — the patient was confirmed into a slot that does not exist and `/appointment` then opened with nothing selected. It also made the server's `OUTSIDE_HOURS` branch dead code. `/slot-alternatives` owns `resolveCanonicalSlot`, so routing through it keeps the grid in one place (`/skills/sync-slot-grid` count stays 11). `isSlotBookable()` survives **only** for branch 3, where the slot came from the server; its docstring says so.
+**The browser must never decide whether a time is on the grid.** Branch 1 used to build the slot itself and check it against `/api/bookings/booked-slots`, which was wrong twice over: it built the range from `booking_target.appointment_time` (the model's invented time — so "10h30" became the model's `"09:00 - 11:00"` and was confirmed as *"khung giờ anh/chị vừa chọn"*), and `booked-slots` only ever lists slots that are **inside** the grid, so anything outside it ("10h20", "12h trưa", "7 giờ tối", "6h sáng") matched no busy entry and read as free — the patient was confirmed into a slot that does not exist and `/appointment` then opened with nothing selected. It also made the server's `OUTSIDE_HOURS` branch dead code. `/slot-alternatives` owns `resolveCanonicalSlot`, so routing through it keeps the grid in one place (`/skills/sync-slot-grid` count stays 10). `isSlotBookable()` survives **only** for branch 3, where the slot came from the server; its docstring says so.
 
 `candidateDepartmentId` falls back to `selectedDoctor.departmentId` — the model often carries a `department_id` from the previous turn's symptoms, and without the fallback `/slot-alternatives` was never called and the reason was lost.
 
@@ -169,7 +169,24 @@ Rules that must survive any edit:
 
 - **It re-declares the past / too-far guards of `/slot-alternatives`.** A doctor has no `Schedule` for a bygone date, so `slotsOutsideWorkingHours` returns empty = "unrestricted" and every slot reads free — the assistant would cheerfully report last week as wide open. A past `date` answers `PAST` but the `week[]` still starts **at today**, said out loud in `summaryText` rather than silently re-anchored.
 - **`days` is clamped to `[1, 14]`.** The endpoint is `permitAll`, and an unclamped loop is a roster scan.
-- **It enumerates no hours** — only `ALL_SLOTS_LIST` + `slotsOfSession`. The slot-grid declaration count stays **11** (`/skills/sync-slot-grid`).
+- **It enumerates no hours** — only `ALL_SLOTS_LIST` + `slotsOfSession`. The slot-grid declaration count stays **10** (`/skills/sync-slot-grid`).
+- **`detail=slots` is opt-in, and that is the whole point.** Without it the payload is byte-identical to
+  what it always was. With it, every `week[]` entry gains `slots[] = [{slot, session, reason}]` where
+  `reason == null` means free and otherwise carries the same five codes as `blockReason`
+  (`PAST` / `OFF_DUTY` / `BOOKED` / `BLOCKED` / `HELD`). `fillDayInfo` already called `blockReason` once
+  per slot inside `freeSlotsIn` and **threw the reasons away**, keeping only `.size()` and `.get(0)` — so
+  the list costs **0 extra queries and 0 extra `blockReason` calls**; `freeCount` / `firstFreeSlot` are now
+  computed in that same loop and are provably unchanged. It is gated because the two existing callers
+  (`ai-chat.js`, `meditrust-voice-call.js`) read none of it, and `days=7` would add ~6.5KB to every
+  schedule question in the chat and every doctor pick in the voice call.
+  **`reason` must never carry `DoctorBlockTime.reason`** — that field is the leave type, i.e. staff data,
+  and this endpoint is `permitAll`. `BLOCKED` is the whole of what a caller may learn.
+- **The public doctor page is the second consumer.** `user/doctor-details.html` renders the 7-day strip
+  from `week[]` in **one** request and re-renders from memory when the patient changes day. Two rules it
+  must keep: `NO_SCHEDULE` still draws all 16 bookable buttons (see `scheduleKnown` above — empty means
+  *unrestricted*, and treating it as "doctor is off" locks out the 132 seeded doctors), and a whole
+  session counts as off-duty only when its reasons are `OFF_DUTY ∪ PAST`, because `blockReason` tests
+  `PAST` **before** `OFF_DUTY` so a morning that has already elapsed reports a mixed set.
 - **No soft lock.** Asking is not claiming.
 - **`summaryText` must agree with `anchor.reasonText`.** For a doctor with no `Schedule` at all, "không đăng ký ca làm việc nào" contradicts the "còn 8 khung trống" that the same response prints, because such a doctor *is* bookable. `buildWeekSummary` takes `anyScheduleKnown` and switches to "Hệ thống chưa có lịch đăng ký của bác sĩ X, nhưng anh/chị vẫn đặt khám trong giờ hành chính được ạ."
 
@@ -422,7 +439,9 @@ nhánh tra cứu chết lặng lẽ.
 The prompt's section 0 forces the assistant to call itself **"em"** and the patient **"anh/chị"** — never "bạn", "tôi", or "mình" — in both `ai_reply` and `speech_reply`. Every hardcoded Vietnamese string in the voice modules follows the same convention; keep new strings consistent.
 
 ## Other surfaces
-Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiController`, `DoctorAssistantService`, with the `AiRule` entity for configurable rules.
+Separate admin and doctor assistants exist: `AdminAiController`, `DoctorAiController`, and `DoctorExamAiController`.
+
+**`DoctorAssistantService` and the `AiRule` entity are gone** — do not write either back. The first was deleted on 2026-08-25 together with `DoctorAssistantController` (see [code-structure.md](code-structure.md)); this sentence went on naming it for weeks afterwards, which is exactly how a deleted class gets rebuilt. `AiRule` + `AiRuleRepository` were deleted on 2026-09-07: nothing ever autowired the repository and the `ai_rules` table held **0 rows**, so "configurable rules" was a promise the code never kept — every rule the assistants follow is a hardcoded prompt string in `AiService` / `DoctorInsightServiceImpl`. Making rules configurable is therefore a feature to be built, not a table to be re-pointed at.
 
 `DoctorAiController` computes "nearest free slot" for the logged-in doctor. It **reads the grid from `TimeSlotService.allSlots()`** and filters it through `BookingService.slotsOutsideWorkingHours` — it must never list slot times of its own. Its old private copy still contained the evening slots dropped on 24/07, so the assistant told doctors they were "rảnh lúc 18:30", a time no patient can book, and it ignored `Schedule` entirely so it offered slots on days the doctor was off. It also skips a booking whose `appointmentTime` will not parse; one odd row used to 500 the entire assistant.
 

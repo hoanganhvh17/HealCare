@@ -5,7 +5,7 @@ description: Đồng bộ lưới khung giờ khám (30 phút, giờ hành chín
 
 # Đồng bộ lưới khung giờ khám
 
-Danh sách 16 khung giờ (07:30–11:30 và 13:30–17:30) bị **lặp lại ở 11 nơi**. Sửa thiếu một nơi
+Danh sách 16 khung giờ (07:30–11:30 và 13:30–17:30) bị **lặp lại ở 10 nơi**. Sửa thiếu một nơi
 là sinh bug lệch giờ — đã xảy ra khi bỏ ca tối 17:30–20:30. Skill này liệt kê đủ các nơi đó và
 thứ tự sửa.
 
@@ -24,7 +24,7 @@ thứ tự sửa.
 - [ ] [LeavePolicy.java:36-37](../../../src/main/java/com/bookinghealthy/config/LeavePolicy.java#L36-L37) — `OFFICE_START` / `OFFICE_END`
 - [ ] [TimeSlotService.java:34-42](../../../src/main/java/com/bookinghealthy/service/TimeSlotService.java#L34-L42) — `MORNING_SLOTS` / `AFTERNOON_SLOTS`
 - [ ] [BookingApi.java:37](../../../src/main/java/com/bookinghealthy/controller/api/BookingApi.java#L37) — `ALL_SLOTS` (endpoint `/api/bookings/booked-slots`)
-- [ ] [AiController.java:86](../../../src/main/java/com/bookinghealthy/controller/api/AiController.java#L86) — `ALL_SLOTS` (dùng cho cả danh sách bác sĩ lẫn `/slot-alternatives`)
+- [ ] [AiController.java:224](../../../src/main/java/com/bookinghealthy/controller/api/AiController.java#L224) — `ALL_SLOTS` (dùng cho cả danh sách bác sĩ, `/slot-alternatives` lẫn `/doctor-availability`)
 
 ### 2. Template có nút giờ hardcode
 - [ ] [user/appointment.html:359](../../../src/main/resources/templates/user/appointment.html#L359) — 2 lưới `.time-slot-grid` (sáng + chiều)
@@ -35,9 +35,18 @@ Mỗi nút gồm `value="HH:mm - HH:mm"` (giá trị gửi lên server, **phải
 Java) và nhãn chỉ hiện giờ bắt đầu. `id` theo dạng `t_HHmm`.
 
 ### 3. Template có mảng JS `allTimeSlots`
-- [ ] [user/doctors.html:383](../../../src/main/resources/templates/user/doctors.html#L383)
-- [ ] [user/doctor-details.html:472](../../../src/main/resources/templates/user/doctor-details.html#L472)
-- [ ] [user/index.html:272](../../../src/main/resources/templates/user/index.html#L272)
+- [ ] [user/doctors.html:385](../../../src/main/resources/templates/user/doctors.html#L385)
+- [ ] [user/index.html:273](../../../src/main/resources/templates/user/index.html#L273)
+
+> **`user/doctor-details.html` KHÔNG còn là một nơi khai báo** (vì vậy 11 → 10). Nó đọc cả tuần từ
+> `GET /api/chat/doctor-availability?detail=slots`, nên nhãn khung giờ LẪN phép chia sáng/chiều đều do
+> server quyết (`sessionOf`). Giữ nguyên như vậy — đừng thêm mảng giờ vào đó trở lại, và cũng đừng
+> tự tính buổi ở trình duyệt bằng `giờ < 12`.
+>
+> Bản cũ của tệp này còn sót 4 khung ca tối `17:30/18:00/18:30/19:00` — `user/index.html` dính đúng
+> lỗi đó và đã được sửa ngày 2026-08-26. Backend không bao giờ liệt kê những khung đó nên chúng
+> luôn **trông như còn trống**, rồi server từ chối lúc đặt — đúng kiểu hỏng âm thầm mà skill này sinh
+> ra để chặn.
 
 ### 4. Trang hiển thị giờ cho khách (không phải lưới đặt, nhưng sai là mâu thuẫn công khai)
 - [ ] [user/working-hours.html](../../../src/main/resources/templates/user/working-hours.html)
