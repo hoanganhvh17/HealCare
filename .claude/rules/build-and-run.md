@@ -21,4 +21,11 @@ java -jar target/booking-healthy-0.0.1-SNAPSHOT.jar   # Run the packaged artifac
 - **PDFBox** (`org.apache.pdfbox:pdfbox:3.0.3`) chỉ để **ĐỌC** nội dung PDF — hồ sơ bệnh án bệnh nhân tải lên. OpenPDF ở cùng `pom.xml` chỉ **GHI** (phiếu thu, đơn thuốc) và không có `PdfReader` nào, nên hai thư viện không thay nhau được. Version phải ghi rõ: Spring Boot parent 3.2.5 không quản pdfbox. **Bẫy API**: bản 3 dùng `org.apache.pdfbox.Loader.loadPDF(File)`; mọi ví dụ trên mạng viết `PDDocument.load(...)` là API của bản 2 và sẽ không biên dịch được. Không có OCR trong dự án — PDF bản scan đọc ra chuỗi rỗng và được báo lại đúng như vậy.
 - **`org.imgscalr:imgscalr-lib`** có **đúng một** nơi dùng: `DocumentTextExtractorImpl` thu nhỏ ảnh trước khi base64 — đừng xoá khỏi `pom.xml`. Nó từng nằm không suốt thời gian dài vì `service/ImageService` (nơi dùng cũ) bị comment toàn bộ; tệp chết đó **đã xoá ngày 2026-09-07** cùng `config/MvcConfig` (cũng 100% comment, đã bị `WebConfig` thay thế).
 - **Jsoup** (`org.jsoup:jsoup`) is the only HTTP/HTML library besides `RestTemplate`, added for `NewsFeedService`. It does three jobs there — parse RSS (`Parser.xmlParser()`), extract the article body from a news page, and **sanitize the model's HTML** before it is stored (`news-details.html` renders it with `th:utext`). Reach for it rather than adding a second HTML or RSS library. See [supporting-subsystems.md](supporting-subsystems.md).
+- **Tính năng dự đoán nguy cơ bệnh cần một tiến trình THỨ HAI.** `ml-service/` là sidecar Python
+  (FastAPI) nạp bốn mô hình scikit-learn — chúng là pickle nên không có cách nào chạy trong JVM.
+  Không chạy nó thì trang `/doctor/risk-assessment` vẫn mở được và báo một câu tiếng Việt tử tế
+  chứ không sập, nhưng không dự đoán được gì. Cách chạy lúc dev, mô hình cần chép ở đâu, và phép
+  kiểm parity đều nằm ở **[ml-service/README.md](../../ml-service/README.md)**.
+  Đừng `pip install` theo `requirements.txt` của dự án ML (nó chỉ ghi `scikit-learn>=1.4`) —
+  dùng `ml-service/requirements-lock.txt`.
 - `maven-resources-plugin` pins UTF-8 encoding; keep it, as templates and prompts contain Vietnamese text.

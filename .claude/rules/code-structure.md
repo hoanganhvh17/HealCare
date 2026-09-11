@@ -45,6 +45,23 @@ và `DoctorExamAiController` (4 trợ lý trên form khám), cả hai nằm dư�
 Lớp cũ vừa trùng chức năng vừa mở một endpoint gọi OpenRouter công khai. `controller/UserController`
 (class rỗng, toàn bộ bị comment) cũng đã xoá.
 
+`RiskAssessment` + `RiskAssessmentRepository` + `RiskPredictionService` (+ `impl`) +
+`controller/doctor/DoctorRiskAssessmentController` + `config/RiskPredictProperties` +
+`dto/risk/` giữ tính năng **dự đoán nguy cơ bệnh** cho bác sĩ (`/doctor/risk-assessment`).
+Bốn mô hình NHANES (tiểu đường, tăng huyết áp, tim mạch, đột quỵ) là **pickle scikit-learn**
+nên không nạp được trong JVM; chúng chạy trong một **sidecar Python** ở thư mục `ml-service/`
+và Spring gọi sang bằng `RestTemplate`. Xem [supporting-subsystems.md](supporting-subsystems.md).
+
+**`ml-service/` cố ý nằm NGOÀI cây Java và ngoài jar.** Nó không phải mã Java, không build bằng
+Maven, và bốn tệp `.joblib` của nó cộng lại khoảng 100 MB nên bị `.gitignore` — mô hình được chép
+tay vào `ML_MODEL_DIR`, đúng khuôn `src/main/resources/fonts/` và `db/manual/*.sql`: artifact đặt
+bằng tay, và có thứ canh nó. Nó chạy bằng một unit systemd riêng
+(`deploy/nnlhospital-ml.service`), chỉ nghe `127.0.0.1`.
+
+**`RiskPredictionServiceImpl.predict` KHÔNG `@Transactional`** — có lời gọi mạng giữa hàm, cùng lý
+do với `AiService` và `MedicalRecordDeliveryService`. Controller gọi sidecar xong **rồi mới**
+`save`, dựa vào transaction riêng của repository.
+
 `Notification` + `NotificationService` (interface + impl) carry in-app notifications; see [supporting-subsystems.md](supporting-subsystems.md) for why they exist alongside email and where `push` must be called.
 
 `config/NewsSourceCatalog` follows the same data/logic split for a different feature: it holds only the allow-list of newspapers (and the outbreak keywords), while `NewsFeedServiceImpl` does the fetching and `MedicalNewsTask` turns the result into `Post` rows. See [supporting-subsystems.md](supporting-subsystems.md).

@@ -141,6 +141,25 @@ là (0,1,1); một selector chỉ có class như `.ai-chat-attach-btn` là (0,1,
 ra tròn xanh y hệt nút Gửi. Phải viết `.ai-chat-input-area button.ai-chat-attach-btn`. Cùng họ với bẫy
 `d-flex` / `!important` đã ghi ở trên: cái hỏng không báo lỗi, nó chỉ trông sai.
 
+**Một thẻ mang `th:fragment` VẪN được render như thẻ bình thường của chính trang đó.** Khai
+fragment ngay trong trang dùng nó thì khi trang được render, định nghĩa fragment in ra THÊM một
+bản nữa ở cuối — với tham số chưa truyền, tức toàn `null`. Gặp thật khi làm thẻ kết quả của
+`/doctor/risk-assessment`: trang hiện đúng 4 thẻ bệnh rồi kèm một thẻ rỗng thứ 5 ghi "Chưa khả
+dụng". Fragment dùng lại được thì đặt ở tệp riêng dưới `include/` (`doctor/include/risk-card.html`,
+`doctor/include/ai-insight.html`), đừng khai lẫn trong trang.
+
+## Đơn vị xét nghiệm: mg/dL và mmol/L — sai một lần là sai toàn bộ kết quả
+
+Mô hình dự đoán nguy cơ bệnh học trên **mg/dL** (cholesterol toàn phần trung vị 182), còn phòng
+khám Việt Nam thường ghi **mmol/L**. Bác sĩ gõ `5.2` thay cho `200` sẽ nhận một xác suất trông
+hoàn toàn bình thường và sai hẳn — **không một lỗi nào được ném ra**. Vì vậy form có dropdown đơn
+vị, và phép quy đổi (`RiskPredictionService.toMgPerDl`, `mmol/L × 38.67`) nằm ở **máy chủ**, một
+chỗ duy nhất. Đừng quy đổi ở trình duyệt: đó là cùng loại lỗi với việc để `ai-chat.js` tự ánh xạ
+buổi sang khung giờ.
+
+Mọi ô nhập chỉ số y tế phải **in đơn vị ngay cạnh nhãn**. Xem [ai-assistant.md](ai-assistant.md)
+để biết vì sao `SEX` cũng phải là mã số 1/2 chứ không phải chuỗi.
+
 ## Không cho bấm, thay vì cho bấm rồi báo lỗi
 
 Khi một thao tác không còn hợp lệ — nhất là vì **dữ liệu đã thuộc về quá khứ** — giao diện phải **không render nút/ô nhập** đó nữa, chứ không phải để người dùng điền xong rồi mới trả về `errorMessage`. Khuôn chung đã dùng khắp dự án:

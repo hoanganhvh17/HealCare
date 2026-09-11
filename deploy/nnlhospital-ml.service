@@ -1,0 +1,65 @@
+# =====================================================================
+#  UNIT SYSTEMD CHO SIDECAR DỰ ĐOÁN NGUY CƠ BỆNH
+# =====================================================================
+# CÀI ĐẶT:
+#     sudo cp deploy/nnlhospital-ml.service /etc/systemd/system/
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now nnlhospital-ml
+#
+# XEM LOG:
+#     sudo journalctl -u nnlhospital-ml -f
+#
+# Ba đường dẫn dưới đây phải khớp deploy/README.md mục 7c:
+#     /opt/nnlhospital-ml/                     — mã nguồn ml-service/ + .venv
+#     /etc/nnlhospital/ml.env                  — bí mật, chmod 600
+#     /var/lib/nnlhospital/ml-models/<TARGET>/ — best_model.joblib + best_model_info.json
+#
+# MÔ HÌNH KHÔNG NẰM TRONG GIT và cũng không nằm trong jar (khoảng 100 MB, xem
+# .gitignore). Phải chép tay sang máy chủ — cùng khuôn font PDF trong
+# src/main/resources/fonts/. Kiểm bằng: curl http://127.0.0.1:8001/health
+# =====================================================================
+
+[Unit]
+Description=NNL Hospital — sidecar dự đoán nguy cơ bệnh (FastAPI)
+Documentation=file:///opt/nnlhospital/ml-service/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nnlhospital
+Group=nnlhospital
+WorkingDirectory=/opt/nnlhospital-ml
+
+# CÙNG LUẬT ĐỊNH DẠNG với /etc/nnlhospital/.env — systemd KHÔNG phải shell:
+#   - bình luận phải ĐỨNG RIÊNG một dòng, không có bình luận cuối dòng;
+#   - giá trị có dấu cách phải đặt trong dấu nháy kép.
+# Tệp này giữ ML_SECRET, phải khớp risk-predict.secret bên ứng dụng Spring.
+EnvironmentFile=/etc/nnlhospital/ml.env
+
+# --host 127.0.0.1 là BẮT BUỘC, không phải mặc định cho tiện: service này nạp
+# mô hình y tế và KHÔNG có tầng phân quyền nào của Spring che chắn. Tuyệt đối
+# đừng thêm một location nào vào nginx trỏ tới cổng 8001.
+#
+# --workers 1 cũng là cố ý: mỗi worker nạp riêng một bộ mô hình (~500 MB RSS),
+# nên hai worker là gấp đôi RAM để phục vụ một màn hình bác sĩ hiếm khi dùng.
+ExecStart=/opt/nnlhospital-ml/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8001 --workers 1
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nnlhospital-ml
+
+# --- Siết quyền ---
+# Sidecar chỉ ĐỌC mô hình, không ghi gì cả.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadOnlyPaths=/var/lib/nnlhospital/ml-models
+
+[Install]
+WantedBy=multi-user.target

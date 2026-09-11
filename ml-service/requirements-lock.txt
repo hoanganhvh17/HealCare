@@ -1,0 +1,16 @@
+# Ghim CHINH XAC theo requirements-lock.txt cua du an ML.
+# Pickle cua scikit-learn nhay cam voi phien ban: lech ban major/minor la
+# InconsistentVersionWarning hoac hong han. TUYET DOI khong dung
+# requirements.txt cua du an ML (no chi ghi scikit-learn>=1.4).
+joblib==1.5.3
+numpy==2.5.1
+pandas==3.0.5
+scikit-learn==1.9.0
+scipy==1.18.0
+threadpoolctl==3.6.0
+# xgboost BAT BUOC du chi HYPERTENSION dung toi: thieu no thi joblib.load
+# nem ModuleNotFoundError ngay luc unpickle.
+xgboost==3.3.0
+# Tang phuc vu HTTP
+fastapi==0.141.1
+uvicorn==0.52.4

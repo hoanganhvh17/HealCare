@@ -86,6 +86,53 @@ The same `Notification` table backs a second bell in `user/include/header :: hea
 
 Services follow the interface + `impl` pattern: `StaffScheduleService`, `LeaveService`, `ShiftCoverService`, `NotificationService`. `CurrentUserService` resolves the principal (UserDetails or OAuth2User) for all of them.
 
+## Dự đoán nguy cơ bệnh (`/doctor/risk-assessment` + `ml-service/`)
+
+Bác sĩ nhập chỉ số của bệnh nhân, hệ thống trả về xác suất cho **bốn bệnh** — tiểu đường, tăng
+huyết áp, bệnh tim mạch, đột quỵ — rồi lưu lại một dòng `risk_assessments`. Mô hình đến từ dự án
+nghiên cứu NHANES riêng, đã khoá ngưỡng và nghiệm thu trên tập test 2021–2023.
+
+**Vì sao là sidecar chứ không chạy trong JVM.** Ba trong bốn mô hình là
+`CalibratedClassifierCV(sigmoid, cv=5)` bọc Random Forest 500 cây / XGBoost — loại cấu trúc mà bộ
+xuất ONNX/PMML hay hỏng, và mọi sai lệch số học sẽ phải kiểm chứng lại trên 7.785 dòng test.
+Sidecar giữ nguyên đường tính toán của sklearn nên xác suất khớp tới `1e-16` với kết quả đã
+nghiệm thu.
+
+Luật phải sống sót qua mọi lần sửa:
+
+- **`SEX` là mã SỐ 1 (nam) / 2 (nữ), không phải chuỗi.** `OneHotEncoder` được fit với
+  `handle_unknown="ignore"`, nên một giá trị lạ thành vector toàn số 0 **mà không báo lỗi** — xác
+  suất trả về vẫn trông hợp lý và vẫn sai. Đo thật: gửi chuỗi `"1"` thay vì số `1` làm xác suất
+  tiểu đường đổi từ `0.267545` sang `0.282208`. Sidecar vì vậy **từ chối** mọi kiểu không phải số,
+  kể cả `true` (trong Python `True == 1`), và Java cũng chặn trước một lần.
+- **Ba phép dẫn xuất nằm ở SIDECAR, không ở Java**: `BMI = kg/m²`,
+  `NON_HDL = cholesterol − HDL` (null nếu thiếu một vế), `LOG_HSCRP = log1p(max(hsCRP, 0))`.
+  Chúng phải khớp đúng cách dataset được dựng lúc huấn luyện, nên để cạnh danh sách feature là
+  cách duy nhất giữ cho chúng không trôi đi. Java chỉ gửi **chỉ số thô**.
+- **Thiếu chỉ số thì gửi `null`, TUYỆT ĐỐI không gửi 0** — với các chỉ số này 0 là một giá trị
+  thật và cực đoan. Pipeline có `SimpleImputer(median, add_indicator=True)` nên tự điền trung vị
+  và còn báo cho mô hình biết chỗ nào bị thiếu; mô hình vốn được nghiệm thu trên dữ liệu thiếu
+  23–30%. Màn hình **phải in ra số ô đã bị điền hộ**, bằng không một kết quả dựng gần như hoàn
+  toàn từ trung vị trông y hệt một kết quả đủ dữ liệu.
+- **`AGE` và `SEX` là bắt buộc, và `AGE >= 20`.** Cohort huấn luyện đã lọc từ 20 tuổi. `AGE` còn
+  là feature **duy nhất không có cột missing indicator** (nó chưa từng thiếu lúc train), nên bỏ
+  trống sẽ bị điền 52 mà mô hình không hề biết đó là giá trị bịa; `SEX` trống thì bị điền `2.0`.
+- **Nhãn dùng ngưỡng riêng của từng bệnh** (0.41 / 0.34 / 0.63 / 0.07), đọc từ
+  `best_model_info.json` chứ không hardcode, và so bằng `probability >= threshold`.
+  **Tuyệt đối không dùng `model.predict()`** — hàm đó dùng 0.5. Vì bốn ngưỡng khác nhau, màn hình
+  phải in **cả phần trăm** chứ không chỉ nhãn: "Nguy cơ cao" của đột quỵ và của tiểu đường không
+  cùng ý nghĩa.
+- **Câu miễn trừ là bắt buộc trên cả hai màn hình**, cùng khuôn hồ sơ ngoại viện. Nhãn huấn luyện
+  là **tự báo cáo** ("đã từng được nhân viên y tế cho biết có bệnh") nên đây là **sàng lọc hiện
+  trạng, không phải nguy cơ mắc mới**; chưa áp trọng số khảo sát và chưa kiểm định trên dân số
+  Việt Nam. Riêng đột quỵ: ở ngưỡng 0.07 với tỷ lệ hiện mắc 4,7%, precision đo được là **0,095**,
+  tức khoảng 9 trong 10 lần báo dương là dương tính giả.
+- **Sidecar chết thì tính năng báo một câu tiếng Việt và KHÔNG lưu dòng nào** — đã kiểm chứng.
+  `predict` trả `null` và controller phát câu đó, đúng khuôn `AiService.postOnce`.
+
+Cấu hình, chỗ đặt mô hình và phép kiểm parity: xem [environment-setup.md](environment-setup.md) và
+[ml-service/README.md](../../ml-service/README.md).
+
 ## Wallet & transactions
 `User.balance` (a `BigDecimal` on the user) plus a `WalletTransaction` ledger typed by `TransactionType`. `WalletService` handles debit (`payWithWallet`, returns `false` on insufficient funds rather than throwing) and `refundToWallet`. Booking cancellations refund to the wallet.
 

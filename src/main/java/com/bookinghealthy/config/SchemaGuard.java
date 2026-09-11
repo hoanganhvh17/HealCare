@@ -43,6 +43,9 @@ public class SchemaGuard implements ApplicationRunner {
         if (!tableExists("SPRING_SESSION")) {
             missing.add("bảng SPRING_SESSION (db/manual/002_spring_session.sql) — không đăng nhập được");
         }
+        if (!tableExists("risk_assessments")) {
+            missing.add("bảng risk_assessments (db/manual/005_risk_assessments.sql) — bác sĩ không lưu được kết quả dự đoán nguy cơ");
+        }
 
         if (missing.isEmpty()) {
             log.info("[SchemaGuard] Lược đồ đầy đủ, đã chạy db/manual/001_prod_hardening.sql.");

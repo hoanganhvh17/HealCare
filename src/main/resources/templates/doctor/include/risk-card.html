@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/*
+  Thẻ kết quả của MỘT bệnh trong bốn bệnh sidecar dự đoán.
+
+  Ở TỆP RIÊNG chứ không khai ngay trong risk-assessment-detail.html: một thẻ mang
+  th:fragment vẫn là một thẻ bình thường của trang, nên khi trang đó được render nó sẽ
+  in ra THÊM một thẻ rỗng ở cuối — với probability = null nó hiện "Chưa khả dụng".
+  Đã gặp thật khi kiểm chứng. Cùng khuôn doctor/include/ai-insight.html.
+
+  Mọi ternary đều nằm TRỌN trong một cặp ${...}: viết ${x} ? A : B thì Thymeleaf đọc
+  thành một giá trị rồi tới chữ literal — bẫy SpEL đã ghi ở coding-conventions.md.
+
+  In CẢ phần trăm chứ không chỉ nhãn: ngưỡng của bốn bệnh khác nhau
+  (0.41 / 0.34 / 0.63 / 0.07) nên nhãn "Nguy cơ cao" của đột quỵ và của tiểu đường
+  không cùng ý nghĩa. probability = null nghĩa là model của bệnh đó chưa nạp được —
+  phải nói ra chứ tuyệt đối không hiển thị thành 0%.
+*/-->
+<div th:fragment="riskCard(label, probability, positive)" class="col-md-6">
+  <div class="card mb-0 h-100"
+       th:classappend="${probability == null ? 'border-secondary'
+                          : (positive ? 'border-danger' : 'border-success')}">
+    <div class="card-body">
+      <h6 class="text-muted mb-1" th:text="${label}">—</h6>
+
+      <div th:if="${probability == null}">
+        <span class="badge bg-secondary">Chưa khả dụng</span>
+        <div class="small text-muted mt-1">Hệ thống chưa nạp được mô hình cho bệnh này.</div>
+      </div>
+
+      <div th:unless="${probability == null}" class="d-flex align-items-baseline gap-2">
+        <span class="fs-3 fw-bold"
+              th:text="${#numbers.formatDecimal(probability * 100, 1, 1) + '%'}">—</span>
+        <span class="badge"
+              th:classappend="${positive ? 'bg-danger' : 'bg-success'}"
+              th:text="${positive ? 'Nguy cơ cao' : 'Nguy cơ thấp'}">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

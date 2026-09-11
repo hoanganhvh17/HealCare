@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{admin/include/header :: pagehead (title='Kết quả dự đoán nguy cơ')}"></head>
+
+<body>
+
+<div th:replace="~{doctor/include/header :: header-nav}"></div>
+<div th:replace="~{doctor/include/sidebar :: sidebar}"></div>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Kết quả dự đoán nguy cơ</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Tổng quan</a></li>
+        <li class="breadcrumb-item">
+          <a th:href="@{/doctor/risk-assessment}">Dự đoán nguy cơ bệnh</a>
+        </li>
+        <li class="breadcrumb-item active">Kết quả</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+    <div class="row">
+
+      <div class="col-lg-8">
+
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">
+              <span th:text="${item.patientLabel != null ? item.patientLabel : 'Không ghi tên bệnh nhân'}">—</span>
+            </h5>
+            <p class="text-muted small mb-3">
+              <span th:text="${item.age + ' tuổi · ' + (item.sexCode == 1 ? 'Nam' : 'Nữ')}">—</span>
+              ·
+              <span th:text="${#temporals.format(item.createdAt, 'dd/MM/yyyy HH:mm')}">—</span>
+              ·
+              <span th:text="'Mô hình ' + ${item.modelVersion}">—</span>
+            </p>
+
+            <!--/* Bốn thẻ kết quả. In CẢ phần trăm xác suất chứ không chỉ nhãn có/không:
+                   ngưỡng của từng bệnh khác nhau (0.41 / 0.34 / 0.63 / 0.07) nên một nhãn
+                   "Dương tính" của đột quỵ và của tiểu đường không cùng ý nghĩa.
+                   Xác suất null = model của bệnh đó không nạp được, phải nói ra chứ không
+                   được hiển thị thành 0%. */-->
+            <div class="row g-3">
+              <div th:replace="~{doctor/include/risk-card :: riskCard('Tiểu đường', ${item.diabetesProbability}, ${item.diabetesPositive})}"></div>
+              <div th:replace="~{doctor/include/risk-card :: riskCard('Tăng huyết áp', ${item.hypertensionProbability}, ${item.hypertensionPositive})}"></div>
+              <div th:replace="~{doctor/include/risk-card :: riskCard('Bệnh tim mạch', ${item.heartDiseaseProbability}, ${item.heartDiseasePositive})}"></div>
+              <div th:replace="~{doctor/include/risk-card :: riskCard('Đột quỵ', ${item.strokeProbability}, ${item.strokePositive})}"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Chỉ số đã dùng</h5>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <tbody>
+                <tr><th style="width:45%">Chiều cao</th>
+                  <td th:text="${item.heightCm != null ? item.heightCm + ' cm' : '—'}">—</td></tr>
+                <tr><th>Cân nặng</th>
+                  <td th:text="${item.weightKg != null ? item.weightKg + ' kg' : '—'}">—</td></tr>
+                <tr><th>BMI</th>
+                  <td th:text="${item.bmi != null ? #numbers.formatDecimal(item.bmi, 1, 1) : '—'}">—</td></tr>
+                <tr><th>Vòng eo</th>
+                  <td th:text="${item.waistCm != null ? item.waistCm + ' cm' : '—'}">—</td></tr>
+                <tr><th>Huyết áp</th>
+                  <td th:text="${item.systolicBp != null and item.diastolicBp != null
+                                 ? item.systolicBp + '/' + item.diastolicBp + ' mmHg' : '—'}">—</td></tr>
+                <tr><th>Mạch</th>
+                  <td th:text="${item.pulse != null ? item.pulse + ' lần/phút' : '—'}">—</td></tr>
+                <tr><th>HbA1c</th>
+                  <td th:text="${item.hba1c != null ? item.hba1c + ' %' : '—'}">—</td></tr>
+                <tr><th>Cholesterol toàn phần</th>
+                  <td th:text="${item.totalCholesterol != null
+                                 ? #numbers.formatDecimal(item.totalCholesterol, 1, 1) + ' mg/dL' : '—'}">—</td></tr>
+                <tr><th>HDL-C</th>
+                  <td th:text="${item.hdl != null
+                                 ? #numbers.formatDecimal(item.hdl, 1, 1) + ' mg/dL' : '—'}">—</td></tr>
+                <tr><th>hs-CRP</th>
+                  <td th:text="${item.hsCrp != null ? item.hsCrp + ' mg/L' : '—'}">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-lg-4">
+
+        <!--/* Bác sĩ cần biết phần nào của câu trả lời là dữ liệu thật và phần nào là giá trị
+               hệ thống tự điền. Bỏ khối này đi thì một kết quả dựng gần như hoàn toàn từ trung
+               vị trông y hệt một kết quả đủ dữ liệu. */-->
+        <div class="card" th:if="${item.missingCount != null and item.missingCount > 0}">
+          <div class="card-body">
+            <h5 class="card-title text-warning">
+              <i class="bi bi-info-circle me-2"></i>Dữ liệu còn thiếu
+            </h5>
+            <p class="small mb-0">
+              Có <strong th:text="${item.missingCount}">0</strong> chỉ số bỏ trống. Hệ thống đã
+              điền bằng giá trị trung vị của tập huấn luyện, nên kết quả kém tin cậy hơn so với
+              khi nhập đầy đủ. Nhập thêm xét nghiệm rồi chạy lại sẽ chính xác hơn.
+            </p>
+          </div>
+        </div>
+
+        <div class="card border-warning">
+          <div class="card-body">
+            <h5 class="card-title text-warning">
+              <i class="bi bi-exclamation-triangle me-2"></i>Miễn trừ y khoa
+            </h5>
+            <p class="small mb-0">
+              Kết quả này <strong>không phải chẩn đoán</strong> và không thay thế đánh giá lâm
+              sàng. Mô hình học trên dữ liệu khảo sát NHANES của Mỹ với nhãn <strong>tự báo
+              cáo</strong>, nên nó ước lượng khả năng bệnh nhân <strong>đang</strong> thuộc nhóm
+              đã được chẩn đoán, chứ không phải nguy cơ mắc mới trong tương lai. Chưa kiểm định
+              trên dân số Việt Nam.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <a th:href="@{/doctor/risk-assessment}" class="btn btn-outline-primary w-100">
+              <i class="bi bi-arrow-left me-1"></i>Chạy dự đoán mới
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<div th:replace="~{admin/include/footer :: footer}"></div>
+
+</body>
+</html>

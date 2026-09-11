@@ -50,3 +50,14 @@ src/main/resources/application-local.properties
 # đang được git theo dõi cũng mang tiền tố millis (vd `1766117964208_doctor-1.jpg`),
 # nên một luật rộng hơn sẽ mâu thuẫn với chính những tệp đang có trong repo.
 /uploads/*_news.*
+
+### Sidecar dự đoán nguy cơ bệnh (ml-service/) ###
+# Bốn tệp best_model.joblib cộng lại khoảng 100 MB, và repo này vừa được dọn từ
+# 340 MB xuống 215 MB — đừng đưa chúng trở lại. Mô hình được CHÉP BẰNG TAY vào
+# ML_MODEL_DIR, cùng khuôn src/main/resources/fonts/ và db/manual/*.sql:
+# artifact đặt bằng tay, và có thứ canh nó (GET /health của sidecar).
+*.joblib
+/ml-service/models/
+/ml-service/.venv/
+/ml-service/__pycache__/
+/ml-service/**/__pycache__/

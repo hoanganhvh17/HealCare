@@ -209,6 +209,18 @@
       </a>
     </li>
 
+    <!--/* Dự đoán nguy cơ bệnh — bốn model NHANES chạy trong sidecar Python (ml-service/).
+           KHÔNG gắn huy hiệu: con số ở đây không thể về 0 bằng thao tác của chính bác sĩ,
+           mà đó là điều kiện để một huy hiệu đáng tồn tại.
+           Icon riêng, không dùng lại bi-clipboard2-check của "Phê duyệt của khoa". */-->
+    <li class="doc-nav-item">
+      <a class="doc-nav-link" th:classappend="${activePage == 'risk-assessment' ? 'active' : ''}"
+         th:href="@{/doctor/risk-assessment}">
+        <i class="bi bi-activity"></i>
+        <span>Dự đoán nguy cơ bệnh</span>
+      </a>
+    </li>
+
     <li class="doc-nav-item">
       <a class="doc-nav-link" th:classappend="${activePage == 'work-schedule' ? 'active' : ''}"
          th:href="@{/doctor/work-schedule}">

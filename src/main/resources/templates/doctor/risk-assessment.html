@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{admin/include/header :: pagehead (title='Dự đoán nguy cơ bệnh')}"></head>
+
+<body>
+
+<div th:replace="~{doctor/include/header :: header-nav}"></div>
+<div th:replace="~{doctor/include/sidebar :: sidebar}"></div>
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+    <h1>Dự đoán nguy cơ bệnh</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a th:href="@{/doctor/dashboard}">Tổng quan</a></li>
+        <li class="breadcrumb-item active">Dự đoán nguy cơ bệnh</li>
+      </ol>
+    </nav>
+  </div>
+
+  <section class="section">
+
+    <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <!--/* whyCannotPredict() là nguồn sự thật duy nhất: controller chặn thật bằng đúng hàm
+           này, còn ở đây nó vừa ẩn nút vừa in ra chính câu đó. Giao diện và máy chủ không bao
+           giờ nói khác nhau. */-->
+    <div class="alert alert-warning" th:if="${blockReason}">
+      <i class="bi bi-exclamation-triangle me-2"></i><span th:text="${blockReason}"></span>
+    </div>
+
+    <div class="row">
+
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Chỉ số của bệnh nhân</h5>
+
+            <p class="text-muted small">
+              Mô hình dùng 12 chỉ số. Chỉ <strong>tuổi</strong> và <strong>giới tính</strong> là
+              bắt buộc — các ô còn lại bỏ trống được, hệ thống sẽ điền bằng giá trị trung vị của
+              tập huấn luyện và ghi rõ đã điền bao nhiêu ô.
+              <strong>Đừng gõ 0 thay cho giá trị chưa có</strong>: với các chỉ số này 0 là một
+              giá trị thật và cực đoan.
+            </p>
+
+            <form th:action="@{/doctor/risk-assessment/predict}" method="post" class="row g-3">
+
+              <div class="col-md-6">
+                <label class="form-label">Bệnh nhân <span class="text-muted">(ghi chú)</span></label>
+                <input type="text" class="form-control" name="patientLabel" maxlength="255"
+                       placeholder="VD: Nguyễn Văn A - CCCD 0123...">
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">Tuổi <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" name="age" min="20" max="120" required
+                       placeholder="VD: 52">
+                <div class="form-text">Từ 20 tuổi trở lên</div>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">Giới tính <span class="text-danger">*</span></label>
+                <select class="form-select" name="sex" required>
+                  <option value="">-- Chọn --</option>
+                  <option value="1">Nam</option>
+                  <option value="2">Nữ</option>
+                </select>
+              </div>
+
+              <div class="col-12"><hr class="my-1"></div>
+
+              <div class="col-md-4">
+                <label class="form-label">Chiều cao (cm)</label>
+                <input type="number" step="0.1" class="form-control" name="heightCm" placeholder="VD: 170">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Cân nặng (kg)</label>
+                <input type="number" step="0.1" class="form-control" name="weightKg" placeholder="VD: 65">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Vòng eo (cm)</label>
+                <input type="number" step="0.1" class="form-control" name="waistCm" placeholder="VD: 90">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">Huyết áp (mmHg)</label>
+                <div class="input-group">
+                  <input type="number" step="0.1" class="form-control" name="systolicBp" placeholder="Tâm thu">
+                  <span class="input-group-text">/</span>
+                  <input type="number" step="0.1" class="form-control" name="diastolicBp" placeholder="T.trương">
+                </div>
+                <div class="form-text">Đo nhiều lần thì nhập giá trị trung bình</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Mạch (lần/phút)</label>
+                <input type="number" step="0.1" class="form-control" name="pulse" placeholder="VD: 75">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">HbA1c (%)</label>
+                <input type="number" step="0.01" class="form-control" name="hba1c" placeholder="VD: 5.6">
+              </div>
+
+              <!--/* BẪY ĐƠN VỊ. Model học trên mg/dL (cholesterol toàn phần trung vị 182), còn
+                     phòng khám Việt Nam thường ghi mmol/L. Gõ 5.2 thay vì 200 sẽ cho ra một xác
+                     suất trông bình thường và hoàn toàn sai, không một lỗi nào được ném ra.
+                     Quy đổi làm ở MÁY CHỦ (RiskPredictionService.toMgPerDl). */-->
+              <div class="col-md-4">
+                <label class="form-label">Đơn vị mỡ máu</label>
+                <select class="form-select" name="cholesterolUnit">
+                  <option value="mg/dL" selected>mg/dL</option>
+                  <option value="mmol/L">mmol/L</option>
+                </select>
+                <div class="form-text">Áp dụng cho cả hai ô bên cạnh</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Cholesterol toàn phần</label>
+                <input type="number" step="0.01" class="form-control" name="totalCholesterol"
+                       placeholder="VD: 182 (mg/dL)">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">HDL-C</label>
+                <input type="number" step="0.01" class="form-control" name="hdl"
+                       placeholder="VD: 51 (mg/dL)">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">hs-CRP (mg/L)</label>
+                <input type="number" step="0.01" class="form-control" name="hsCrp" placeholder="VD: 2.4">
+              </div>
+
+              <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary" th:disabled="${blockReason != null}">
+                  <i class="bi bi-activity me-1"></i>Dự đoán nguy cơ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+
+        <div class="card border-warning">
+          <div class="card-body">
+            <h5 class="card-title text-warning">
+              <i class="bi bi-exclamation-triangle me-2"></i>Đọc kỹ trước khi dùng
+            </h5>
+            <ul class="small mb-0 ps-3">
+              <li>
+                Kết quả <strong>KHÔNG phải chẩn đoán</strong> và không thay thế đánh giá lâm sàng.
+              </li>
+              <li>
+                Nhãn huấn luyện là <strong>tự báo cáo</strong> ("đã từng được nhân viên y tế cho
+                biết có bệnh"), nên đây là <strong>sàng lọc hiện trạng</strong>, không phải nguy cơ
+                mắc mới trong tương lai.
+              </li>
+              <li>
+                Mô hình học trên dữ liệu khảo sát <strong>NHANES của Mỹ</strong>, nhóm từ 20 tuổi,
+                chưa áp trọng số khảo sát và chưa kiểm định trên dân số Việt Nam.
+              </li>
+              <li>
+                Riêng <strong>đột quỵ</strong>: ở ngưỡng đã khoá, khoảng <strong>9 trong 10</strong>
+                lần báo dương là dương tính giả. Hãy đọc phần trăm xác suất, đừng chỉ đọc nhãn.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Lần chạy gần đây</h5>
+            <p class="text-muted small" th:if="${#lists.isEmpty(history)}">
+              Chưa có lần dự đoán nào.
+            </p>
+            <div class="list-group list-group-flush" th:unless="${#lists.isEmpty(history)}">
+              <a th:each="h : ${history}" class="list-group-item list-group-item-action px-0"
+                 th:href="@{'/doctor/risk-assessment/' + ${h.id}}">
+                <div class="d-flex justify-content-between">
+                  <span th:text="${h.patientLabel != null ? h.patientLabel : 'Không ghi tên'}">—</span>
+                  <small class="text-muted"
+                         th:text="${#temporals.format(h.createdAt, 'dd/MM HH:mm')}">—</small>
+                </div>
+                <!--/* Cả ternary phải nằm TRONG một cặp ${...}. Viết ${x} ? A : B thì Thymeleaf
+                       đọc thành một giá trị rồi tới chữ literal — bẫy SpEL đã cắn dự án hai lần. */-->
+                <small class="text-muted"
+                       th:text="${h.age + ' tuổi · ' + (h.sexCode == 1 ? 'Nam' : 'Nữ')}">—</small>
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<div th:replace="~{admin/include/footer :: footer}"></div>
+
+</body>
+</html>

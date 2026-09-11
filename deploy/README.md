@@ -276,6 +276,65 @@ mới — không cần gỡ, vì `validate` bỏ qua bảng thừa không đư�
 
 ---
 
+## 7c. Sidecar dự đoán nguy cơ bệnh (`ml-service/`)
+
+Tính năng `/doctor/risk-assessment` cần một tiến trình **thứ hai**: bốn mô hình scikit-learn là
+pickle nên không có cách nào chạy trong JVM. Không cài phần này thì phần còn lại của ứng dụng vẫn
+chạy bình thường, chỉ riêng màn hình đó báo một câu tiếng Việt.
+
+```bash
+# 1. Mã nguồn + môi trường ảo
+sudo mkdir -p /opt/nnlhospital-ml
+sudo cp -r ml-service/* /opt/nnlhospital-ml/
+cd /opt/nnlhospital-ml
+sudo python3 -m venv .venv
+sudo .venv/bin/pip install -r requirements-lock.txt
+
+# 2. Mô hình — KHÔNG nằm trong git và KHÔNG nằm trong jar (~100 MB)
+sudo mkdir -p /var/lib/nnlhospital/ml-models
+# chép từ máy dev sang, mỗi target một thư mục con chứa 2 tệp:
+#   <TARGET>/best_model.joblib      (từ models/nhanes/<TARGET>/ của dự án ML)
+#   <TARGET>/best_model_info.json   (từ results/nhanes/<TARGET>/ của dự án ML)
+sudo chown -R nnlhospital:nnlhospital /var/lib/nnlhospital/ml-models
+
+# 3. Bí mật — phải KHỚP risk-predict.secret trong /etc/nnlhospital/.env
+sudo tee /etc/nnlhospital/ml.env >/dev/null <<'EOF'
+ML_MODEL_DIR=/var/lib/nnlhospital/ml-models
+ML_SECRET=<sinh bằng: openssl rand -hex 32>
+EOF
+sudo chmod 600 /etc/nnlhospital/ml.env
+
+# 4. Dịch vụ
+sudo cp deploy/nnlhospital-ml.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nnlhospital-ml
+```
+
+Kiểm chứng — phải thấy đủ **bốn** target và `secretConfigured: true`:
+
+```bash
+curl -s http://127.0.0.1:8001/health
+```
+
+**Bốn điều dễ sai:**
+
+1. **Đừng thêm `location` nào vào nginx trỏ tới cổng 8001.** Sidecar không có tầng phân quyền nào
+   của Spring che chắn; nó chỉ an toàn vì nghe `127.0.0.1`. Kiểm từ máy khác:
+   `curl --connect-timeout 3 http://<IP máy chủ>:8001/health` phải **không** kết nối được.
+2. **Ghim đúng `requirements-lock.txt`.** Pickle của scikit-learn nhạy cảm với phiên bản; dùng
+   `requirements.txt` của dự án ML (`scikit-learn>=1.4`) là hỏng. `xgboost` bắt buộc dù chỉ mô
+   hình tăng huyết áp dùng tới.
+3. **RAM.** Nạp đủ bốn mô hình tốn khoảng **500 MB RSS**. Trên A1.Flex 12 GB thì dư, nhưng shape
+   1 GB không đủ chỗ cho cả MySQL, JVM và tiến trình này.
+4. **Bằng chứng đúng đắn không phải phiên bản Python mà là phép kiểm parity.** Sau khi dựng xong,
+   chạy `ml-service/tests/test_parity.py` trên máy đích: nó bắn lại tập test đã đóng băng qua
+   chính API HTTP và phải cho `lech_max` cỡ `1e-16`, 0 nhãn lệch, cho cả bốn target.
+
+Nâng cấp về sau: `sudo cp -r ml-service/* /opt/nnlhospital-ml/` rồi
+`sudo systemctl restart nnlhospital-ml`. Mô hình chỉ phải chép lại khi đổi phiên bản mô hình —
+nhớ đổi cả `ML_MODEL_VERSION` để những dòng `risk_assessments` cũ vẫn truy được về đúng mô hình
+đã sinh ra chúng.
+
 ## 8. Việc còn nợ (chưa làm trong đợt này)
 
 - **CSRF vẫn đang tắt toàn cục** (`SecurityConfig`). `SameSite=Lax` đã chặn phần lớn đường khai thác thực tế, nhưng đây phải là việc **đầu tiên** sau khi deploy xong.

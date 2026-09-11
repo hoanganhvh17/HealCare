@@ -42,6 +42,11 @@ There is still no migration tool. Three things Hibernate `ddl-auto=update` canno
 - `001_prod_hardening.sql` — the `bookings.slot_uk` generated column + `uk_bookings_slot`, `uk_posts_source_url`, and the `shedlock` table.
 - `002_spring_session.sql` — `SPRING_SESSION` + `SPRING_SESSION_ATTRIBUTES`.
 - `004_cash_collection_and_no_show.sql` — mở rộng ENUM `bookings.status` thêm `NO_SHOW`, cộng ba cột `paid_at` / `collected_by_id` / `no_show_marked_at`. **Câu ALTER ENUM cần cả trên máy dev**, không chỉ production: `ddl-auto=update` thêm được cột mới nhưng không bao giờ viết lại danh sách giá trị của một cột ENUM đã tồn tại (đã kiểm chứng trực tiếp — ghi `NO_SHOW` trả `ERROR 1265: Data truncated for column 'status'`). Tệp này **chạy lại được nhiều lần**: nó hỏi `INFORMATION_SCHEMA` rồi `PREPARE`, vì MySQL 8 không có `ADD COLUMN IF NOT EXISTS` và trên dev ba cột kia đã được Hibernate tạo sẵn.
+- `005_risk_assessments.sql` — bảng `risk_assessments` lưu kết quả dự đoán nguy cơ bệnh của
+  bác sĩ. Cùng lý do với `003`: `validate` **từ chối tạo bảng**, nên thiếu tệp này là
+  `SchemaManagementException: missing table [risk_assessments]` rồi crash-loop 502. DDL lấy
+  nguyên văn từ `SHOW CREATE TABLE` trên dev. Đã kiểm chứng: xoá bảng, chạy tệp này, khởi
+  động lại với `DDL_AUTO=validate` + `SCHEMA_STRICT=true` → lên bình thường trong 8,8 giây.
 - `003_external_medical_records.sql` — `external_medical_records` + `ai_image_usage`. Not something Hibernate *cannot* express — it maps both entities fine — but something `validate` **refuses to create**; see the trap below.
 
 `config/SchemaGuard` (an `ApplicationRunner`) checks each object against `information_schema` at boot. By default it only logs loudly — same principle as the lazily-loaded PDF fonts below: a missing artifact must degrade rather than kill startup. Set **`SCHEMA_STRICT=true` in production** so a forgotten migration becomes a boot failure instead of a silent double-booking.
@@ -61,6 +66,27 @@ Three things make it easy to walk into:
 **The fix is to generate the DDL from Hibernate rather than hand-write it.** `validate` compares column names and types, so a hand-typed guess re-fails the same way. The dev database already holds exactly what Hibernate wants, so `SHOW CREATE TABLE <new_table>` on dev **is** the migration — drop `AUTO_INCREMENT=` and `COLLATE=` (let the table inherit the database default so it matches every other production table) and commit it as the next `db/manual/*.sql`. Do **not** "fix" it by flipping the server back to `update`: that re-opens the whole page of `update` traps for one table, and the flag then silently stays wrong until the next surprise.
 
 **So: any commit that adds or changes an `@Entity` must ship its `db/manual/*.sql` in the same change, and that SQL must be applied BEFORE the new jar is started.** Check with `git diff --stat <old>..<new> -- '*/model/*.java'` before every deploy.
+
+### Dự đoán nguy cơ bệnh (`risk-predict.*`)
+Ba khoá nuôi `config/RiskPredictProperties`: `enabled` (công tắc, khuôn `news.fetch.enabled`),
+`url` (**chỉ được trỏ `127.0.0.1`**) và `secret` (bí mật dùng chung với sidecar, gửi ở header
+`X-ML-Secret`; **để rỗng là đóng hẳn**, cùng lập luận với `payment.webhook.secret`).
+
+**Bốn mô hình không nằm trong git và cũng không nằm trong jar.** Chúng là pickle scikit-learn,
+tổng khoảng 100 MB, đọc từ `ML_MODEL_DIR` của sidecar — production là
+`/var/lib/nnlhospital/ml-models/<TARGET>/`, mỗi thư mục con chứa `best_model.joblib` +
+`best_model_info.json`. Chép tay như font PDF; `GET http://127.0.0.1:8001/health` là thứ canh chỗ
+này, phải thấy đủ 4 target trong `loaded`.
+
+**Phiên bản thư viện phải khớp CHÍNH XÁC `ml-service/requirements-lock.txt`** (scikit-learn 1.9.0,
+numpy 2.5.1, xgboost 3.3.0). Pickle của sklearn nhạy cảm với phiên bản. `xgboost` là bắt buộc dù
+chỉ mô hình tăng huyết áp dùng tới — thiếu nó thì `joblib.load` ném `ModuleNotFoundError` ngay lúc
+unpickle. Nạp đủ bốn mô hình tốn khoảng **500 MB RSS** (đo thật), nên shape 1 GB không đủ chỗ.
+
+Bằng chứng đúng đắn **không phải** số hiệu phiên bản Python mà là `ml-service/tests/test_parity.py`:
+nó bắn lại các dòng của tập test 2021–2023 qua chính API HTTP rồi so với
+`results/nhanes/<TARGET>/test_predictions.csv` đã đóng băng. Đo được `lech_max` cỡ `1e-16` cho cả
+bốn target, 0 nhãn lệch — tức phép dẫn xuất feature, mã hoá `SEX`, ngưỡng và lớp dương đều đúng.
 
 ### Hạn mức đọc ảnh bằng AI
 `ChatImageService.MAX_IMAGE_ANALYSES_PER_DAY = 10` là **hằng số Java**, không phải khoá cấu hình —
